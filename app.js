@@ -125,7 +125,7 @@
   }
   function goToOrder() { $('#orderPanel').scrollIntoView({ behavior: 'smooth', block: 'start' }); }
 
-  $('.product-gallery').forEach(gallery => {
+  $$('.product-gallery').forEach(gallery => {
     const mainPhoto = gallery.querySelector('.product-main-photo');
     gallery.querySelectorAll('.photo-thumb').forEach(button => button.addEventListener('click', () => {
       mainPhoto.src = button.dataset.photo;
