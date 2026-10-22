@@ -1,0 +1,33 @@
+EXPRESS'ARTE — CATÁLOGO ONLINE (PRÉVIA LOCAL)
+
+COMO ABRIR
+1. Extraia a pasta catalogoExpressarte para:
+   C:\Users\relry\OneDrive\Área de Trabalho\catalogoExpressarte
+2. Entre na pasta e dê dois cliques em index.html.
+   Também pode dar dois cliques em ABRIR-CATALOGO.bat.
+
+O QUE JÁ ESTÁ NESTA VERSÃO
+- Layout responsivo inspirado na referência aprovada.
+- Cores creme, café e caramelo.
+- Banner de promoção em formato de espaço reservado.
+- Categorias em círculos.
+- Produto de teste em rascunho, com preço provisório de R$ 34,90.
+- Seletor de quantidade e lista de pedido (não há carrinho tradicional).
+- Busca e filtro por categoria.
+- Resumo de pedido e geração de mensagem para WhatsApp.
+- Recorte de referência do Expressinho, apenas para a prévia visual.
+
+IMPORTANTE
+- Esta pasta não foi publicada na internet.
+- Nenhuma foto do produto foi inserida: os espaços de fotos são placeholders até você aprovar as imagens editadas.
+- Nome, descrição, preço e categorias do produto de teste ainda precisam da sua confirmação.
+- O número do WhatsApp não está configurado. Para configurar futuramente, edite config.js e preencha whatsappNumber com código do país + DDD + número, somente dígitos.
+- O projeto não contém pagamentos online, integração com o catálogo antigo ou links para a loja existente.
+- Não publique esta versão antes de revisar e aprovar os conteúdos.
+
+ARQUIVOS
+index.html  - estrutura do catálogo
+styles.css  - aparência e layout responsivo
+app.js      - busca, filtros, quantidades e pedido
+config.js   - configurações do catálogo
+assets/     - referência visual do Expressinho

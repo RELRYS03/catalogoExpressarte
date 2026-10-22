@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#5a3524">
+  <meta name="description" content="Catálogo de produtos da Express'Arte – Personalizados 3D.">
+  <title>Express'Arte | Catálogo de produtos</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="draft-ribbon"><span class="status-dot"></span> PRÉVIA LOCAL · NADA FOI PUBLICADO</div>
+
+  <header class="site-header">
+    <button class="icon-button menu-toggle" id="menuToggle" aria-label="Abrir menu" aria-expanded="false" aria-controls="mobileMenu">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+    </button>
+    <a class="brand" href="#inicio" aria-label="Express'Arte início">
+      <span class="brand-mark">E<span>3D</span></span>
+      <span class="brand-copy"><strong>Express'<em>Arte</em></strong><small>PERSONALIZADOS 3D</small></span>
+    </a>
+    <div class="header-actions">
+      <a class="icon-button desktop-search" href="#busca" aria-label="Ir para busca"><svg viewBox="0 0 24 24"><circle cx="10.8" cy="10.8" r="6.8"/><path d="m16 16 4.5 4.5"/></svg></a>
+      <button class="icon-button" id="openOrder" aria-label="Ver pedido"><svg viewBox="0 0 24 24"><path d="M5 7h14l1.2 13H3.8L5 7Z"/><path d="M8 8V6a4 4 0 0 1 8 0v2"/></svg><span class="count-bubble" id="orderCount">0</span></button>
+    </div>
+  </header>
+
+  <div class="floating-cart" id="floatingCart" aria-label="Carrinho flutuante">
+    <div class="cart-info">
+      <span class="cart-count" id="floatCount">0</span>
+      <span class="cart-total" id="floatTotal">R$ 0,00</span>
+    </div>
+    <button class="cart-trigger" id="floatTrigger">
+      <svg viewBox="0 0 24 24"><path d="M5 7h14l1.2 13H3.8L5 7Z"/><path d="M8 8V6a4 4 0 0 1 8 0v2"/></svg>
+    </button>
+  </div>
+
+  <nav class="mobile-menu" id="mobileMenu" hidden>
+    <a href="#inicio">Início</a><a href="#categorias">Categorias</a><a href="#destaques">Destaques</a><button type="button" id="menuOrder">Meu pedido</button>
+  </nav>
+
+  <main id="inicio">
+    <section class="search-row" id="busca" aria-label="Buscar produtos">
+      <label class="search-box" for="searchInput">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.8" cy="10.8" r="6.8"/><path d="m16 16 4.5 4.5"/></svg>
+        <input id="searchInput" type="search" placeholder="Buscar produtos..." autocomplete="off">
+      </label>
+      <button class="filter-button" id="clearSearch" aria-label="Limpar busca" title="Limpar busca"><svg viewBox="0 0 24 24"><path d="M4 6h16M7 12h10M10 18h4"/><circle cx="8" cy="6" r="1.6"/><circle cx="15" cy="12" r="1.6"/><circle cx="12" cy="18" r="1.6"/></svg></button>
+    </section>
+
+    <section class="promo-banner" aria-label="Área de promoção">
+      <div class="promo-copy">
+        <span class="eyebrow"><span class="sparkle">✦</span> EXPRESS'ARTE · PERSONALIZADOS 3D</span>
+        <h1>Produtos feitos<br><span>com criatividade.</span></h1>
+        <p>Área reservada para a promoção que você escolher.</p>
+        <a class="light-button" href="#destaques">Conhecer o catálogo <span aria-hidden="true">→</span></a>
+      </div>
+      <div class="promo-mascot-wrap">
+        <div class="mascot-glow"></div>
+        <img class="promo-mascot" src="assets/expressinho-rosto-referencia.png" alt="Referência visual do Expressinho; recorte provisório">
+        <span class="mascot-caption">Expressinho</span>
+      </div>
+      <div class="promo-decoration decoration-one"></div><div class="promo-decoration decoration-two"></div>
+    </section>
+
+    <section class="categories-section" id="categorias">
+      <div class="section-heading"><div><span class="section-kicker">ENCONTRE O QUE PROCURA</span><h2>Categorias</h2></div><span class="heading-note">Escolha uma categoria</span></div>
+      <div class="category-strip" id="categoryStrip" aria-label="Categorias de produtos">
+        <button class="category-item active" data-category="Todas" type="button"><span class="category-circle"><svg viewBox="0 0 24 24"><path d="M4 5h6v6H4zM14 5h6v6h-6zM4 15h6v5H4zM14 15h6v5h-6z"/></svg></span><span>Todas</span></button>
+        <button class="category-item" data-category="Academia" type="button"><span class="category-circle"><svg viewBox="0 0 24 24"><path d="M3 9v6M6 7v10M9 10v4M15 10v4M18 7v10M21 9v6M6 12h12"/></svg></span><span>Academia</span></button>
+        <button class="category-item" data-category="Canecas" type="button"><span class="category-circle"><svg viewBox="0 0 24 24"><path d="M5 5h12v11a4 4 0 0 1-4 4H9a4 4 0 0 1-4-4V5Z"/><path d="M17 8h2a3 3 0 0 1 0 6h-2"/></svg></span><span>Canecas</span></button>
+        <button class="category-item" data-category="Chaveiros" type="button"><span class="category-circle"><svg viewBox="0 0 24 24"><circle cx="8.5" cy="8.5" r="4.5"/><path d="m12 12 8 8m-3-3 2-2m-5-1 2-2"/></svg></span><span>Chaveiros</span></button>
+        <button class="category-item" data-category="Suportes" type="button"><span class="category-circle"><svg viewBox="0 0 24 24"><path d="M5 4h14v12H5zM8 20h8M12 16v4M8 8h8M8 11h5"/></svg></span><span>Suportes</span></button>
+        <button class="category-item" data-category="Presentes" type="button"><span class="category-circle"><svg viewBox="0 0 24 24"><path d="M3 10h18v11H3zM2 6h20v4H2zM12 6v15M12 6H7.5a2.5 2.5 0 1 1 2.5-2.5C10 5 12 6 12 6Zm0 0h4.5A2.5 2.5 0 1 0 14 3.5C14 5 12 6 12 6Z"/></svg></span><span>Presentes</span></button>
+      </div>
+      <p class="category-note">As categorias são uma estrutura inicial de demonstração. Vamos confirmar com você quais ficam no catálogo.</p>
+    </section>
+
+    <section class="products-section" id="destaques">
+      <div class="section-heading product-heading"><div><span class="section-kicker">SELEÇÃO EXPRESS'ARTE</span><h2>Destaques <span class="heading-star">✦</span></h2></div><span class="draft-pill">PRODUTO DE TESTE</span></div>
+      <div class="product-grid" id="productGrid">
+        <article class="product-card" data-product-id="academia-001" data-category="Academia" data-name="Pote Anilha 28KG 64LB">
+          <div class="product-photo-area">
+            <span class="product-badge">RASCUNHO</span>
+            <div class="photo-placeholder"><span class="placeholder-icon"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg></span><strong>Foto aguardando aprovação</strong><small>As fotos reais serão adicionadas somente após sua confirmação.</small></div>
+            <div class="photo-thumbs" aria-label="Espaços para fotos adicionais"><span class="thumb-placeholder">Foto 1</span><span class="thumb-placeholder">Foto 2</span><span class="more-photos">+ mais fotos</span></div>
+          </div>
+          <div class="product-info">
+            <span class="product-category-label"><span class="category-mini-icon">✦</span> ACADEMIA</span>
+            <h3>Pote Anilha 28KG / 64LB</h3>
+            <p class="product-description">Nome e descrição comercial serão confirmados antes de publicar.</p>
+            <div class="price-line"><span class="price">R$ 34,90</span><span class="provisional-label">preço provisório</span></div>
+            <div class="quantity-row"><span>Quantidade</span><div class="quantity-control"><button class="qty-minus" type="button" aria-label="Diminuir quantidade">−</button><output class="qty-value" aria-live="polite">1</output><button class="qty-plus" type="button" aria-label="Aumentar quantidade">+</button></div><span class="unit-label">un.</span></div>
+            <button class="add-order-button" type="button"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg> Incluir no pedido</button>
+            <p class="product-footnote">Este produto está em rascunho. Ainda não está publicado.</p>
+          </div>
+        </article>
+      </div>
+      <div class="empty-state" id="emptyState" hidden><span>✦</span><h3>Nenhum produto encontrado</h3><p>Tente outra busca ou escolha uma categoria diferente.</p><button type="button" id="resetFilters">Ver todos os produtos</button></div>
+    </section>
+
+    <section class="order-panel" id="orderPanel" aria-labelledby="orderTitle">
+      <div class="order-panel-heading"><div><span class="section-kicker">SELEÇÃO DO CLIENTE</span><h2 id="orderTitle">Preparar pedido</h2></div><span class="order-count-label" id="orderSummaryCount">Nenhum item selecionado</span></div>
+      <p class="order-intro">Escolha a quantidade em cada produto e inclua os itens desejados. No final, o catálogo prepara uma mensagem com a lista para você enviar pelo WhatsApp.</p>
+      <div id="orderItems" class="order-items"><div class="order-empty">Seu pedido ainda está vazio.</div></div>
+      <div class="order-total-row"><span>Total provisório</span><strong id="orderTotal">R$ 0,00</strong></div>
+      <div class="order-actions"><button type="button" class="secondary-button" id="clearOrder" disabled>Limpar seleção</button><button type="button" class="whatsapp-button" id="sendWhatsApp" disabled><svg viewBox="0 0 24 24"><path d="M20.5 11.5a8.5 8.5 0 0 1-12.6 7.4L3 20l1.2-4.7A8.5 8.5 0 1 1 20.5 11.5Z"/><path d="M8.5 8.2c.4 2.6 2.7 4.9 5.3 5.3l1.3-1.3 2 1c-.1 1.1-.9 2-2.1 2.1-3.9-.3-7.7-4.1-8-8 .1-1.2 1-2 2.1-2.1l1 2-1.6 1Z"/></svg> Enviar pedido pelo WhatsApp</button></div>
+      <p class="whatsapp-note" id="whatsappNote">O número de WhatsApp da loja será configurado quando você informar qual usar.</p>
+    </section>
+  </main>
+
+  <footer class="site-footer"><div class="footer-brand"><span class="brand-mark small-mark">E<span>3D</span></span><span><strong>Express'Arte</strong><small>PERSONALIZADOS 3D</small></span></div><p>Feito com criatividade, cuidado e impressão 3D.</p><span class="footer-draft">Catálogo em desenvolvimento · versão local</span></footer>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <script src="config.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
