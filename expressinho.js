@@ -167,6 +167,22 @@
     floatingTrigger.hidden = false;
   }
 
+  if (endpoint) {
+    const status = $('#expressinhoStatus');
+    fetch('/api/health')
+      .then(response => response.json().then(data => ({ ok: response.ok, data: data })))
+      .then(result => {
+        if (!status) return;
+        status.textContent = result.ok && result.data.ok
+          ? 'IA local ativa · ' + result.data.model
+          : 'Ollama precisa ser iniciado';
+      })
+      .catch(() => {
+        const statusElement = $('#expressinhoStatus');
+        if (statusElement) statusElement.textContent = 'IA local indisponível · base inicial ativa';
+      });
+  }
+
   window.addEventListener('resize', () => {
     if (!panel.hidden && window.innerWidth > 620) panel.style.maxHeight = '';
   });
