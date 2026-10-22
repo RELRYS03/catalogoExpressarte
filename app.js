@@ -3,8 +3,8 @@
   const config = window.EXPRESSARTE_CONFIG || { whatsappNumber: '', storeName: "Express'Arte", draftMode: true };
   const money = value => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
   const products = [
-    { id: 'academia-001', name: 'Pote Anilha 28KG / 64LB', category: 'Academia', price: 34.90, draft: true },
-    { id: 'religioso-001', name: 'Bandeja Porta Rosário Nossa Senhora Aparecida 130mm', category: 'Religiosos', price: 35.85, draft: true }
+    { id: 'academia-001', name: 'Pote Anilha 28KG / 64LB', category: 'Academia', price: 34.90, priceLabel: 'preço provisório', draft: true },
+    { id: 'religioso-001', name: 'Bandeja Porta Rosário Nossa Senhora Aparecida 130mm', category: 'Religiosos', price: 30.00, priceLabel: 'preço promocional', draft: true }
   ];
   const state = { category: 'Todas', search: '', quantities: Object.fromEntries(products.map(p => [p.id, 1])), order: new Map() };
   const $ = selector => document.querySelector(selector);
@@ -95,7 +95,7 @@
     }
     orderItems.innerHTML = entries.map(entry => {
       const product = getProduct(entry.id);
-      return `<div class="order-item"><div><div class="order-item-name">${escapeHtml(product.name)}</div><div class="order-item-detail">${entry.quantity} × ${money(product.price)} · preço provisório</div></div><div class="order-item-total">${money(entry.quantity * product.price)}</div><button class="remove-item" type="button" data-remove="${entry.id}" aria-label="Remover ${escapeHtml(product.name)}">×</button></div>`;
+      return `<div class="order-item"><div><div class="order-item-name">${escapeHtml(product.name)}</div><div class="order-item-detail">${entry.quantity} × ${money(product.price)} · ${product.priceLabel || 'preço provisório'}</div></div><div class="order-item-total">${money(entry.quantity * product.price)}</div><button class="remove-item" type="button" data-remove="${entry.id}" aria-label="Remover ${escapeHtml(product.name)}">×</button></div>`;
     }).join('');
     $$('[data-remove]').forEach(button => button.addEventListener('click', () => {
       state.order.delete(button.dataset.remove);
@@ -117,7 +117,7 @@
     }
     const lines = entries.map(entry => {
       const product = getProduct(entry.id);
-      return `• ${entry.quantity} × ${product.name} — ${money(product.price * entry.quantity)} (valor provisório)`;
+      return `• ${entry.quantity} × ${product.name} — ${money(product.price * entry.quantity)} (${product.priceLabel || 'valor provisório'})`;
     });
     const total = entries.reduce((sum, entry) => sum + getProduct(entry.id).price * entry.quantity, 0);
     const message = `Olá! Vim pelo catálogo da Express'Arte e gostaria de consultar este pedido:\n\n${lines.join('\n')}\n\nTotal estimado: ${money(total)}\n\nSei que os preços exibidos podem ser provisórios; por favor, confirmem disponibilidade e valor final.`;
