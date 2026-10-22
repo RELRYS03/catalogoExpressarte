@@ -29,10 +29,11 @@
         "estimatedPrintHours": 3,
         "plates": 1
       },
-      "suggestedPriceBRL": 39.9,
+      "suggestedPriceBRL": 35.85,
       "status": "sugestão pendente de aprovação",
       "published": false,
-      "notes": "A imagem enviada informa 83 g, cerca de 3 horas e uma placa. Pesquisa de mercado encontrou referências de R$ 38,90 para bandeja porta-rosário semelhante e R$ 49,90 para bandeja Nossa Senhora Aparecida de 13 cm. Foto própria do produto ainda precisa ser enviada."
+      "notes": "A imagem enviada informa 83 g, cerca de 3 horas e uma placa. Pesquisa de mercado encontrou referências de R$ 38,90 para bandeja porta-rosário semelhante e R$ 49,90 para bandeja Nossa Senhora Aparecida de 13 cm. Foto própria do produto ainda precisa ser enviada. Preço atualizado para R$ 35,85 conforme o resultado informado da Calculadora Express'Arte; valor permanece sujeito à aprovação antes da publicação.",
+      "pricingSource": "Calculadora Express'Arte"
     }
   ],
   "assistantRules": [
