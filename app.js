@@ -81,6 +81,7 @@
     });
     emptyState.hidden = visible > 0;
     productGrid.hidden = visible === 0;
+    productGrid.classList.toggle('single-visible', visible === 1);
   }
   function setCategory(category) {
     state.category = category;
