@@ -117,10 +117,9 @@
     }
     const lines = entries.map(entry => {
       const product = getProduct(entry.id);
-      return `• ${entry.quantity} × ${product.name} — ${money(product.price * entry.quantity)} (${product.priceLabel || 'valor provisório'})`;
+      return `• ${product.name} — ${entry.quantity} ${entry.quantity === 1 ? 'unidade' : 'unidades'}`;
     });
-    const total = entries.reduce((sum, entry) => sum + getProduct(entry.id).price * entry.quantity, 0);
-    const message = `Olá! Vim pelo catálogo da Express'Arte e gostaria de consultar este pedido:\n\n${lines.join('\n')}\n\nTotal estimado: ${money(total)}\n\nSei que os preços exibidos podem ser provisórios; por favor, confirmem disponibilidade e valor final.`;
+    const message = `Olá! Gostaria de pedir:\n\n${lines.join('\n')}\n\nPode confirmar a disponibilidade e o valor final, por favor?`;
     window.open(`https://wa.me/${number}?text=${encodeURIComponent(message)}`, '_blank', 'noopener,noreferrer');
   }
   function goToOrder() { $('#orderPanel').scrollIntoView({ behavior: 'smooth', block: 'start' }); }
