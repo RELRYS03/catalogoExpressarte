@@ -18,6 +18,21 @@
       "status": "rascunho",
       "published": false,
       "notes": "Produto de teste do catálogo. O preço precisa de confirmação antes da publicação."
+    },
+    {
+      "id": "religioso-001",
+      "name": "Bandeja Porta Rosário Nossa Senhora Aparecida 130mm",
+      "category": "Religiosos",
+      "specifications": {
+        "material": "PLA",
+        "weightGrams": 83,
+        "estimatedPrintHours": 3,
+        "plates": 1
+      },
+      "suggestedPriceBRL": 39.9,
+      "status": "sugestão pendente de aprovação",
+      "published": false,
+      "notes": "A imagem enviada informa 83 g, cerca de 3 horas e uma placa. Pesquisa de mercado encontrou referências de R$ 38,90 para bandeja porta-rosário semelhante e R$ 49,90 para bandeja Nossa Senhora Aparecida de 13 cm. Foto própria do produto ainda precisa ser enviada."
     }
   ],
   "assistantRules": [
