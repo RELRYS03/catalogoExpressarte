@@ -73,16 +73,22 @@
     }
 
     if (selectedMode === 'loja') {
+      if (/\b(produtos?|cadastrad|catálogo|catalogo|lista|itens)\b/.test(text)) {
+        return 'Na versão atual do catálogo estão cadastrados dois produtos de demonstração: 1) Pote Anilha 28KG / 64LB, por R$ 34,90 provisórios; 2) Bandeja Porta Rosário Nossa Senhora Aparecida 130mm, por R$ 30,00 em promoção inicial. Na bandeja, somente a peça impressa está incluída; terço/rosário, correntes e acessórios são vendidos separadamente. Os preços e a publicação ainda precisam de confirmação da loja.';
+      }
+      if (/\b(bandeja|rosário|rosario|nossa senhora|religiosos?|porta terço|porta-terço)\b/.test(text)) {
+        return 'A Bandeja Porta Rosário Nossa Senhora Aparecida de 130 mm está cadastrada por R$ 30,00 na promoção inicial. A oferta é somente da peça impressa em 3D; o terço/rosário, as correntes e os acessórios são vendidos separadamente. O modelo usa cerca de 83 g de PLA e leva aproximadamente 3 horas para imprimir. O preço é inicial e pode ser atualizado pela loja.';
+      }
       if (/\b(pote|anilha|28kg|64lb)\b/.test(text)) {
         return 'Na base de teste está cadastrado o Pote Anilha 28KG / 64LB, com preço provisório de R$ 34,90. O produto continua em rascunho e ainda não deve ser anunciado como preço final. Só a equipe da Express’Arte pode confirmar o valor e a publicação.';
       }
       if (/\b(preço|preco|valor|quanto|custa|custar)\b/.test(text)) {
-        return 'Por enquanto, o único preço cadastrado na demonstração é R$ 34,90 para o Pote Anilha 28KG / 64LB. Esse valor é provisório e o produto está em rascunho; não vou inventar preços para outros itens.';
+        return 'Preços atuais de demonstração: Pote Anilha 28KG / 64LB — R$ 34,90 provisórios; Bandeja Porta Rosário Nossa Senhora Aparecida 130mm — R$ 30,00 em promoção inicial. A bandeja inclui somente a peça impressa, sem terço/rosário ou acessórios. Confirme os valores finais com a Express’Arte antes de anunciar.';
       }
       if (/\b(whatsapp|pedido|comprar|encomenda|instagram|contato)\b/.test(text)) {
         return 'O catálogo está preparado para montar um pedido com produtos e quantidades e abrir o WhatsApp comercial para você confirmar. Antes de divulgar, a equipe ainda precisa aprovar os produtos e os preços que estão em rascunho.';
       }
-      return 'Estou começando pela base comercial aprovada. Neste momento, só tenho o Pote Anilha 28KG / 64LB cadastrado como produto de teste, por R$ 34,90 provisórios. Pergunte sobre esse item ou escolha Studio 3D ou Fabricação para mudar de assunto.';
+      return 'Posso ajudar com os produtos que já constam na base de demonstração: Pote Anilha 28KG / 64LB (R$ 34,90 provisórios) e Bandeja Porta Rosário Nossa Senhora Aparecida 130mm (R$ 30,00 promocionais). Ainda não estou conectado a uma IA externa; minhas respostas vêm de uma base local limitada. Você pode perguntar sobre um desses produtos, escolher Studio 3D ou Fabricação, ou pedir ajuda para calcular custos.';
     }
 
     if (selectedMode === 'studio') {
