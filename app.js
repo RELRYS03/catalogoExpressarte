@@ -125,10 +125,10 @@
   function goToOrder() { $('#orderPanel').scrollIntoView({ behavior: 'smooth', block: 'start' }); }
 
   const mainProductPhoto = $('#mainProductPhoto');
-  $('.photo-thumb').forEach(button => button.addEventListener('click', () => {
+  $$('.photo-thumb').forEach(button => button.addEventListener('click', () => {
     mainProductPhoto.src = button.dataset.photo;
     mainProductPhoto.alt = button.dataset.alt || 'Foto do pote anilha';
-    $('.photo-thumb').forEach(thumb => {
+    $$('.photo-thumb').forEach(thumb => {
       const active = thumb === button;
       thumb.classList.toggle('active', active);
       thumb.setAttribute('aria-pressed', String(active));
