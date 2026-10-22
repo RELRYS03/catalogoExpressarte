@@ -27,3 +27,13 @@
   .product-main-photo{height:220px}
   .photo-thumb{flex-basis:64px;height:49px}
 }
+
+/* Um único produto deve aproveitar melhor a largura disponível */
+.product-grid:has(> .product-card:only-child) {
+  grid-template-columns: minmax(0, 1fr);
+  justify-items: center;
+}
+.product-grid:has(> .product-card:only-child) > .product-card {
+  width: 100%;
+  max-width: 900px;
+}
