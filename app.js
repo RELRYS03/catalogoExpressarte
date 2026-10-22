@@ -124,7 +124,17 @@
   }
   function goToOrder() { $('#orderPanel').scrollIntoView({ behavior: 'smooth', block: 'start' }); }
 
-  $$('.category-item').forEach(button => button.addEventListener('click', () => setCategory(button.dataset.category)));
+  const mainProductPhoto = $('#mainProductPhoto');
+  $('.photo-thumb').forEach(button => button.addEventListener('click', () => {
+    mainProductPhoto.src = button.dataset.photo;
+    mainProductPhoto.alt = button.dataset.alt || 'Foto do pote anilha';
+    $('.photo-thumb').forEach(thumb => {
+      const active = thumb === button;
+      thumb.classList.toggle('active', active);
+      thumb.setAttribute('aria-pressed', String(active));
+    });
+  }));
+  $('.category-item').forEach(button => button.addEventListener('click', () => setCategory(button.dataset.category)));
   $('#searchInput').addEventListener('input', event => { state.search = event.target.value.trim().toLocaleLowerCase('pt-BR'); applyFilters(); });
   $('#clearSearch').addEventListener('click', () => { $('#searchInput').value = ''; state.search = ''; applyFilters(); $('#searchInput').focus(); });
   $('#resetFilters').addEventListener('click', () => { state.search = ''; $('#searchInput').value = ''; setCategory('Todas'); });
@@ -144,6 +154,7 @@
     $('#menuToggle').setAttribute('aria-expanded', String(!menu.hidden));
   });
   $$('#mobileMenu a').forEach(link => link.addEventListener('click', () => { $('#mobileMenu').hidden = true; $('#menuToggle').setAttribute('aria-expanded', 'false'); }));
+  $('#whatsappNote').textContent = config.whatsappNumber ? 'O WhatsApp abrirá com os produtos e quantidades para você confirmar o pedido. Preços ainda provisórios.' : 'Falta configurar o número da loja em config.js.';
   renderOrder();
   applyFilters();
 })();

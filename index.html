@@ -66,12 +66,12 @@
     <section class="categories-section" id="categorias">
       <div class="section-heading"><div><span class="section-kicker">ENCONTRE O QUE PROCURA</span><h2>Categorias</h2></div><span class="heading-note">Escolha uma categoria</span></div>
       <div class="category-strip" id="categoryStrip" aria-label="Categorias de produtos">
-        <button class="category-item active" data-category="Todas" type="button"><span class="category-circle"><svg viewBox="0 0 24 24"><path d="M4 5h6v6H4zM14 5h6v6h-6zM4 15h6v5H4zM14 15h6v5h-6z"/></svg></span><span>Todas</span></button>
-        <button class="category-item" data-category="Academia" type="button"><span class="category-circle"><svg viewBox="0 0 24 24"><path d="M3 9v6M6 7v10M9 10v4M15 10v4M18 7v10M21 9v6M6 12h12"/></svg></span><span>Academia</span></button>
-        <button class="category-item" data-category="Canecas" type="button"><span class="category-circle"><svg viewBox="0 0 24 24"><path d="M5 5h12v11a4 4 0 0 1-4 4H9a4 4 0 0 1-4-4V5Z"/><path d="M17 8h2a3 3 0 0 1 0 6h-2"/></svg></span><span>Canecas</span></button>
-        <button class="category-item" data-category="Chaveiros" type="button"><span class="category-circle"><svg viewBox="0 0 24 24"><circle cx="8.5" cy="8.5" r="4.5"/><path d="m12 12 8 8m-3-3 2-2m-5-1 2-2"/></svg></span><span>Chaveiros</span></button>
-        <button class="category-item" data-category="Suportes" type="button"><span class="category-circle"><svg viewBox="0 0 24 24"><path d="M5 4h14v12H5zM8 20h8M12 16v4M8 8h8M8 11h5"/></svg></span><span>Suportes</span></button>
-        <button class="category-item" data-category="Presentes" type="button"><span class="category-circle"><svg viewBox="0 0 24 24"><path d="M3 10h18v11H3zM2 6h20v4H2zM12 6v15M12 6H7.5a2.5 2.5 0 1 1 2.5-2.5C10 5 12 6 12 6Zm0 0h4.5A2.5 2.5 0 1 0 14 3.5C14 5 12 6 12 6Z"/></svg></span><span>Presentes</span></button>
+        <button class="category-item active" data-category="Todas" type="button" aria-pressed="true"><span class="category-circle"><svg viewBox="0 0 24 24"><path d="M4 5h6v6H4zM14 5h6v6h-6zM4 15h6v5H4zM14 15h6v5h-6z"/></svg></span><span>Todas</span></button>
+        <button class="category-item" data-category="Academia" type="button" aria-pressed="false"><span class="category-circle"><svg viewBox="0 0 24 24"><path d="M3 9v6M6 7v10M9 10v4M15 10v4M18 7v10M21 9v6M6 12h12"/></svg></span><span>Academia</span></button>
+        <button class="category-item" data-category="Canecas" type="button" aria-pressed="false"><span class="category-circle"><svg viewBox="0 0 24 24"><path d="M5 5h12v11a4 4 0 0 1-4 4H9a4 4 0 0 1-4-4V5Z"/><path d="M17 8h2a3 3 0 0 1 0 6h-2"/></svg></span><span>Canecas</span></button>
+        <button class="category-item" data-category="Chaveiros" type="button" aria-pressed="false"><span class="category-circle"><svg viewBox="0 0 24 24"><circle cx="8.5" cy="8.5" r="4.5"/><path d="m12 12 8 8m-3-3 2-2m-5-1 2-2"/></svg></span><span>Chaveiros</span></button>
+        <button class="category-item" data-category="Suportes" type="button" aria-pressed="false"><span class="category-circle"><svg viewBox="0 0 24 24"><path d="M5 4h14v12H5zM8 20h8M12 16v4M8 8h8M8 11h5"/></svg></span><span>Suportes</span></button>
+        <button class="category-item" data-category="Presentes" type="button" aria-pressed="false"><span class="category-circle"><svg viewBox="0 0 24 24"><path d="M3 10h18v11H3zM2 6h20v4H2zM12 6v15M12 6H7.5a2.5 2.5 0 1 1 2.5-2.5C10 5 12 6 12 6Zm0 0h4.5A2.5 2.5 0 1 0 14 3.5C14 5 12 6 12 6Z"/></svg></span><span>Presentes</span></button>
       </div>
       <p class="category-note">As categorias são uma estrutura inicial de demonstração. Vamos confirmar com você quais ficam no catálogo.</p>
     </section>
@@ -81,10 +81,16 @@
       <div class="product-grid" id="productGrid">
         <article class="product-card" data-product-id="academia-001" data-category="Academia" data-name="Pote Anilha 28KG 64LB">
           <div class="product-photo-area">
-            <span class="product-badge">RASCUNHO</span>
-            <div class="photo-placeholder"><span class="placeholder-icon"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg></span><strong>Foto aguardando aprovação</strong><small>As fotos reais serão adicionadas somente após sua confirmação.</small></div>
-            <div class="photo-thumbs" aria-label="Espaços para fotos adicionais"><span class="thumb-placeholder">Foto 1</span><span class="thumb-placeholder">Foto 2</span><span class="more-photos">+ mais fotos</span></div>
+          <span class="product-badge">RASCUNHO</span>
+          <div class="product-gallery">
+            <img id="mainProductPhoto" class="product-main-photo" src="assets/products/pote-anilha-28kg-64lb-01.webp" alt="Pote anilha azul de 28 kg com alça e recipiente aberto" loading="lazy">
+            <div class="photo-thumbs" aria-label="Mais fotos do pote anilha">
+              <button class="photo-thumb active" type="button" data-photo="assets/products/pote-anilha-28kg-64lb-01.webp" data-alt="Pote anilha azul de 28 kg com alça e recipiente aberto" aria-label="Ver foto 1" aria-pressed="true"><img src="assets/products/pote-anilha-28kg-64lb-01.webp" alt="" loading="lazy"></button>
+              <button class="photo-thumb" type="button" data-photo="assets/products/pote-anilha-28kg-64lb-02.webp" data-alt="Pote anilha azul com a tampa separada" aria-label="Ver foto 2" aria-pressed="false"><img src="assets/products/pote-anilha-28kg-64lb-02.webp" alt="" loading="lazy"></button>
+              <button class="photo-thumb" type="button" data-photo="assets/products/pote-anilha-28kg-64lb-03.webp" data-alt="Pote anilha azul com dosador sobre a abertura" aria-label="Ver foto 3" aria-pressed="false"><img src="assets/products/pote-anilha-28kg-64lb-03.webp" alt="" loading="lazy"></button>
+            </div>
           </div>
+        </div>
           <div class="product-info">
             <span class="product-category-label"><span class="category-mini-icon">✦</span> ACADEMIA</span>
             <h3>Pote Anilha 28KG / 64LB</h3>
@@ -105,11 +111,11 @@
       <div id="orderItems" class="order-items"><div class="order-empty">Seu pedido ainda está vazio.</div></div>
       <div class="order-total-row"><span>Total provisório</span><strong id="orderTotal">R$ 0,00</strong></div>
       <div class="order-actions"><button type="button" class="secondary-button" id="clearOrder" disabled>Limpar seleção</button><button type="button" class="whatsapp-button" id="sendWhatsApp" disabled><svg viewBox="0 0 24 24"><path d="M20.5 11.5a8.5 8.5 0 0 1-12.6 7.4L3 20l1.2-4.7A8.5 8.5 0 1 1 20.5 11.5Z"/><path d="M8.5 8.2c.4 2.6 2.7 4.9 5.3 5.3l1.3-1.3 2 1c-.1 1.1-.9 2-2.1 2.1-3.9-.3-7.7-4.1-8-8 .1-1.2 1-2 2.1-2.1l1 2-1.6 1Z"/></svg> Enviar pedido pelo WhatsApp</button></div>
-      <p class="whatsapp-note" id="whatsappNote">O número de WhatsApp da loja será configurado quando você informar qual usar.</p>
+      <p class="whatsapp-note" id="whatsappNote">O WhatsApp abrirá com os produtos e quantidades para você confirmar o pedido. Preços ainda provisórios.</p>
     </section>
   </main>
 
-  <footer class="site-footer"><div class="footer-brand"><span class="brand-mark small-mark">E<span>3D</span></span><span><strong>Express'Arte</strong><small>PERSONALIZADOS 3D</small></span></div><p>Feito com criatividade, cuidado e impressão 3D.</p><span class="footer-draft">Catálogo em desenvolvimento · versão local</span></footer>
+  <footer class="site-footer"><div class="footer-brand"><span class="brand-mark small-mark">E<span>3D</span></span><span><strong>Express'Arte</strong><small>PERSONALIZADOS 3D</small></span></div><p>Feito com criatividade, cuidado e impressão 3D.</p><a class="footer-social-link" href="https://www.instagram.com/expressarte_personalizados3d/?hl=en" target="_blank" rel="noopener noreferrer">Instagram da loja ↗</a><span class="footer-draft">Catálogo em desenvolvimento · versão local</span></footer>
 
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
   <script src="config.js"></script>

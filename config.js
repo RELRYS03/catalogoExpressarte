@@ -1,9 +1,9 @@
 /* CONFIGURAÇÃO DA LOJA
-   O número deve ser preenchido pelo proprietário antes de usar o botão de WhatsApp.
-   Formato: código do país + DDD + número, somente dígitos. Exemplo fictício: 5511999999999
+   Contatos comerciais fornecidos pelo proprietário.
 */
 window.EXPRESSARTE_CONFIG = {
-  whatsappNumber: "",
+  whatsappNumber: "5585991113799",
   storeName: "Express'Arte – Personalizados 3D",
+  instagramUrl: "https://www.instagram.com/expressarte_personalizados3d/?hl=en",
   draftMode: true
 };
