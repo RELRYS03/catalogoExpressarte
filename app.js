@@ -7,9 +7,6 @@
     { id: 'religioso-001', name: 'Bandeja Porta Rosário Nossa Senhora Aparecida 130mm', category: 'Religiosos', price: 30.00, priceLabel: 'preço promocional', draft: true }
   ];
   const state = { category: 'Todas', search: '', quantities: Object.fromEntries(products.map(p => [p.id, 1])), order: new Map() };
-  const featuredPeriod = String(config.featuredPeriod || 'semana').toLowerCase() === 'mes' ? 'mês' : 'semana';
-  const featuredIds = Array.isArray(config.featuredProductIds) ? config.featuredProductIds : products.map(product => product.id);
-  const normalizeText = value => String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase('pt-BR');
   const $ = selector => document.querySelector(selector);
   const $$ = selector => Array.from(document.querySelectorAll(selector));
   const productGrid = $('#productGrid');
@@ -32,31 +29,8 @@
     toastTimeout = setTimeout(() => toast.classList.remove('show'), 2600);
   }
   function getProduct(id) { return products.find(p => p.id === id); }
-  function applyFeaturedSettings() {
-    const periodLabel = featuredPeriod === 'mês' ? 'do mês' : 'da semana';
-    const kicker = $('#featuredKicker');
-    const heading = $('#featuredHeadingLabel');
-    if (kicker) kicker.textContent = `SELEÇÃO EXPRESS'ARTE · DESTAQUES ${featuredPeriod === 'mês' ? 'DO MÊS' : 'DA SEMANA'}`;
-    if (heading) heading.textContent = `Destaques ${periodLabel}`;
-    $('.product-card').forEach(card => {
-      const featured = featuredIds.includes(card.dataset.productId);
-      card.classList.toggle('is-featured', featured);
-      const info = card.querySelector('.product-info');
-      if (!info) return;
-      let flag = info.querySelector('.featured-product-label');
-      if (featured && !flag) {
-        flag = document.createElement('span');
-        flag.className = 'featured-product-label';
-        const categoryLabel = info.querySelector('.product-category-label');
-        if (categoryLabel) categoryLabel.insertAdjacentElement('afterend', flag);
-        else info.prepend(flag);
-      }
-      if (featured && flag) flag.textContent = `Destaque ${periodLabel}`;
-      if (!featured && flag) flag.remove();
-    });
-  }
   function visibleProduct(card) {
-    const name = normalizeText(card.dataset.name || '');
+    const name = (card.dataset.name || '').toLocaleLowerCase('pt-BR');
     const category = card.dataset.category;
     return (!state.search || name.includes(state.search)) && (state.category === 'Todas' || category === state.category);
   }
@@ -81,7 +55,6 @@
     });
     emptyState.hidden = visible > 0;
     productGrid.hidden = visible === 0;
-    productGrid.classList.toggle('single-visible', visible === 1);
   }
   function setCategory(category) {
     state.category = category;
@@ -91,8 +64,6 @@
       button.setAttribute('aria-pressed', String(active));
     });
     applyFilters();
-    const productSection = $('#destaques');
-    if (productSection) productSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
   function updateQuantity(card, next) {
     const value = Math.max(1, Math.min(999, next));
@@ -154,20 +125,18 @@
   }
   function goToOrder() { $('#orderPanel').scrollIntoView({ behavior: 'smooth', block: 'start' }); }
 
-  $('.photo-thumb').forEach(button => button.addEventListener('click', () => {
-    const gallery = button.closest('.product-gallery');
-    const mainPhoto = gallery && gallery.querySelector('.product-main-photo');
-    if (!mainPhoto) return;
-    mainPhoto.src = button.dataset.photo;
-    mainPhoto.alt = button.dataset.alt || 'Foto do produto';
-    gallery.querySelectorAll('.photo-thumb').forEach(thumb => {
+  const mainProductPhoto = $('#mainProductPhoto');
+  $$('.photo-thumb').forEach(button => button.addEventListener('click', () => {
+    mainProductPhoto.src = button.dataset.photo;
+    mainProductPhoto.alt = button.dataset.alt || 'Foto do pote anilha';
+    $$('.photo-thumb').forEach(thumb => {
       const active = thumb === button;
       thumb.classList.toggle('active', active);
       thumb.setAttribute('aria-pressed', String(active));
     });
   }));
-  $('.category-item').forEach(button => button.addEventListener('click', () => setCategory(button.dataset.category)));
-  $('#searchInput').addEventListener('input', event => { state.search = normalizeText(event.target.value.trim()); applyFilters(); });
+  $$('.category-item').forEach(button => button.addEventListener('click', () => setCategory(button.dataset.category)));
+  $('#searchInput').addEventListener('input', event => { state.search = event.target.value.trim().toLocaleLowerCase('pt-BR'); applyFilters(); });
   $('#clearSearch').addEventListener('click', () => { $('#searchInput').value = ''; state.search = ''; applyFilters(); $('#searchInput').focus(); });
   $('#resetFilters').addEventListener('click', () => { state.search = ''; $('#searchInput').value = ''; setCategory('Todas'); });
   $$('.product-card').forEach(card => {
@@ -187,7 +156,6 @@
   });
   $$('#mobileMenu a').forEach(link => link.addEventListener('click', () => { $('#mobileMenu').hidden = true; $('#menuToggle').setAttribute('aria-expanded', 'false'); }));
   $('#whatsappNote').textContent = config.whatsappNumber ? 'O WhatsApp abrirá com os produtos e quantidades para você confirmar o pedido. Preços ainda provisórios.' : 'Falta configurar o número da loja em config.js.';
-  applyFeaturedSettings();
   renderOrder();
   applyFilters();
 })();
