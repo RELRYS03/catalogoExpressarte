@@ -7,6 +7,7 @@
   <meta name="description" content="Catálogo de produtos da Express'Arte – Personalizados 3D.">
   <title>Express'Arte | Catálogo de produtos</title>
   <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="expressinho.css">
 </head>
 <body>
   <div class="draft-ribbon"><span class="status-dot"></span> PRÉVIA LOCAL · NADA FOI PUBLICADO</div>
@@ -57,8 +58,10 @@
       </div>
       <div class="promo-mascot-wrap">
         <div class="mascot-glow"></div>
-        <img class="promo-mascot" src="assets/expressinho-rosto-referencia.png" alt="Referência visual do Expressinho; recorte provisório">
-        <span class="mascot-caption">Expressinho</span>
+        <button class="promo-mascot-trigger" id="expressinhoHeroOpen" type="button" aria-label="Conversar com o Expressinho IA" aria-haspopup="dialog" aria-controls="expressinhoPanel" aria-expanded="false">
+          <img class="promo-mascot" src="assets/expressinho-rosto-referencia.png" alt="Expressinho, assistente da Express'Arte">
+          <span class="mascot-caption">Expressinho IA · conversar</span>
+        </button>
       </div>
       <div class="promo-decoration decoration-one"></div><div class="promo-decoration decoration-two"></div>
     </section>
@@ -117,8 +120,46 @@
 
   <footer class="site-footer"><div class="footer-brand"><span class="brand-mark small-mark">E<span>3D</span></span><span><strong>Express'Arte</strong><small>PERSONALIZADOS 3D</small></span></div><p>Feito com criatividade, cuidado e impressão 3D.</p><a class="footer-social-link" href="https://www.instagram.com/expressarte_personalizados3d/?hl=en" target="_blank" rel="noopener noreferrer">Instagram da loja ↗</a><span class="footer-draft">Catálogo em desenvolvimento · versão local</span></footer>
 
+
+  <button class="expressinho-floating-launcher" id="expressinhoFloatingOpen" type="button" aria-label="Conversar com o Expressinho IA" aria-haspopup="dialog" aria-controls="expressinhoPanel" aria-expanded="false" hidden>
+    <img src="assets/expressinho-rosto-referencia.png" alt="">
+    <span>Falar com o Expressinho</span>
+  </button>
+
+  <section class="expressinho-panel" id="expressinhoPanel" role="dialog" aria-label="Assistente Expressinho IA" aria-modal="false" hidden>
+    <header class="expressinho-panel-header">
+      <img class="expressinho-panel-avatar" src="assets/expressinho-rosto-referencia.png" alt="">
+      <div class="expressinho-panel-title">
+        <strong>Expressinho IA</strong>
+        <small id="expressinhoStatus">Base inicial · IA ainda não conectada</small>
+      </div>
+      <button class="expressinho-close" id="expressinhoClose" type="button" aria-label="Fechar assistente">×</button>
+    </header>
+    <p class="expressinho-notice">Primeira versão: respostas baseadas em informações iniciais. As conversas não são salvas como memória permanente.</p>
+    <div class="expressinho-modes" role="group" aria-label="Área de ajuda">
+      <button class="expressinho-mode" type="button" data-expressinho-mode="loja" aria-pressed="true">Loja</button>
+      <button class="expressinho-mode" type="button" data-expressinho-mode="studio" aria-pressed="false">Studio 3D</button>
+      <button class="expressinho-mode" type="button" data-expressinho-mode="fabricacao" aria-pressed="false">Fabricação</button>
+    </div>
+    <div class="expressinho-messages" id="expressinhoMessages" aria-live="polite" aria-relevant="additions text">
+      <div class="expressinho-message assistant">Oi! Sou o Expressinho. Já tenho uma base inicial sobre o catálogo e posso orientar sobre Studio 3D e fabricação. Minha conexão com uma IA completa e minha memória permanente ainda serão configuradas.</div>
+    </div>
+    <div class="expressinho-quick-prompts" aria-label="Perguntas rápidas">
+      <button type="button" data-expressinho-mode="loja" data-expressinho-prompt="Quais produtos estão cadastrados?">Produtos</button>
+      <button type="button" data-expressinho-mode="studio" data-expressinho-prompt="Como você pode me ajudar com o Blender?">Ajuda com Blender</button>
+      <button type="button" data-expressinho-mode="fabricacao" data-expressinho-prompt="Quais dados você precisa para calcular uma impressão?">Custo de impressão</button>
+    </div>
+    <form class="expressinho-form" id="expressinhoForm">
+      <label class="expressinho-sr-only" for="expressinhoInput">Escreva sua pergunta</label>
+      <input id="expressinhoInput" type="text" maxlength="600" placeholder="Escreva sua dúvida..." autocomplete="off">
+      <button class="expressinho-send" id="expressinhoSend" type="submit">Enviar</button>
+    </form>
+    <p class="expressinho-disclaimer">Não executa ações no computador nem altera produtos. Para ativar a IA real, conectaremos um serviço seguro sem expor chaves no navegador.</p>
+  </section>
+
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
   <script src="config.js"></script>
   <script src="app.js"></script>
+  <script src="expressinho.js"></script>
 </body>
 </html>
