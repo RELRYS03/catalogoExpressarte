@@ -134,7 +134,7 @@
       thumb.setAttribute('aria-pressed', String(active));
     });
   }));
-  $('.category-item').forEach(button => button.addEventListener('click', () => setCategory(button.dataset.category)));
+  $$('.category-item').forEach(button => button.addEventListener('click', () => setCategory(button.dataset.category)));
   $('#searchInput').addEventListener('input', event => { state.search = event.target.value.trim().toLocaleLowerCase('pt-BR'); applyFilters(); });
   $('#clearSearch').addEventListener('click', () => { $('#searchInput').value = ''; state.search = ''; applyFilters(); $('#searchInput').focus(); });
   $('#resetFilters').addEventListener('click', () => { state.search = ''; $('#searchInput').value = ''; setCategory('Todas'); });
