@@ -1,23 +1,27 @@
 (() => {
 'use strict';
-const card=document.querySelector('[data-product-id="religioso-001"]');
-if(!card)return;
+document.querySelectorAll(".product-card").forEach(card=>{
+const isReligious=card.dataset.productId==="religioso-001";
+const title=card.querySelector("h3").textContent.trim();
+const desc=card.querySelector(".product-description").textContent.trim();
+const price=card.querySelector(".price").textContent.trim();
 const originalImage=card.querySelector('.product-main-photo');
-const gallery=[...card.querySelectorAll('.photo-thumb')].map(b=>({src:b.dataset.photo,alt:b.dataset.alt||'Bandeja porta rosário'}));
+const gallery=[...card.querySelectorAll('.photo-thumb')].map(b=>({src:b.dataset.photo,alt:b.dataset.alt||'Produto Express’Arte'}));
 if(!gallery.length)gallery.push({src:originalImage.src,alt:originalImage.alt});
 const dialog=document.createElement('dialog');
 dialog.className='ea-details-dialog';
-dialog.setAttribute('aria-labelledby','eaDetailsTitle');
+const uid="ea-details-"+card.dataset.productId;
+dialog.setAttribute("aria-labelledby",uid);
 dialog.innerHTML=`<div class="ea-details-shell">
 <button type="button" class="ea-details-close" aria-label="Fechar detalhes">×</button>
 <div class="ea-details-visual"><img class="ea-details-image" alt=""><div class="ea-details-thumbnails" aria-label="Outras fotos"></div></div>
-<div class="ea-details-content"><span class="ea-details-eyebrow">EXPRESS’ARTE • RELIGIOSOS</span>
-<h2 id="eaDetailsTitle">Bandeja Porta Rosário Nossa Senhora Aparecida</h2>
-<p class="ea-details-description">Uma peça delicada e cheia de significado para guardar seu rosário e decorar seu cantinho de oração. Ideal também para presentear com fé e carinho.</p>
-<p class="ea-details-spec"><strong>Tamanho:</strong> 13 cm (130 mm)</p>
-<p class="ea-details-note">Somente a peça impressa. Rosário, correntes e acessórios não inclusos.</p>
-<div class="ea-details-price">R$ 30,00</div>
-<label class="ea-details-qty-label" for="eaDetailsQty">Quantidade</label><input id="eaDetailsQty" class="ea-details-qty" type="number" min="1" max="999" value="1">
+<div class="ea-details-content"><span class="ea-details-eyebrow">EXPRESS’ARTE • ${card.dataset.category.toUpperCase()}</span>
+<h2 id="${uid}">${title}</h2>
+<p class="ea-details-description">${desc}</p>
+${isReligious ? '<p class="ea-details-spec"><strong>Tamanho:</strong> 13 cm (130 mm)</p>' : '<p class="ea-details-spec"><strong>Status:</strong> Produto em rascunho; informações a confirmar.</p>'}
+<p class="ea-details-note">${isReligious ? "Somente a peça impressa. Rosário, correntes e acessórios não inclusos." : "Consulte disponibilidade e especificações antes de fazer o pedido."}</p>
+<div class="ea-details-price">${price}</div>
+<label class="ea-details-qty-label" for="${uid}-qty">Quantidade</label><input id="${uid}-qty" class="ea-details-qty" type="number" min="1" max="999" value="1">
 <button type="button" class="ea-details-add">Adicionar ao pedido</button></div></div>`;
 document.body.appendChild(dialog);
 const main=dialog.querySelector('.ea-details-image');
@@ -36,7 +40,7 @@ dialog.addEventListener('click',e=>{if(e.target===dialog)closeDetails();});
 const button=document.createElement('button');button.type='button';button.className='ea-details-view';button.textContent='Ver detalhes e fotos';
 card.querySelector('.product-info').insertBefore(button,card.querySelector('.product-info .quantity-row'));
 button.addEventListener('click',openDetails);
-originalImage.classList.add('ea-details-clickable');originalImage.tabIndex=0;originalImage.setAttribute('role','button');originalImage.setAttribute('aria-label','Ampliar fotos e ver detalhes da bandeja');
+originalImage.classList.add('ea-details-clickable');originalImage.tabIndex=0;originalImage.setAttribute('role','button');originalImage.setAttribute('aria-label','Ampliar fotos e ver detalhes de ${title}');
 originalImage.addEventListener('click',openDetails);
 originalImage.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();openDetails();}});
 dialog.querySelector('.ea-details-add').addEventListener('click',()=>{
@@ -48,5 +52,6 @@ dialog.querySelector('.ea-details-add').addEventListener('click',()=>{
  for(let i=current;i>qty;i--)minus.click();
  card.querySelector('.add-order-button').click();
  closeDetails();
+});
 });
 })();
