@@ -125,16 +125,18 @@
   }
   function goToOrder() { $('#orderPanel').scrollIntoView({ behavior: 'smooth', block: 'start' }); }
 
-  const mainProductPhoto = $('#mainProductPhoto');
-  $$('.photo-thumb').forEach(button => button.addEventListener('click', () => {
-    mainProductPhoto.src = button.dataset.photo;
-    mainProductPhoto.alt = button.dataset.alt || 'Foto do pote anilha';
-    $$('.photo-thumb').forEach(thumb => {
-      const active = thumb === button;
-      thumb.classList.toggle('active', active);
-      thumb.setAttribute('aria-pressed', String(active));
-    });
-  }));
+  $('.product-gallery').forEach(gallery => {
+    const mainPhoto = gallery.querySelector('.product-main-photo');
+    gallery.querySelectorAll('.photo-thumb').forEach(button => button.addEventListener('click', () => {
+      mainPhoto.src = button.dataset.photo;
+      mainPhoto.alt = button.dataset.alt || 'Foto do produto';
+      gallery.querySelectorAll('.photo-thumb').forEach(thumb => {
+        const active = thumb === button;
+        thumb.classList.toggle('active', active);
+        thumb.setAttribute('aria-pressed', String(active));
+      });
+    }));
+  });
   $$('.category-item').forEach(button => button.addEventListener('click', () => setCategory(button.dataset.category)));
   $('#searchInput').addEventListener('input', event => { state.search = event.target.value.trim().toLocaleLowerCase('pt-BR'); applyFilters(); });
   $('#clearSearch').addEventListener('click', () => { $('#searchInput').value = ''; state.search = ''; applyFilters(); $('#searchInput').focus(); });
