@@ -7,5 +7,8 @@ window.EXPRESSARTE_CONFIG = {
   instagramUrl: "https://www.instagram.com/expressarte_personalizados3d/?hl=en",
   draftMode: true,
   // Endpoint HTTPS opcional para a IA real. Nunca coloque chaves de API neste arquivo.
-  expressinhoEndpoint: ""
+  expressinhoEndpoint: "",
+  // Escolha "semana" ou "mes" e informe os IDs que devem receber o selo de destaque.
+  featuredPeriod: "semana",
+  featuredProductIds: ["academia-001", "religioso-001"]
 };
