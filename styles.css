@@ -65,3 +65,45 @@
 .products-section .product-footnote{font-size:10px}
 .products-section .add-order-button{margin-top:6px}
 @media(max-width:650px){.weekly-deals-section{padding:0 18px}.products-section .product-grid{grid-template-columns:repeat(auto-fit,minmax(min(100%,220px),1fr))}}
+
+/* Grade definitiva da vitrine: nunca ampliar um produto para preencher a linha.
+   Quatro colunas no desktop; três no tablet; duas no celular. */
+.products-section #productGrid,
+.products-section #productGrid:has(> .product-card:only-child){
+ display:grid;
+ grid-template-columns:repeat(4,minmax(0,1fr));
+ gap:16px;
+ justify-items:stretch;
+ align-items:start;
+}
+.products-section #productGrid > .product-card,
+.products-section #productGrid:has(> .product-card:only-child) > .product-card{
+ width:100%;
+ max-width:none;
+ min-width:0;
+ display:flex;
+ flex-direction:column;
+}
+.products-section #productGrid .product-main-photo{height:168px;width:100%;object-fit:contain}
+.products-section #productGrid .product-photo-area{padding:9px}
+.products-section #productGrid .product-info{padding:13px}
+.products-section #productGrid .product-info h3{font-size:15px;line-height:1.3}
+.products-section #productGrid .product-description{font-size:11px;line-height:1.45}
+.products-section #productGrid .price{font-size:21px}
+.products-section #productGrid .photo-thumb{flex-basis:43px;height:37px}
+.products-section #productGrid .product-footnote{font-size:10px}
+@media(max-width:1000px){
+ .products-section #productGrid,
+ .products-section #productGrid:has(> .product-card:only-child){grid-template-columns:repeat(3,minmax(0,1fr))}
+}
+@media(max-width:700px){
+ .products-section #productGrid,
+ .products-section #productGrid:has(> .product-card:only-child){grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+ .products-section #productGrid .product-main-photo{height:145px}
+ .products-section #productGrid .product-info{padding:10px}
+ .products-section #productGrid .product-info h3{font-size:13px}
+ .products-section #productGrid .price{font-size:19px}
+ .products-section #productGrid .product-description{font-size:10px}
+ .products-section #productGrid .quantity-row{gap:4px}
+ .products-section #productGrid .add-order-button{font-size:11px;padding:10px 5px}
+}
