@@ -23,6 +23,9 @@
   let activeTrigger = heroTrigger;
   let history = [];
 
+  const status = $('#expressinhoStatus');
+  if (status && endpoint) status.textContent = 'Serviço de IA configurado';
+
   function setExpanded(expanded) {
     heroTrigger.setAttribute('aria-expanded', String(expanded));
     floatingTrigger.setAttribute('aria-expanded', String(expanded));
@@ -39,7 +42,11 @@
   function closePanel() {
     panel.hidden = true;
     setExpanded(false);
-    if (activeTrigger && typeof activeTrigger.focus === 'function') activeTrigger.focus();
+    const heroRect = hero ? hero.getBoundingClientRect() : null;
+    const heroVisible = heroRect && heroRect.bottom > 0 && heroRect.top < window.innerHeight;
+    floatingTrigger.hidden = Boolean(heroVisible);
+    const focusTarget = heroVisible ? heroTrigger : floatingTrigger;
+    if (focusTarget && typeof focusTarget.focus === 'function') focusTarget.focus();
   }
 
   function addMessage(text, role, extraClass) {
