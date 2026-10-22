@@ -1,0 +1,29 @@
+{
+  "store": {
+    "name": "Express'Arte – Personalizados 3D",
+    "whatsappNumber": "5585991113799",
+    "instagramUrl": "https://www.instagram.com/expressarte_personalizados3d/?hl=en"
+  },
+  "catalogRules": [
+    "Este catálogo é uma prévia de desenvolvimento; nada deve ser tratado como publicado até aprovação do proprietário.",
+    "Não inventar produtos, fotos, preços, materiais, disponibilidade, prazos ou descontos.",
+    "Preço em rascunho é provisório e não deve ser apresentado como preço final."
+  ],
+  "products": [
+    {
+      "id": "academia-001",
+      "name": "Pote Anilha 28KG / 64LB",
+      "category": "Academia",
+      "provisionalPriceBRL": 34.9,
+      "status": "rascunho",
+      "published": false,
+      "notes": "Produto de teste do catálogo. O preço precisa de confirmação antes da publicação."
+    }
+  ],
+  "assistantRules": [
+    "Responder em português brasileiro e de forma prática.",
+    "Se faltar informação, dizer que ela não está cadastrada e pedir confirmação.",
+    "Não afirmar que uma informação foi salva permanentemente: a memória de longo prazo ainda não existe.",
+    "Não afirmar que executou ações no computador, Blender ou impressora; não há ferramentas de execução conectadas nesta versão."
+  ]
+}
