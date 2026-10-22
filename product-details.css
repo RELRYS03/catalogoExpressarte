@@ -1,0 +1,25 @@
+
+/* Janela de detalhes da bandeja — isolada do Expressinho */
+.ea-details-view{border:1px solid #bc855e;border-radius:10px;background:#fff8ef;color:#643b25;padding:10px 16px;font-weight:800;margin:6px 0 12px;width:100%}
+.ea-details-view:hover{background:#f4e5d1}
+.ea-details-clickable{cursor:zoom-in}
+.ea-details-dialog{border:0;border-radius:22px;padding:0;width:min(930px,calc(100vw - 28px));max-height:90vh;background:#fffaf4;color:#382418;box-shadow:0 24px 80px #25160e80;overflow:auto}
+.ea-details-dialog::backdrop{background:rgba(25,15,9,.72)}
+.ea-details-shell{display:grid;grid-template-columns:1fr 1fr;position:relative;gap:0}
+.ea-details-close{position:absolute;right:12px;top:10px;border:0;background:#fff6e9;color:#56321f;font-size:30px;line-height:1;border-radius:50%;width:42px;height:42px;z-index:2}
+.ea-details-visual{background:#eedac5;padding:24px;min-width:0}
+.ea-details-image{width:100%;height:390px;object-fit:contain;border-radius:16px;background:#fff7ed}
+.ea-details-thumbnails{display:flex;gap:10px;margin-top:12px;flex-wrap:wrap}
+.ea-details-thumb{border:2px solid transparent;border-radius:10px;padding:3px;width:76px;height:66px;background:#fff9f0}
+.ea-details-thumb.is-active{border-color:#9d623f}
+.ea-details-thumb img{width:100%;height:100%;object-fit:contain}
+.ea-details-content{padding:44px 27px 28px;display:flex;flex-direction:column;align-items:flex-start}
+.ea-details-eyebrow{font-size:11px;letter-spacing:.11em;font-weight:800;color:#9d623f}
+.ea-details-content h2{font-size:24px;line-height:1.25;margin:14px 0}
+.ea-details-description,.ea-details-spec,.ea-details-note{font-size:14px;line-height:1.55;color:#674b3a}
+.ea-details-note{font-size:12px}
+.ea-details-price{font-size:31px;font-weight:800;color:#925127;margin:10px 0}
+.ea-details-qty-label{font-weight:700;font-size:13px}
+.ea-details-qty{width:95px;padding:9px;margin:7px 0 16px;border:1px solid #d5b394;border-radius:8px}
+.ea-details-add{width:100%;padding:14px;border:0;border-radius:12px;background:#4a2b1c;color:#fffaf4;font-weight:800}
+@media(max-width:650px){.ea-details-shell{grid-template-columns:1fr}.ea-details-visual{padding:16px}.ea-details-image{height:270px}.ea-details-content{padding:26px 20px}.ea-details-content h2{font-size:20px}}
