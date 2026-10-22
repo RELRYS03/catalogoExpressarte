@@ -37,7 +37,19 @@
     let visible = 0;
     $$('.product-card').forEach(card => {
       const show = visibleProduct(card);
-      card.hidden = !show;
+
+      if (show) {
+        card.hidden = false;
+        card.style.opacity = '0';
+        card.style.transform = 'translateY(10px)';
+        setTimeout(() => {
+          card.style.transition = 'opacity .4s ease, transform .4s ease';
+          card.style.opacity = '1';
+          card.style.transform = 'translateY(0)';
+        }, 50);
+      } else {
+        card.hidden = true;
+      }
       if (show) visible++;
     });
     emptyState.hidden = visible > 0;
