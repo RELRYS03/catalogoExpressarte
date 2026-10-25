@@ -70,18 +70,21 @@
     state.quantities[card.dataset.productId] = value;
     card.querySelector('.qty-value').textContent = value;
   }
-  function addProduct(id) {
+  function addProduct(id, priceOverride = null, priceLabelOverride = null) {
     const product = getProduct(id);
+    if (!product) return;
     const quantity = state.quantities[id] || 1;
     const previous = state.order.get(id);
-    state.order.set(id, { id, quantity: (previous?.quantity || 0) + quantity });
+    const price = priceOverride ?? previous?.price ?? product.price;
+    const priceLabel = priceLabelOverride ?? previous?.priceLabel ?? product.priceLabel;
+    state.order.set(id, { id, quantity: (previous?.quantity || 0) + quantity, price, priceLabel });
     renderOrder();
-    notify(`${product.name} incluído no pedido (${quantity} un.).`);
+    notify(`${product.name} incluído no pedido (${quantity} un.).${priceOverride !== null ? ` Oferta de teste: ${money(priceOverride)} cada.` : ''}`);
   }
-  function renderOrder() {
+    function renderOrder() {
     const entries = Array.from(state.order.values());
     const totalUnits = entries.reduce((sum, entry) => sum + entry.quantity, 0);
-    const total = entries.reduce((sum, entry) => sum + getProduct(entry.id).price * entry.quantity, 0);
+    const total = entries.reduce((sum, entry) => sum + (entry.price ?? getProduct(entry.id).price) * entry.quantity, 0);
     orderCount.textContent = String(totalUnits);
     floatCount.textContent = `${totalUnits} item${totalUnits !== 1 ? 's' : ''}`;
     floatTotal.textContent = money(total);
@@ -95,7 +98,7 @@
     }
     orderItems.innerHTML = entries.map(entry => {
       const product = getProduct(entry.id);
-      return `<div class="order-item"><div><div class="order-item-name">${escapeHtml(product.name)}</div><div class="order-item-detail">${entry.quantity} × ${money(product.price)} · ${product.priceLabel || 'preço provisório'}</div></div><div class="order-item-total">${money(entry.quantity * product.price)}</div><button class="remove-item" type="button" data-remove="${entry.id}" aria-label="Remover ${escapeHtml(product.name)}">×</button></div>`;
+      return `<div class="order-item"><div><div class="order-item-name">${escapeHtml(product.name)}</div><div class="order-item-detail">${entry.quantity} × ${money(entry.price ?? product.price)} · ${entry.priceLabel || product.priceLabel || 'preço provisório'}</div></div><div class="order-item-total">${money(entry.quantity * (entry.price ?? product.price))}</div><button class="remove-item" type="button" data-remove="${entry.id}" aria-label="Remover ${escapeHtml(product.name)}">×</button></div>`;
     }).join('');
     $$('[data-remove]').forEach(button => button.addEventListener('click', () => {
       state.order.delete(button.dataset.remove);
@@ -136,6 +139,16 @@
       });
     }));
   });
+  $$('[data-promo-add]').forEach(button => button.addEventListener('click', () => {
+    const id = button.dataset.promoAdd;
+    const price = Number(button.dataset.promoPrice);
+    if (!getProduct(id) || !Number.isFinite(price) || price < 0) {
+      notify('Esta promoção não está disponível.');
+      return;
+    }
+    addProduct(id, price, 'promoção da semana (teste)');
+    goToOrder();
+  }));
   $$('.category-item').forEach(button => button.addEventListener('click', () => setCategory(button.dataset.category)));
   $('#searchInput').addEventListener('input', event => { state.search = event.target.value.trim().toLocaleLowerCase('pt-BR'); applyFilters(); });
   $('#clearSearch').addEventListener('click', () => { $('#searchInput').value = ''; state.search = ''; applyFilters(); $('#searchInput').focus(); });

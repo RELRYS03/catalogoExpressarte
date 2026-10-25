@@ -137,3 +137,36 @@
  .products-section #productGrid:has(> .product-card:only-child){grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
  .products-section #productGrid .product-main-photo{height:130px}
 }
+
+
+/* Promoção da semana: cartão responsivo e preço de teste */
+.weekly-test-pill{background:#f4e5d1;color:var(--brown-2);border:1px solid #d6b899}
+.weekly-deals-grid{display:grid;grid-template-columns:minmax(0,1fr);gap:18px}
+.weekly-deal-card{display:grid;grid-template-columns:minmax(210px,.78fr) minmax(0,1fr);max-width:850px;margin:0 auto;overflow:hidden;border:1px solid var(--line);border-radius:22px;background:var(--white);box-shadow:var(--shadow)}
+.weekly-deal-photo{position:relative;min-height:260px;display:grid;place-items:center;padding:18px;background:linear-gradient(135deg,var(--cream-2),#fff9f1)}
+.weekly-deal-photo img{display:block;width:100%;height:230px;object-fit:contain}
+.weekly-deal-tag{position:absolute;top:15px;left:15px;padding:7px 10px;border-radius:999px;background:var(--brown-2);color:#fff9f1;font-size:10px;font-weight:800;letter-spacing:.04em}
+.weekly-deal-content{display:flex;flex-direction:column;align-items:flex-start;gap:9px;padding:24px}
+.weekly-deal-category{color:var(--caramel);font-size:10px;font-weight:800;letter-spacing:.13em}
+.weekly-deal-content h3{margin:0;color:var(--brown);font:800 22px Manrope,sans-serif;line-height:1.25}
+.weekly-deal-content p{margin:0;color:var(--muted);font-size:13px;line-height:1.55}
+.weekly-deal-price{display:flex;align-items:center;gap:18px;flex-wrap:wrap;margin:6px 0}
+.weekly-deal-price>del{color:#9b8b7b;font-size:14px;font-weight:700}
+.weekly-deal-price>div{display:flex;flex-direction:column;gap:2px}
+.weekly-deal-price>div span{color:var(--green);font-size:10px;font-weight:800;letter-spacing:.07em;text-transform:uppercase}
+.weekly-deal-price strong{color:var(--green-dark);font:800 32px Manrope,sans-serif}
+.weekly-deal-button{display:inline-flex;align-items:center;justify-content:center;gap:10px;padding:12px 18px;border:0;border-radius:999px;background:var(--brown);color:var(--cream);font-size:12px;font-weight:800;transition:transform .2s ease,background .2s ease}
+.weekly-deal-button:hover{background:var(--caramel);transform:translateY(-1px)}
+.weekly-deal-button:focus-visible{outline:3px solid var(--caramel);outline-offset:3px}
+.weekly-deal-button svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.weekly-deal-note{color:var(--muted);font-size:10px;line-height:1.4}
+@media(max-width:620px){
+ .weekly-deals-section{padding:0 14px}
+ .weekly-deal-card{grid-template-columns:1fr}
+ .weekly-deal-photo{min-height:180px;padding:14px}
+ .weekly-deal-photo img{height:170px}
+ .weekly-deal-content{padding:18px}
+ .weekly-deal-content h3{font-size:19px}
+ .weekly-deal-price strong{font-size:28px}
+ .weekly-deal-button{width:100%}
+}
