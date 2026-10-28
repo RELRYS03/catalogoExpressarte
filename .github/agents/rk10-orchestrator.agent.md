@@ -17,3 +17,10 @@ Você é agente de planejamento e revisão, não tem autorização irrestrita pa
 - Antes de mudança estrutural, leia `.agents/skills/ecc/change-impact/SKILL.md` e consulte Graphify para evidência real de dependências.
 - Antes de publicar qualquer prévia do Studio, aplique `.agents/skills/ecc/browser-qa/SKILL.md` com testes somente em staging e sem dados pessoais.
 - Estas são orientações instaladas no repositório; não alegue que foram executadas por um agente sem ambiente compatível e registros.
+
+## Coordenação principal — Chief of Staff
+- Consultar `.agents/skills/chief-of-staff/SKILL.md` como metodologia de coordenação; gerência principal da Express'Arte permanece sob o assistente, com aprovação final do proprietário.
+- Entregar código + teste aprovado + pacote de preview utilizável, não somente pesquisa, relatórios ou botões inertes.
+- Em cada etapa, escolher uma funcionalidade 3D de usuário final (seleção, gizmo, criação, edição de malha, corte sólido) e demonstrar evidência GitHub Actions; a produção só muda após validação.
+- Não alegar subagentes, monitoramento contínuo ou trabalho em segundo plano sem ferramentas efetivamente executadas.
+- Manter registros históricos e decisões em `docs/` com data e referência a commits; evitar documentação redundante.
