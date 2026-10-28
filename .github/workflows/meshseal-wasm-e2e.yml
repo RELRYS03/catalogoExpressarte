@@ -57,7 +57,7 @@ jobs:
           python3 - <<'PY'
           from pathlib import Path
           p=Path('expressarte/integrations/meshseal/wasm/meshseal.wasm')
-          assert p.read_bytes()[:4] == b'\\0asm', 'Not a valid WebAssembly binary'
+          assert p.read_bytes()[:4] == bytes((0, 97, 115, 109)), 'Not a valid WebAssembly binary'
           print(f'WebAssembly valid magic header; {p.stat().st_size} bytes')
           PY
       - name: Preserve failure evidence
