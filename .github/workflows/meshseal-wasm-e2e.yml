@@ -52,6 +52,14 @@ jobs:
         run: |
           npm run check:studio
           npx playwright test tests/browser/meshseal-wasm.spec.mjs
+      - name: Validate generated WASM is actual binary
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('expressarte/integrations/meshseal/wasm/meshseal.wasm')
+          assert p.read_bytes()[:4] == b'\\0asm', 'Not a valid WebAssembly binary'
+          print(f'WebAssembly valid magic header; {p.stat().st_size} bytes')
+          PY
       - name: Preserve failure evidence
         if: failure()
         uses: actions/upload-artifact@v4
