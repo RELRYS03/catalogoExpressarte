@@ -123,3 +123,18 @@ test('Grade respeita profundidade e não sobrepõe modelo sólido',async({page})
  await page.locator('#grid').click();
  await expect(page.locator('#exportStl')).toBeEnabled();
 });
+
+test('Workbench profissional mantém ferramentas rápidas operantes',async({page})=>{
+ await page.goto('/studio-oficina-3d.html');
+ await expect(page.getByRole('toolbar',{name:'Ferramentas 3D'})).toBeVisible();
+ await page.locator('#railCube').click();
+ await expect(page.locator('#objectSelect')).toHaveValue('0');
+ await page.locator('#railSphere').click();
+ await expect(page.locator('#objectSelect option')).toHaveCount(3);
+ await page.locator('#railMove').click();
+ await expect(page.locator('#status')).toContainText('Ferramenta:');
+ await expect(page.locator('#railMove')).toHaveClass(/active/);
+ await page.locator('#railRotate').click();
+ await expect(page.locator('#railRotate')).toHaveClass(/active/);
+ await expect(page.locator('#exportStl')).toBeEnabled();
+});
