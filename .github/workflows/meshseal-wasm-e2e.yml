@@ -1,0 +1,72 @@
+name: Meshseal WASM real browser end-to-end
+on:
+  workflow_dispatch:
+  push:
+    branches: [feature/image-to-relief-3d]
+    paths:
+      - 'studio-oficina-3d.html'
+      - 'tests/browser/**'
+      - 'tests/meshseal/**'
+      - 'integrations/meshseal/wasm/**'
+      - '.github/workflows/meshseal-wasm-e2e.yml'
+permissions:
+  contents: read
+jobs:
+  wasm-repair:
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: expressarte
+      - uses: actions/checkout@v4
+        with:
+          repository: jkavalik/meshseal
+          ref: v0.1.3
+          path: meshseal
+          persist-credentials: false
+      - uses: mymindstorm/setup-emsdk@v14
+        with:
+          version: '4.0.10'
+          actions-cache-folder: emsdk-cache
+      - name: Build original Meshseal WebAssembly
+        run: |
+          emcmake cmake -S meshseal -B build-wasm -DCMAKE_BUILD_TYPE=Release -DMESHSEAL_BUILD_WASM=ON -DMESHSEAL_BUILD_CLI=OFF -DMESHSEAL_BUILD_TESTS=OFF
+          cmake --build build-wasm --target meshseal_wasm -j 2
+          find build-wasm -name meshseal.js -exec cp {} expressarte/integrations/meshseal/wasm/ \;
+          find build-wasm -name meshseal.wasm -exec cp {} expressarte/integrations/meshseal/wasm/ \;
+          test -s expressarte/integrations/meshseal/wasm/meshseal.js
+          test -s expressarte/integrations/meshseal/wasm/meshseal.wasm
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Browser dependencies
+        working-directory: expressarte
+        run: |
+          npm install --no-audit --no-fund
+          npx playwright install --with-deps chromium
+      - name: Check syntax and browser repair with real WASM
+        working-directory: expressarte
+        env:
+          CI: 'true'
+        run: |
+          npm run check:studio
+          npx playwright test tests/browser/meshseal-wasm.spec.mjs
+      - name: Preserve failure evidence
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: meshseal-wasm-e2e-failures
+          path: expressarte/test-results/
+          retention-days: 7
+      - name: Publish verified WASM assets
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: expressarte-verified-wasm
+          path: |
+            expressarte/integrations/meshseal/wasm/meshseal.js
+            expressarte/integrations/meshseal/wasm/meshseal.wasm
+            expressarte/integrations/meshseal/wasm/worker.js
+            expressarte/integrations/meshseal/wasm/LICENSE-meshseal.txt
+          retention-days: 14
