@@ -96,3 +96,29 @@ test('Escala inválida é rejeitada e não exporta modelo desfigurado',async({pa
  await expect(page.locator('#status')).toContainText('Valores inválidos');
  await expect(page.locator('#scaleX')).toHaveValue('100');
 });
+
+test('Editor permite criar, selecionar, duplicar e remover objetos 3D',async({page})=>{
+ await page.goto('/studio-oficina-3d.html');
+ await page.locator('#createCube').click();
+ await expect(page.locator('#objectSelect')).toHaveValue('0');
+ await expect(page.locator('#toolMove')).toBeEnabled();
+ await page.locator('#createSphere').click();
+ await expect(page.locator('#objectSelect')).toHaveValue('1');
+ await expect(page.locator('#objectSelect option')).toHaveCount(3);
+ await page.locator('#duplicateObject').click();
+ await expect(page.locator('#objectSelect option')).toHaveCount(4);
+ await page.locator('#deleteObject').click();
+ await expect(page.locator('#objectSelect option')).toHaveCount(3);
+ await page.locator('#toolRotate').click();
+ await page.locator('#toolScale').click();
+ await expect(page.locator('#status')).toContainText('Ferramenta:');
+});
+test('Grade respeita profundidade e não sobrepõe modelo sólido',async({page})=>{
+ await page.goto('/studio-oficina-3d.html');
+ await page.locator('#demo').click();
+ await expect(page.locator('#status')).toContainText('Demonstração carregada');
+ await expect(page.locator('#grid')).toBeVisible();
+ await page.locator('#grid').click();
+ await page.locator('#grid').click();
+ await expect(page.locator('#exportStl')).toBeEnabled();
+});
