@@ -12,3 +12,8 @@ Você é agente de planejamento e revisão, não tem autorização irrestrita pa
 - Para STL, exija prova de execução de motor real, malha não vazia/fechada e teste no Bambu Studio.
 - Informe três estados diferentes: código criado / teste executado / recurso aprovado.
 - Peça aprovação antes de merge, deploy, impressão ou alteração destrutiva.
+
+## ECC skills (escopo mínimo)
+- Antes de mudança estrutural, leia `.agents/skills/ecc/change-impact/SKILL.md` e consulte Graphify para evidência real de dependências.
+- Antes de publicar qualquer prévia do Studio, aplique `.agents/skills/ecc/browser-qa/SKILL.md` com testes somente em staging e sem dados pessoais.
+- Estas são orientações instaladas no repositório; não alegue que foram executadas por um agente sem ambiente compatível e registros.
