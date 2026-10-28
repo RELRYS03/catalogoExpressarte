@@ -58,15 +58,14 @@ test('Relevo de imagem gera STL com modo de visualização ampliado',async({page
   await expect(page.locator('#message')).toContainText('Use PNG/JPG/WebP');
 });
 
-test('Fluxo de reparo Meshseal começa com exportação STL e link externo seguro',async({page})=>{
+test('Reparador Meshseal integrado tem interface e falha segura sem ponte',async({page})=>{
   await page.goto('/studio-oficina-3d.html');
-  await expect(page.locator('#repairExport')).toBeDisabled();
-  const link=page.getByRole('link',{name:/Abrir Meshseal/});
-  await expect(link).toHaveAttribute('href','https://jkavalik.github.io/meshseal/');
-  await expect(link).toHaveAttribute('rel',/noopener/);
+  await expect(page.locator('#repairNow')).toBeDisabled();
   await page.locator('#demo').click();
-  await expect(page.locator('#repairExport')).toBeEnabled();
-  const downloadPromise=page.waitForEvent('download');
-  await page.locator('#repairExport').click();
-  expect((await downloadPromise).suggestedFilename()).toMatch(/\.stl$/);
+  await expect(page.locator('#repairNow')).toBeEnabled();
+  await page.route('http://127.0.0.1:8768/repair',route=>route.abort('failed'));
+  await page.locator('#repairNow').click();
+  await expect(page.locator('#status')).toContainText('Não foi possível reparar');
+  await expect(page.locator('#repairNow')).toBeEnabled();
+  await expect(page.locator('#repairDownload')).toBeDisabled();
 });
