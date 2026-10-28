@@ -26,7 +26,10 @@ jobs:
           OPENAI_API_KEY: ''
           ANTHROPIC_API_KEY: ''
           GEMINI_API_KEY: ''
-        run: graphify . --code-only
+        run: |
+          graphify . --code-only
+          graphify cluster-only .
+          graphify export html
       - name: Validar os artefatos produzidos
         run: |
           test -s graphify-out/graph.json
