@@ -24,3 +24,8 @@ Você é agente de planejamento e revisão, não tem autorização irrestrita pa
 - Em cada etapa, escolher uma funcionalidade 3D de usuário final (seleção, gizmo, criação, edição de malha, corte sólido) e demonstrar evidência GitHub Actions; a produção só muda após validação.
 - Não alegar subagentes, monitoramento contínuo ou trabalho em segundo plano sem ferramentas efetivamente executadas.
 - Manter registros históricos e decisões em `docs/` com data e referência a commits; evitar documentação redundante.
+
+## Revisão de linguagem e interface — Slop Cop
+- Para textos de produto, posts, copy de páginas e rótulos da interface, consulte `.agents/skills/slop-cop/SKILL.md` e revise clareza, naturalidade em português brasileiro e afirmações sem evidência.
+- Para revisão do site, use também as verificações de UI e código da skill, sem substituir Playwright ou critérios de geometria 3D.
+- Não alegar que outras IAs ou esta conversa instalaram uma skill globalmente; os arquivos estão apenas no repositório até cada agente compatível carregar sua configuração.
