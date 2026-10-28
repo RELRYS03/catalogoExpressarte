@@ -1,0 +1,48 @@
+name: Build Meshseal WebAssembly for ExpressArte
+on:
+  workflow_dispatch:
+  push:
+    branches: [feature/image-to-relief-3d]
+    paths:
+      - 'integrations/meshseal/wasm/**'
+      - 'studio-oficina-3d.html'
+      - '.github/workflows/build-meshseal-wasm.yml'
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: expressarte
+      - uses: actions/checkout@v4
+        with:
+          repository: jkavalik/meshseal
+          ref: v0.1.3
+          path: meshseal
+          persist-credentials: false
+      - uses: mymindstorm/setup-emsdk@v14
+        with:
+          version: '4.0.10'
+          actions-cache-folder: emsdk-cache
+      - name: Configure Emscripten
+        run: emcmake cmake -S meshseal -B build-wasm -DCMAKE_BUILD_TYPE=Release -DMESHSEAL_BUILD_WASM=ON -DMESHSEAL_BUILD_CLI=OFF -DMESHSEAL_BUILD_TESTS=OFF
+      - name: Build real WASM module
+        run: cmake --build build-wasm --target meshseal_wasm -j 2
+      - name: Assemble site assets
+        run: |
+          mkdir -p dist/integrations/meshseal/wasm
+          find build-wasm -type f -name 'meshseal.js' -exec cp {} dist/integrations/meshseal/wasm/ \;
+          find build-wasm -type f -name 'meshseal.wasm' -exec cp {} dist/integrations/meshseal/wasm/ \;
+          test -s dist/integrations/meshseal/wasm/meshseal.js
+          test -s dist/integrations/meshseal/wasm/meshseal.wasm
+          cp expressarte/integrations/meshseal/wasm/worker.js dist/integrations/meshseal/wasm/
+          cp meshseal/LICENSE dist/integrations/meshseal/wasm/LICENSE-meshseal.txt
+          cp expressarte/studio-oficina-3d.html dist/
+      - uses: actions/upload-artifact@v4
+        with:
+          name: expressarte-meshseal-wasm
+          path: dist/
+          retention-days: 14
