@@ -36,3 +36,24 @@ test('Gerador de relevo possui controles e viewport',async({page})=>{
   await expect(page.locator('#generate')).toBeDisabled();
   await expect(page.locator('#photo')).toHaveAttribute('type','file');
 });
+
+test('Arquivo STL exportado reabre no visualizador',async({page})=>{
+  await page.goto('/studio-oficina-3d.html');
+  await page.locator('#demo').click();
+  const downloadPromise=page.waitForEvent('download');
+  await page.locator('#exportStl').click();
+  const download=await downloadPromise;
+  const file=await download.path();
+  await page.locator('#modelFile').setInputFiles(file);
+  await expect(page.locator('#measure')).toContainText('Triângulos:');
+  await expect(page.locator('#status')).toContainText('Modelo carregado');
+});
+test('Relevo de imagem gera STL com modo de visualização ampliado',async({page})=>{
+  await page.goto('/imagem-para-3d.html');
+  await page.locator('#photo').setInputFiles({
+    name:'sample.svg',mimeType:'image/svg+xml',
+    buffer:Buffer.from('<svg xmlns="http://www.w3.org/2000/svg" width="4" height="4"><rect width="4" height="4" fill="white"/></svg>')
+  });
+  await expect(page.locator('#generate')).toBeDisabled();
+  await expect(page.locator('#message')).toContainText('Use PNG/JPG/WebP');
+});
