@@ -9,7 +9,7 @@
 <div class="group"><h2>1 · Abrir arquivo 3D</h2><input id="modelFile" type="file" accept=".stl,.obj,.glb"><small>STL, OBJ ou GLB; máximo 80 MB. Processamento local no navegador.</small><div style="margin-top:10px"><button id="demo" class="full">Abrir modelo de demonstração</button></div></div>
 <div class="group"><h2>2 · Cor e acabamento</h2><label for="color">Cor de visualização</label><div class="actions"><input id="color" type="color" value="#d9ac7a"><button id="applyColor" disabled>Aplicar cor</button></div><small>STL não armazena cor. A cor será incluída na exportação GLB.</small><label for="smooth">Suavizar normais</label><button id="smooth" class="full" disabled>Melhorar aparência da superfície</button><small>Melhora o sombreamento; não corrige defeitos físicos nem remove rebabas reais.</small></div>
 <div class="group"><h2>3 · Preparar imagem</h2><input id="imageFile" type="file" accept="image/png,image/jpeg,image/webp"><img id="imagePreview" alt="Imagem carregada"><label for="threshold">Remover fundo claro (tolerância <output id="tol">32</output>)</label><input id="threshold" type="range" min="5" max="100" value="32"><div class="actions"><button id="removeBg" disabled>Remover fundo</button><button id="crop" disabled>Recortar margens</button><button id="savePng" disabled>Baixar PNG</button></div><small>Remoção automática por cor próxima ao branco. Funciona melhor com fundo uniforme; recorte automático usa transparência.</small></div>
-<div class="group"><h2>4 · Reparar malha STL</h2><p>Execute o Meshseal diretamente aqui, por meio do serviço local gratuito. O modelo permanece no computador.</p><button id="repairNow" class="primary full" disabled>Reparar e abrir resultado</button><div class="actions" style="margin-top:9px"><button id="repairExport" disabled>Baixar STL original</button><button id="repairDownload" disabled>Baixar STL reparado</button></div><small id="repairInfo">Requer Meshseal CLI e a ponte local em 127.0.0.1:8768. Até a confirmação do motor, a função avisará claramente.</small></div><div class="group"><h2>5 · Dividir modelo</h2><small>A divisão sólida com tampas para impressão exige operações booleanas robustas. Não será simulada por cortes abertos.</small><button id="blenderGuide" class="full">Como dividir no Blender</button></div>
+<div class="group"><h2>4 · Reparar malha STL</h2><p>Execute o Meshseal WebAssembly diretamente no navegador. O modelo permanece no computador, sem serviço local.</p><button id="repairNow" class="primary full" disabled>Reparar e abrir resultado</button><div class="actions" style="margin-top:9px"><button id="repairExport" disabled>Baixar STL original</button><button id="repairDownload" disabled>Baixar STL reparado</button></div><small id="repairInfo">Requer meshseal.js e meshseal.wasm gerados no GitHub Actions e publicados nesta pasta. Sem os arquivos, o botão mostrará erro de instalação.</small></div><div class="group"><h2>5 · Dividir modelo</h2><small>A divisão sólida com tampas para impressão exige operações booleanas robustas. Não será simulada por cortes abertos.</small><button id="blenderGuide" class="full">Como dividir no Blender</button></div>
 </aside>
 <div class="stage"><div id="viewport"></div><div class="tools"><button id="fit">Enquadrar</button><button id="front">Frente</button><button id="top">Topo</button><button id="grid">Grade</button><span class="space"></span><button id="exportGlb" disabled>Exportar GLB</button><button id="exportStl" disabled>Exportar STL</button></div><div id="status" role="status" aria-live="polite">Abra um arquivo ou o modelo de demonstração. Gire com o mouse e use a roda para ampliar.</div></div>
 <aside class="right"><div class="group"><h2>Informações do modelo</h2><div id="measure">Nenhum modelo carregado.</div></div><div class="group"><h2>Fluxo de impressão</h2><p>1. Abra ou gere seu modelo.</p><p>2. Confira medidas e malha.</p><p>3. Corrija defeitos no Blender.</p><p>4. Exporte STL e abra no Bambu Studio.</p></div><div class="group"><h2>Sobre as ferramentas</h2><small>Sem conta, créditos ou assinatura. Modelos de IA completos exigem motor externo ou GPU; este editor não inventa geometria a partir de fotos.</small></div></aside>
@@ -44,25 +44,41 @@ $('repairDownload').onclick=()=>{if(lastRepaired)save(new Blob([lastRepaired],{t
 $('repairNow').onclick=async()=>{
  if(!model)return;
  const button=$('repairNow');button.disabled=true;
+ let worker=null;
  try{
-  say('Preparando a malha para o motor Meshseal local...');
+  say('Iniciando reparação WebAssembly no navegador...');
   model.updateMatrixWorld(true);
-  const original=new STLExporter().parse(model,{binary:true});
-  const payload=original instanceof ArrayBuffer?original:original.buffer;
-  if(payload.byteLength>40*1024*1024)throw Error('STL excede o limite de 40 MB do motor local');
-  const response=await fetch('http://127.0.0.1:8768/repair',{method:'POST',headers:{'content-type':'application/octet-stream'},body:payload,signal:AbortSignal.timeout(130000)});
-  let repaired;
-  if(!response.ok){let error;try{error=(await response.json()).error}catch{}throw Error(error||'Reparo indisponível (HTTP '+response.status+')')}
-  repaired=await response.arrayBuffer();
+  const raw=new STLExporter().parse(model,{binary:true});
+  const payload=raw instanceof ArrayBuffer?raw:raw.buffer.slice(raw.byteOffset,raw.byteOffset+raw.byteLength);
+  if(payload.byteLength>40*1024*1024)throw Error('Arquivo excede 40 MB');
+  // The worker loads a locally hosted Emscripten module; never contact third-party APIs.
+  const result=await new Promise((resolve,reject)=>{
+    worker=new Worker('./integrations/meshseal/wasm/worker.js');
+    const timeout=setTimeout(()=>reject(Error('Tempo máximo de reparação excedido (120 s)')),120000);
+    worker.onerror=e=>{clearTimeout(timeout);reject(Error('Motor WASM não carregou: '+(e.message||'verifique meshseal.js e meshseal.wasm')))};
+    worker.onmessage=e=>{
+      const msg=e.data;
+      if(msg.type==='progress'){say('Reparando malha: '+msg.stage+' • '+msg.faceCount+' faces');return}
+      clearTimeout(timeout);
+      if(msg.type==='error')reject(Error(msg.message));
+      else if(msg.type==='done')resolve(msg);
+    };
+    worker.postMessage({type:'repair',format:'stl',bytes:new Uint8Array(payload)},[payload]);
+  });
+  const bytes=result.bytes;
+  if(!bytes||bytes.byteLength<84)throw Error('Motor devolveu arquivo vazio');
+  const summary=result.summary||{};
+  if(!summary.watertight||summary.partialFailure)throw Error('Reparo parcial ou malha não fechada: exportação bloqueada');
+  const repaired=bytes.buffer.slice(bytes.byteOffset,bytes.byteOffset+bytes.byteLength);
   const g=new STLLoader().parse(repaired);
-  if(!g.attributes.position||g.attributes.position.count<3)throw Error('Meshseal retornou uma malha vazia');
+  if(!g.attributes.position||g.attributes.position.count<3)throw Error('Malha inválida após reparo');
   g.computeVertexNormals();
-  const fresh=new THREE.Mesh(g,new THREE.MeshStandardMaterial({color:baseColor,side:THREE.DoubleSide}));
-  setModel(fresh);lastRepaired=repaired;$('repairDownload').disabled=false;
-  $('repairInfo').textContent='Motor executado localmente. Saída '+(repaired.byteLength/1024).toFixed(1)+' KB; confira o formato e faça o fatiamento no Bambu Studio.';
-  say('Meshseal concluiu e o STL reparado foi reaberto. Confira geometria e medidas antes de imprimir.');
- }catch(e){console.error(e);say('Não foi possível reparar: '+e.message+'. Inicie a ponte Meshseal na pasta do projeto e confira o motor instalado.')}
- finally{button.disabled=!model}
+  setModel(new THREE.Mesh(g,new THREE.MeshStandardMaterial({color:baseColor,side:THREE.DoubleSide})));
+  lastRepaired=repaired;$('repairDownload').disabled=false;
+  $('repairInfo').textContent='Meshseal WebAssembly: malha fechada conforme diagnóstico do motor; '+summary.outputFaces+' faces. Confirme no Bambu Studio.';
+  say('Reparo concluído no navegador, STL reaberto. Confira a peça antes de imprimir.');
+ }catch(e){console.error(e);say('Falha no reparo WASM: '+e.message)}
+ finally{worker?.terminate();button.disabled=!model}
 };
 $('fit').onclick=()=>centerView();$('front').onclick=()=>centerView('front');$('top').onclick=()=>centerView('top');$('grid').onclick=()=>grid.visible=!grid.visible;
 function save(blob,name){const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=name;document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1200)}
