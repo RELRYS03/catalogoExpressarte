@@ -18,7 +18,7 @@
 <label for="relief">Altura do relevo: <output id="reliefValue">5</output> mm</label><input class="field" id="relief" type="range" min="1" max="15" value="5" step=".5">
 <label for="base">Espessura da base: <output id="baseValue">2</output> mm</label><input class="field" id="base" type="range" min="1" max="6" value="2" step=".5">
 <div class="check" style="margin-top:18px"><input id="invert" type="checkbox"><label for="invert">Inverter alturas (escuro mais alto)</label></div>
-<div class="buttons"><button id="generate" disabled>Gerar relevo 3D</button><button id="download" class="secondary" disabled>Baixar STL</button></div>
+<div class="buttons"><button id="generate" disabled>Gerar relevo 3D</button><button id="download" class="secondary" disabled>Baixar STL</button><a href="visualizador-3d.html" style="display:inline-block;color:#eac097;padding:12px">Abrir visualizador 3D →</a></div>
 <p id="message" role="status" aria-live="polite">Escolha uma imagem para começar.</p><p class="note">O resultado é relevo 2,5D, não reconstrução completa por IA. Para impressões de melhor qualidade, use imagens de alto contraste. Abra o STL no Bambu Studio para fatiar.</p>
 </section>
 <section><div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap"><h2>Visualização 3D</h2><span class="pill">Arraste para girar · rolagem para zoom</span></div><div id="viewer"><div id="empty">O modelo aparecerá aqui após gerar o relevo.</div></div></section>
@@ -67,7 +67,7 @@ $('generate').addEventListener('click',()=>{
  catch(e){console.error(e);msg.textContent='Falha ao gerar o modelo: '+e.message}
 });
 $('download').addEventListener('click',()=>{
- if(!mesh)return;try{const binary=new STLExporter().parse(mesh,{binary:true});const blob=new Blob([binary],{type:'model/stl'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='expressarte-relevo-3d.stl';document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);msg.textContent='Arquivo STL exportado.'}catch(e){msg.textContent='Erro ao exportar STL: '+e.message}
+ if(!mesh)return;try{const binary=new STLExporter().parse(mesh,{binary:true});const blob=new Blob([binary],{type:'model/stl'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='expressarte-relevo-3d.stl';document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);msg.textContent='STL exportado. Abra o Visualizador 3D e selecione o arquivo baixado.'}catch(e){msg.textContent='Erro ao exportar STL: '+e.message}
 });
 function resize(){const w=view.clientWidth,h=view.clientHeight;camera.aspect=w/h;camera.updateProjectionMatrix();renderer.setSize(w,h,false)}
 new ResizeObserver(resize).observe(view);resize();
