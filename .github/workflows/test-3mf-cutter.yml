@@ -1,0 +1,58 @@
+name: Validate open-source 3MF Cutter
+on:
+  workflow_dispatch:
+  push:
+    branches: [feature/image-to-relief-3d]
+    paths:
+      - '.github/workflows/test-3mf-cutter.yml'
+      - 'docs/3MF-CUTTER-INTEGRATION.md'
+
+permissions:
+  contents: read
+
+jobs:
+  cutter:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout ExpressArte
+        uses: actions/checkout@v4
+        with:
+          path: expressarte
+      - name: Checkout upstream 3mfModelCut
+        uses: actions/checkout@v4
+        with:
+          repository: ialrajhi/3mfModelCut
+          ref: main
+          path: cutter
+          persist-credentials: false
+      - name: Prepare Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Enable pnpm
+        run: corepack enable
+      - name: Install using upstream lockfile
+        working-directory: cutter
+        run: pnpm install --frozen-lockfile
+      - name: Typecheck and geometry regression tests
+        working-directory: cutter
+        run: |
+          pnpm exec tsc --noEmit
+          pnpm test:unit
+      - name: Build cutter
+        working-directory: cutter
+        run: pnpm build
+      - name: Package isolated source and attribution
+        run: |
+          mkdir -p output
+          cp cutter/LICENSE output/LICENSE-3mfModelCut.txt
+          cp expressarte/docs/3MF-CUTTER-INTEGRATION.md output/LEIA-ME.md
+          echo "Upstream: https://github.com/ialrajhi/3mfModelCut" > output/UPSTREAM.txt
+          (cd cutter && tar --exclude=node_modules --exclude=.git --exclude=.vinext --exclude=.next --exclude=dist --exclude=.wrangler -czf ../output/3mfModelCut-source.tar.gz .)
+      - name: Upload integration artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: expressarte-3mf-cutter-source
+          path: output/
+          retention-days: 7
