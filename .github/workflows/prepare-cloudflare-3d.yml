@@ -1,0 +1,36 @@
+name: Prepare ExpressArte 3D Worker on Cloudflare
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  upload:
+    name: Upload candidate version (no production deployment)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/image-to-relief-3d
+          persist-credentials: false
+      - name: Verify required GitHub secrets exist
+        env:
+          CF_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CF_ACCOUNT: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          if [ -z "$CF_TOKEN" ] || [ -z "$CF_ACCOUNT" ]; then
+            echo "::error::Missing repository secrets CLOUDFLARE_API_TOKEN or CLOUDFLARE_ACCOUNT_ID"
+            exit 1
+          fi
+      - name: Check backend and tests
+        run: |
+          node --check workers/hunyuan3d-worker.js
+          node --test workers/hunyuan3d-worker.test.mjs
+      - name: Upload Worker version (do not deploy)
+        uses: cloudflare/wrangler-action@v4
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: workers
+          command: versions upload --config wrangler.jsonc
