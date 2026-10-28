@@ -66,3 +66,33 @@ test('Sem artefatos WebAssembly, reparo informa erro sem gerar download',async({
   await expect(page.locator('#status')).toContainText('Falha no reparo WASM',{timeout:20000});
   await expect(page.locator('#repairDownload')).toBeDisabled();
 });
+
+test('Ferramentas de posição, rotação e escala atualizam medidas e restauram o modelo',async({page})=>{
+ await page.goto('/studio-oficina-3d.html');
+ await expect(page.locator('#posX')).toBeDisabled();
+ await page.locator('#demo').click();
+ await expect(page.locator('#posX')).toBeEnabled();
+ const original=await page.locator('#measure').innerText();
+ await page.locator('#posX').fill('30');
+ await page.locator('#posX').dispatchEvent('change');
+ await expect(page.locator('#posX')).toHaveValue('30');
+ await page.locator('#scaleX').fill('200');
+ await page.locator('#scaleX').dispatchEvent('change');
+ await page.locator('#uniformScale').click();
+ await expect(page.locator('#scaleY')).toHaveValue('200');
+ await expect(page.locator('#scaleZ')).toHaveValue('200');
+ expect(await page.locator('#measure').innerText()).not.toEqual(original);
+ await page.locator('#groundModel').click();
+ await page.locator('#resetTransform').click();
+ await expect(page.locator('#posX')).toHaveValue('0');
+ await expect(page.locator('#scaleX')).toHaveValue('100');
+ expect(await page.locator('#measure').innerText()).toEqual(original);
+});
+test('Escala inválida é rejeitada e não exporta modelo desfigurado',async({page})=>{
+ await page.goto('/studio-oficina-3d.html');
+ await page.locator('#demo').click();
+ await page.locator('#scaleX').fill('0');
+ await page.locator('#scaleX').dispatchEvent('change');
+ await expect(page.locator('#status')).toContainText('Valores inválidos');
+ await expect(page.locator('#scaleX')).toHaveValue('100');
+});
