@@ -58,14 +58,15 @@ test('Relevo de imagem gera STL com modo de visualização ampliado',async({page
   await expect(page.locator('#message')).toContainText('Use PNG/JPG/WebP');
 });
 
-test('Reparador Meshseal integrado tem interface e falha segura sem ponte',async({page})=>{
+test('Meshseal WASM carrega e repara STL no próprio navegador',async({page})=>{
   await page.goto('/studio-oficina-3d.html');
   await expect(page.locator('#repairNow')).toBeDisabled();
   await page.locator('#demo').click();
   await expect(page.locator('#repairNow')).toBeEnabled();
-  await page.route('http://127.0.0.1:8768/repair',route=>route.abort('failed'));
   await page.locator('#repairNow').click();
-  await expect(page.locator('#status')).toContainText('Não foi possível reparar');
-  await expect(page.locator('#repairNow')).toBeEnabled();
-  await expect(page.locator('#repairDownload')).toBeDisabled();
+  await expect(page.locator('#status')).toContainText('Reparo concluído no navegador',{timeout:120000});
+  await expect(page.locator('#repairDownload')).toBeEnabled();
+  const downloading=page.waitForEvent('download');
+  await page.locator('#repairDownload').click();
+  expect((await downloading).suggestedFilename()).toBe('expressarte-reparado.stl');
 });
