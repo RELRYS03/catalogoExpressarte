@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Express'Arte Studio | Imagem para Relevo 3D</title>
+<style>
+:root{font-family:system-ui,-apple-system,Segoe UI,sans-serif;color:#f4ece5;background:#151311}*{box-sizing:border-box}body{margin:0}header{padding:18px 26px;border-bottom:1px solid #4c3b30;display:flex;gap:16px;align-items:center;justify-content:space-between}a{color:#eac097}h1{font-size:1.35rem;margin:0}main{display:grid;grid-template-columns:minmax(285px,360px) minmax(0,1fr);gap:16px;padding:16px;min-height:calc(100vh - 74px)}section{border:1px solid #544034;border-radius:16px;background:#211b18;padding:20px}h2{font-size:1.1rem;margin:0 0 15px}p{line-height:1.45;color:#d9c8bb}label{display:block;margin:16px 0 7px;font-size:.94rem;font-weight:600}.field{width:100%;accent-color:#d49a58}input[type=number]{background:#342a24;border:1px solid #826146;border-radius:8px;color:white;padding:11px;width:100%}input[type=file]{width:100%;color:#e6d1c1}button{background:#bd8346;border:0;border-radius:10px;color:#180e06;padding:12px 18px;font-weight:750;cursor:pointer}button:disabled{opacity:.45;cursor:not-allowed}.secondary{background:#4b3a30;color:#fff}.buttons{display:flex;gap:10px;flex-wrap:wrap;margin-top:22px}#viewer{height:clamp(360px,70vh,900px);background:#110f0e;border-radius:12px;overflow:hidden;position:relative}#viewer canvas{display:block;width:100%;height:100%}.note{font-size:.82rem}.pill{font-size:.75rem;background:#3c3329;border-radius:20px;padding:6px 10px}.check{display:flex;align-items:center;gap:9px}.check label{margin:0}#message{min-height:22px;color:#f0bc83}#empty{position:absolute;inset:0;display:grid;place-items:center;text-align:center;padding:25px;color:#b9a294;pointer-events:none}@media(max-width:760px){main{grid-template-columns:1fr}#viewer{height:52vh}header{flex-wrap:wrap}}
+</style>
+</head>
+<body>
+<header><h1>Express'Arte · Imagem → Relevo 3D</h1><a href="index.html">Voltar ao catálogo</a></header>
+<main>
+<section>
+<h2>Criar relevo imprimível</h2>
+<p>Envie uma imagem. O brilho de cada pixel vira altura numa placa 3D com base e paredes laterais fechadas. Ideal para relevos, placas e testes de impressão.</p>
+<label for="photo">Imagem (PNG, JPG ou WebP)</label><input class="field" id="photo" type="file" accept="image/png,image/jpeg,image/webp">
+<label for="width">Largura da placa: <output id="widthValue">100</output> mm</label><input class="field" id="width" type="range" min="40" max="200" value="100">
+<label for="relief">Altura do relevo: <output id="reliefValue">5</output> mm</label><input class="field" id="relief" type="range" min="1" max="15" value="5" step=".5">
+<label for="base">Espessura da base: <output id="baseValue">2</output> mm</label><input class="field" id="base" type="range" min="1" max="6" value="2" step=".5">
+<div class="check" style="margin-top:18px"><input id="invert" type="checkbox"><label for="invert">Inverter alturas (escuro mais alto)</label></div>
+<div class="buttons"><button id="generate" disabled>Gerar relevo 3D</button><button id="download" class="secondary" disabled>Baixar STL</button></div>
+<p id="message" role="status" aria-live="polite">Escolha uma imagem para começar.</p><p class="note">O resultado é relevo 2,5D, não reconstrução completa por IA. Para impressões de melhor qualidade, use imagens de alto contraste. Abra o STL no Bambu Studio para fatiar.</p>
+</section>
+<section><div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap"><h2>Visualização 3D</h2><span class="pill">Arraste para girar · rolagem para zoom</span></div><div id="viewer"><div id="empty">O modelo aparecerá aqui após gerar o relevo.</div></div></section>
+</main>
+<script type="module">
+import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js';
+import {OrbitControls} from 'https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/controls/OrbitControls.js';
+import {STLExporter} from 'https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/exporters/STLExporter.js';
+const $=id=>document.getElementById(id), view=$('viewer'),msg=$('message');
+const scene=new THREE.Scene();scene.background=new THREE.Color(0x110f0e);
+const camera=new THREE.PerspectiveCamera(45,1,.1,2000);camera.position.set(110,-140,120);
+const renderer=new THREE.WebGLRenderer({antialias:true});renderer.setPixelRatio(Math.min(devicePixelRatio,2));view.appendChild(renderer.domElement);
+const controls=new OrbitControls(camera,renderer.domElement);controls.enableDamping=true;
+scene.add(new THREE.HemisphereLight(0xffffff,0x54412d,2));
+const light=new THREE.DirectionalLight(0xffffff,2.2);light.position.set(-60,-80,150);scene.add(light);
+scene.add(new THREE.GridHelper(300,20,0x72543b,0x332820));scene.children[scene.children.length-1].rotation.x=Math.PI/2;
+let mesh=null,image=null,aspect=1;
+for(const id of ['width','relief','base'])$(id).addEventListener('input',()=>{$(id+'Value').textContent=$(id).value});
+$('photo').addEventListener('change',async()=>{
+ const f=$('photo').files?.[0];image=null;$('generate').disabled=true;$('download').disabled=true;
+ if(!f)return;
+ if(!['image/jpeg','image/png','image/webp'].includes(f.type)||f.size>15*1024*1024){msg.textContent='Use PNG/JPG/WebP com até 15 MB.';return}
+ const url=URL.createObjectURL(f);
+ try {image=new Image();image.src=url;await image.decode();aspect=image.naturalHeight/image.naturalWidth;$('generate').disabled=false;msg.textContent='Imagem carregada. Clique em Gerar relevo 3D.'}
+ catch(e){image=null;msg.textContent='Não foi possível ler essa imagem.'}
+ finally {URL.revokeObjectURL(url)}
+});
+function build(){
+ const nx=120,ny=Math.max(2,Math.min(180,Math.round(nx*aspect))),width=+$('width').value,height=width*aspect,base=+$('base').value,relief=+$('relief').value;
+ const canvas=document.createElement('canvas');canvas.width=nx+1;canvas.height=ny+1;
+ const ctx=canvas.getContext('2d',{willReadFrequently:true});ctx.drawImage(image,0,0,nx+1,ny+1);
+ const pixels=ctx.getImageData(0,0,nx+1,ny+1).data;
+ const heights=[];for(let j=0;j<=ny;j++)for(let i=0;i<=nx;i++){const k=(j*(nx+1)+i)*4;const a=pixels[k+3]/255;const brightness=(.2126*pixels[k]+.7152*pixels[k+1]+.0722*pixels[k+2])*a+255*(1-a);heights.push(base+relief*($('invert').checked?1-brightness/255:brightness/255))}
+ const verts=[],idx=[];function v(x,y,z){verts.push(x,y,z);return verts.length/3-1}function quad(a,b,c,d){idx.push(a,b,c,a,c,d)}
+ const top=[],bottom=[];for(let j=0;j<=ny;j++)for(let i=0;i<=nx;i++){const x=(i/nx-.5)*width,y=(.5-j/ny)*height;top.push(v(x,y,heights[j*(nx+1)+i]));bottom.push(v(x,y,0))}
+ for(let j=0;j<ny;j++)for(let i=0;i<nx;i++){const a=j*(nx+1)+i,b=a+1,c=b+nx+1,d=a+nx+1;quad(top[a],top[d],top[c],top[b]);quad(bottom[a],bottom[b],bottom[c],bottom[d])}
+ for(let i=0;i<nx;i++){let a=i,b=i+1,c=ny*(nx+1)+i,d=c+1;quad(top[a],top[b],bottom[b],bottom[a]);quad(top[d],top[c],bottom[c],bottom[d])}
+ for(let j=0;j<ny;j++){let a=j*(nx+1),b=(j+1)*(nx+1),c=a+nx,d=b+nx;quad(top[b],top[a],bottom[a],bottom[b]);quad(top[c],top[d],bottom[d],bottom[c])}
+ const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(verts,3));g.setIndex(idx);g.computeVertexNormals();return g
+}
+$('generate').addEventListener('click',()=>{
+ if(!image)return;
+ try{msg.textContent='Gerando...';const geometry=build();if(mesh){scene.remove(mesh);mesh.geometry.dispose();mesh.material.dispose()}mesh=new THREE.Mesh(geometry,new THREE.MeshStandardMaterial({color:0xe3b47d,roughness:.8,side:THREE.DoubleSide}));scene.add(mesh);
+ const bb=new THREE.Box3().setFromObject(mesh),center=bb.getCenter(new THREE.Vector3()),size=bb.getSize(new THREE.Vector3());controls.target.copy(center);camera.position.copy(center.clone().add(new THREE.Vector3(size.x*.8,-size.y*1.3,Math.max(size.x,size.y)*1.05)));camera.near=.1;camera.far=5000;camera.updateProjectionMatrix();controls.update();$('empty').hidden=true;$('download').disabled=false;msg.textContent='Modelo gerado. Você pode baixar o STL.'}
+ catch(e){console.error(e);msg.textContent='Falha ao gerar o modelo: '+e.message}
+});
+$('download').addEventListener('click',()=>{
+ if(!mesh)return;try{const binary=new STLExporter().parse(mesh,{binary:true});const blob=new Blob([binary],{type:'model/stl'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='expressarte-relevo-3d.stl';document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);msg.textContent='Arquivo STL exportado.'}catch(e){msg.textContent='Erro ao exportar STL: '+e.message}
+});
+function resize(){const w=view.clientWidth,h=view.clientHeight;camera.aspect=w/h;camera.updateProjectionMatrix();renderer.setSize(w,h,false)}
+new ResizeObserver(resize).observe(view);resize();
+function animate(){requestAnimationFrame(animate);controls.update();renderer.render(scene,camera)}animate();
+</script></body></html>
