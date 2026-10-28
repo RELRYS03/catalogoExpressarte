@@ -1,4 +1,5 @@
 import {test,expect} from '@playwright/test';
+import {readFile} from 'node:fs/promises';
 test('Oficina carrega, demonstra, aplica cor e exporta STL e GLB',async({page})=>{
   const errors=[];
   page.on('pageerror',err=>errors.push(err.message));
@@ -44,7 +45,7 @@ test('Arquivo STL exportado reabre no visualizador',async({page})=>{
   await page.locator('#exportStl').click();
   const download=await downloadPromise;
   const file=await download.path();
-  await page.locator('#modelFile').setInputFiles(file);
+  await page.locator('#modelFile').setInputFiles({name:'modelo-reimportado.stl',mimeType:'model/stl',buffer:await readFile(file)});
   await expect(page.locator('#measure')).toContainText('Triângulos:');
   await expect(page.locator('#status')).toContainText('Modelo carregado');
 });
