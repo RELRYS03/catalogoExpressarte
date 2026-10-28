@@ -57,3 +57,16 @@ test('Relevo de imagem gera STL com modo de visualização ampliado',async({page
   await expect(page.locator('#generate')).toBeDisabled();
   await expect(page.locator('#message')).toContainText('Use PNG/JPG/WebP');
 });
+
+test('Fluxo de reparo Meshseal começa com exportação STL e link externo seguro',async({page})=>{
+  await page.goto('/studio-oficina-3d.html');
+  await expect(page.locator('#repairExport')).toBeDisabled();
+  const link=page.getByRole('link',{name:/Abrir Meshseal/});
+  await expect(link).toHaveAttribute('href','https://jkavalik.github.io/meshseal/');
+  await expect(link).toHaveAttribute('rel',/noopener/);
+  await page.locator('#demo').click();
+  await expect(page.locator('#repairExport')).toBeEnabled();
+  const downloadPromise=page.waitForEvent('download');
+  await page.locator('#repairExport').click();
+  expect((await downloadPromise).suggestedFilename()).toMatch(/\.stl$/);
+});
