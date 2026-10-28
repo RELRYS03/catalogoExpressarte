@@ -1,0 +1,35 @@
+name: Studio 3D - validar preview HTTPS sem deploy
+on:
+  workflow_dispatch:
+    inputs:
+      preview_url:
+        description: 'URL HTTPS da preview Cloudflare Pages (ambiente de teste, nao producao)'
+        required: true
+        type: string
+permissions:
+  contents: read
+jobs:
+  check-preview:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install browser test dependencies
+        run: |
+          npm install --no-audit --no-fund
+          npx playwright install --with-deps chromium
+      - name: Test hosted WASM and real defective STL
+        env:
+          STUDIO_PREVIEW_URL: ${{ inputs.preview_url }}
+          CI: 'true'
+        run: npx playwright test --config=playwright.preview.config.mjs
+      - name: Save failure evidence
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: studio-preview-qa-failure
+          path: test-results/
+          retention-days: 7
