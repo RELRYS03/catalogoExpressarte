@@ -1,0 +1,23 @@
+name: Validate ExpressArte Studio 3D
+on:
+  push:
+    branches: [feature/image-to-relief-3d]
+    paths:
+      - '*.html'
+      - 'integrations/freellmapi/**'
+      - 'scripts/check-studio.mjs'
+      - '.github/workflows/check-studio.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  syntax-and-consistency:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Validate HTML embedded JavaScript and link targets
+        run: node scripts/check-studio.mjs
