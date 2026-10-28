@@ -1,0 +1,33 @@
+name: Deploy ExpressArte 3D Worker (manual)
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: cloudflare-3d-test
+    steps:
+      - name: Check required secrets
+        env:
+          TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          ACCOUNT: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          if [ -z "$TOKEN" ] || [ -z "$ACCOUNT" ]; then
+            echo "::error::Configure CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID as GitHub environment secrets."
+            exit 1
+          fi
+      - uses: actions/checkout@v4
+      - name: Syntax check and worker tests
+        run: |
+          node --check workers/hunyuan3d-worker.js
+          node --test workers/hunyuan3d-worker.test.mjs
+      - name: Upload Worker version without exposing paid endpoint
+        uses: cloudflare/wrangler-action@v4
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: workers
+          command: versions upload --config wrangler.jsonc
