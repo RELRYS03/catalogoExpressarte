@@ -70,3 +70,23 @@ jobs:
             expressarte/integrations/meshseal/wasm/worker.js
             expressarte/integrations/meshseal/wasm/LICENSE-meshseal.txt
           retention-days: 14
+
+      - name: Prepare free static hosting preview (only after tests pass)
+        if: success()
+        run: |
+          mkdir -p hosting-preview/integrations/meshseal/wasm
+          cp expressarte/studio-oficina-3d.html hosting-preview/index.html
+          cp expressarte/studio-oficina-3d.html hosting-preview/studio-oficina-3d.html
+          cp expressarte/integrations/meshseal/wasm/meshseal.js hosting-preview/integrations/meshseal/wasm/
+          cp expressarte/integrations/meshseal/wasm/meshseal.wasm hosting-preview/integrations/meshseal/wasm/
+          cp expressarte/integrations/meshseal/wasm/worker.js hosting-preview/integrations/meshseal/wasm/
+          cp expressarte/integrations/meshseal/wasm/LICENSE-meshseal.txt hosting-preview/integrations/meshseal/wasm/
+          test -s hosting-preview/integrations/meshseal/wasm/meshseal.wasm
+          test -s hosting-preview/index.html
+      - name: Archive preview for Cloudflare Pages or Netlify (no deploy)
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: expressarte-studio-preview-free-hosting
+          path: hosting-preview/
+          retention-days: 14
