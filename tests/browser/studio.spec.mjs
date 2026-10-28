@@ -23,7 +23,7 @@ test('Oficina carrega, demonstra, aplica cor e exporta STL e GLB',async({page})=
 });
 test('Oficina remove fundo branco de imagem e baixa PNG',async({page})=>{
   await page.goto('/studio-oficina-3d.html');
-  await page.locator('#imageFile').setInputFiles({name:'test.png',mimeType:'image/png',buffer:Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4////fwAJ+wP9QyGHOwAAAABJRU5ErkJggg==','base64')});
+  await page.locator('#imageFile').setInputFiles({name:'test.png',mimeType:'image/png',buffer:Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAQAAAAECAYAAACp8Z5+AAAAFklEQVR4nGP8////fwYkwMSABggLAAAGXQQE3kxYjAAAAABJRU5ErkJggg==','base64')});
   await expect(page.locator('#removeBg')).toBeEnabled();
   await page.locator('#removeBg').click();
   await expect(page.locator('#status')).toContainText('Fundo claro removido');
