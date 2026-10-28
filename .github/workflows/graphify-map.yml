@@ -1,0 +1,51 @@
+name: Graphify - mapa local do codigo ExpressArte
+on:
+  workflow_dispatch:
+  push:
+    branches: [feature/image-to-relief-3d]
+    paths:
+      - '.github/workflows/graphify-map.yml'
+      - 'scripts/rk10-graph-check.mjs'
+permissions:
+  contents: read
+jobs:
+  map:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout branch de desenvolvimento
+        uses: actions/checkout@v4
+      - name: Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Instalar Graphify oficial
+        run: python -m pip install 'graphifyy==0.9.97'
+      - name: Gerar grafo do codigo sem provedor LLM
+        env:
+          OPENAI_API_KEY: ''
+          ANTHROPIC_API_KEY: ''
+          GEMINI_API_KEY: ''
+        run: |
+          graphify . --code-only
+          graphify cluster-only .
+          graphify export html
+      - name: Validar os artefatos produzidos
+        run: |
+          test -s graphify-out/graph.json
+          test -s graphify-out/graph.html
+          test -s graphify-out/GRAPH_REPORT.md
+          python - <<'PY'
+          import json
+          with open('graphify-out/graph.json', encoding='utf-8') as f:
+              data=json.load(f)
+          if not isinstance(data, dict):
+              raise ValueError('graph.json deve ser um objeto JSON')
+          print('Graphify: JSON valido, relatorio e HTML presentes')
+          PY
+      - name: Disponibilizar o mapa para inspecao
+        uses: actions/upload-artifact@v4
+        with:
+          name: expressarte-graphify-mapa
+          path: graphify-out/
+          retention-days: 14

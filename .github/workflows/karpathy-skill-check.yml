@@ -1,0 +1,28 @@
+name: Verify Karpathy Guidelines skill
+on:
+  workflow_dispatch:
+  push:
+    branches: [feature/image-to-relief-3d]
+    paths:
+      - '.agents/skills/karpathy-guidelines/**'
+      - '.github/workflows/karpathy-skill-check.yml'
+permissions:
+  contents: read
+jobs:
+  lint-skill:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate skill frontmatter, principles and MIT attribution
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('.agents/skills/karpathy-guidelines/SKILL.md')
+          s=p.read_text(encoding='utf-8')
+          assert s.startswith('---\nname: karpathy-guidelines\n'), 'Skill header is missing'
+          for principle in ['Think Before Coding','Simplicity First','Surgical Changes','Goal-Driven Execution']:
+              assert principle in s, f'Missing principle: {principle}'
+          license=Path('.agents/skills/karpathy-guidelines/LICENSE').read_text(encoding='utf-8')
+          assert license.startswith('MIT License'), 'License not present'
+          print('PASS: skill structure, four principles and MIT attribution')
+          PY

@@ -1,0 +1,33 @@
+name: Browser smoke tests ExpressArte 3D
+on:
+  workflow_dispatch:
+  push:
+    branches: [feature/image-to-relief-3d]
+    paths:
+      - '*.html'
+      - 'tests/browser/**'
+      - 'package.json'
+      - 'playwright.config.mjs'
+      - '.github/workflows/browser-studio.yml'
+permissions:
+  contents: read
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm install --no-audit --no-fund
+      - run: npx playwright install --with-deps chromium
+      - run: npm run check:studio
+      - run: npx playwright test tests/browser/studio.spec.mjs
+      - name: Keep failure reports
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: expressarte-browser-failures
+          path: test-results/
+          retention-days: 7

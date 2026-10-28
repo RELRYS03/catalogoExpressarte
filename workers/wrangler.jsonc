@@ -1,0 +1,17 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "expressarte-hunyuan3d-test",
+  "main": "hunyuan3d-worker.js",
+  "compatibility_date": "2026-10-01",
+  "workers_dev": false,
+  "vars": {
+    "ALLOWED_ORIGIN": "https://SEU-DOMINIO-DO-STUDIO"
+  },
+  "ratelimits": [
+    {
+      "name": "RATE_LIMITER",
+      "namespace_id": "1001",
+      "simple": { "limit": 1, "period": 60 }
+    }
+  ]
+}

@@ -1,0 +1,26 @@
+name: Validate Hunyuan3D integration
+on:
+  push:
+    branches: [feature/image-to-relief-3d]
+  pull_request:
+    paths:
+      - 'workers/**'
+      - 'imagem-para-3d-ia.html'
+      - '.github/workflows/test-3d.yml'
+  workflow_dispatch:
+jobs:
+  worker-tests:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Syntax check
+        run: |
+          node --check workers/hunyuan3d-worker.js
+          node --check workers/hunyuan3d-worker.test.mjs
+      - name: Run worker tests with mocked fal API
+        run: node --test workers/hunyuan3d-worker.test.mjs
