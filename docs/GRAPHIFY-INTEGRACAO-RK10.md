@@ -47,3 +47,8 @@ graphify-out/GRAPH_REPORT.md
 Usuário → RK10 (prioridades) → OpenCode (implementação) → Graphify (mapa de dependências/contexto) → Playwright + testes de malha (validação) → revisão humana.
 
 Graphify não repara arquivos STL, não gera IA 3D e não substitui o motor Meshseal.
+
+## Execução automatizada adicionada ao GitHub
+Workflow: `.github/workflows/graphify-map.yml` — disparo manual (`workflow_dispatch`) na branch `feature/image-to-relief-3d`. Instala o pacote oficial `graphifyy==0.9.97` no runner, executa `graphify .` sem chaves de IA e exige `graph.json`, `graph.html` e `GRAPH_REPORT.md`. Publica como artefato `expressarte-graphify-mapa` por 14 dias.
+
+**Ainda não há comprovação de execução bem-sucedida.** A geração está preparada, não afirmamos ter criado o mapa. Os arquivos de origem não precisam sair do GitHub Actions para a nuvem do Graphify; a análise de código estrutural é local ao runner. Para baixar o resultado, abra Actions > Graphify - mapa local do codigo ExpressArte > Run workflow, selecione a branch de desenvolvimento e aguarde a conclusão. Nunca dê permissão de escrita à workflow para apenas mapear código.
