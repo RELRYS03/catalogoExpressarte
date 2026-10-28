@@ -1,0 +1,44 @@
+name: Build and validate Meshseal native repair
+on:
+  workflow_dispatch:
+  push:
+    branches: [feature/image-to-relief-3d]
+    paths:
+      - 'integrations/meshseal/**'
+      - 'tests/meshseal/**'
+      - '.github/workflows/test-meshseal.yml'
+permissions:
+  contents: read
+jobs:
+  real-repair:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: expressarte
+      - uses: actions/checkout@v4
+        with:
+          repository: jkavalik/meshseal
+          ref: v0.1.3
+          path: meshseal
+          persist-credentials: false
+      - name: Configure native engine
+        run: cmake -S meshseal -B build -DCMAKE_BUILD_TYPE=Release -DMESHSEAL_BUILD_TESTS=OFF
+      - name: Build native Meshseal CLI
+        run: cmake --build build --target meshseal_cli -j 2
+      - name: Repair actually defective STL fixture
+        run: python3 expressarte/tests/meshseal/verify_repair.py build/cli/meshseal_cli
+      - name: Check local bridge syntax
+        run: node --check expressarte/integrations/meshseal/meshseal-local.mjs
+      - name: Package executable and attribution
+        run: |
+          mkdir -p bundle
+          cp build/cli/meshseal_cli bundle/
+          cp meshseal/LICENSE bundle/LICENSE-meshseal.txt
+          cp expressarte/integrations/meshseal/README.md bundle/README.md
+      - uses: actions/upload-artifact@v4
+        with:
+          name: meshseal-linux-cli
+          path: bundle/
+          retention-days: 7
