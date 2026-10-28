@@ -8,7 +8,7 @@ export default {async fetch(request,env){
  if(!allowed||origin!==allowed)return json({error:"Origin não permitido."},403);
  if(request.method==="OPTIONS")return new Response(null,{status:204,headers:{"access-control-allow-origin":origin,"access-control-allow-methods":"POST, GET, OPTIONS","access-control-allow-headers":"Content-Type","access-control-max-age":"600"}});
  if(!env.FAL_KEY)return json({error:"FAL_KEY não configurada no servidor."},503,origin);
- if(env.RATE_LIMITER){const limited=await env.RATE_LIMITER.limit({key:request.headers.get("CF-Connecting-IP")||"anonymous"});if(!limited.success)return json({error:"Limite de geração atingido."},429,origin)}
+ if(!env.RATE_LIMITER)return json({error:"Controle de limite não configurado."},503,origin);const limited=await env.RATE_LIMITER.limit({key:request.headers.get("CF-Connecting-IP")||"anonymous"});if(!limited.success)return json({error:"Limite de geração atingido."},429,origin)
  const url=new URL(request.url),id=url.searchParams.get("id")||"";
  try {
  let path,method=request.method,body;
