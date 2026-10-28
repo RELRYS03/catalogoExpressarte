@@ -1,6 +1,11 @@
 name: Graphify - mapa local do codigo ExpressArte
 on:
   workflow_dispatch:
+  push:
+    branches: [feature/image-to-relief-3d]
+    paths:
+      - '.github/workflows/graphify-map.yml'
+      - 'scripts/rk10-graph-check.mjs'
 permissions:
   contents: read
 jobs:
