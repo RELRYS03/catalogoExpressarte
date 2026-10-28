@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Express'Arte — Visualizador 3D gratuito</title>
+<style>*{box-sizing:border-box}body{margin:0;font:15px system-ui;background:#17120f;color:#f8ebda}header{padding:18px 24px;border-bottom:1px solid #61452e;display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap}a{color:#efb67a}main{display:grid;grid-template-columns:300px minmax(0,1fr);gap:16px;padding:16px}aside,.stage{background:#292019;border:1px solid #61452e;border-radius:15px;padding:18px}h1{font-size:20px;margin:0}h2{font-size:17px;margin:0 0 13px}label{display:block;margin:15px 0 8px}input[type=file]{width:100%}button{border:0;border-radius:9px;padding:12px 16px;color:#1d1207;background:#daa16a;font-weight:700;cursor:pointer;margin:6px 4px 6px 0}button:disabled{opacity:.5;cursor:default}#viewport{height:75vh;min-height:400px;position:relative;border-radius:10px;overflow:hidden;background:#0c0b0a}#viewport canvas{display:block}#hint{position:absolute;top:15px;left:15px;color:#d7bd9c;pointer-events:none}#result{white-space:pre-line;line-height:1.7;color:#e5c9a8}.info{color:#bca896;font-size:13px;line-height:1.6}input[type=range]{width:100%}@media(max-width:780px){main{grid-template-columns:1fr}#viewport{height:50vh;min-height:320px}}</style></head>
+<body><header><h1>Express'Arte · Visualizador 3D</h1><a href="index.html">Voltar ao catálogo</a></header><main><aside>
+<h2>Abra seu modelo gratuitamente</h2><label for="file">Arquivo STL, OBJ ou GLB</label><input type="file" id="file" accept=".stl,.obj,.glb"><p class="info">Seu arquivo é processado no navegador, sem enviar a serviços de IA. STL geralmente usa milímetros, mas o formato não registra a unidade.</p>
+<div id="result" role="status">Escolha um arquivo 3D.</div>
+<label for="scale">Escala de visualização: <output id="scaleOutput">100%</output></label><input id="scale" type="range" min="25" max="200" value="100" disabled>
+<button id="reset" disabled>Centralizar</button><button id="wire" disabled>Exibir malha</button>
+<p class="info">O ajuste de escala altera apenas a visualização; não modifica o arquivo original. Confira as medidas no Blender ou Bambu Studio antes de imprimir.</p>
+</aside><section class="stage"><div id="viewport"><div id="hint">Arraste para girar · Scroll para zoom</div></div></section></main>
+<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js"}}</script>
+<script type="module">
+import * as THREE from 'three';
+import {OrbitControls} from 'https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/controls/OrbitControls.js';
+import {STLLoader} from 'https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/loaders/STLLoader.js';
+import {OBJLoader} from 'https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/loaders/OBJLoader.js';
+import {GLTFLoader} from 'https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/loaders/GLTFLoader.js';
+const $=id=>document.getElementById(id);const viewport=$('viewport');
+const scene=new THREE.Scene();scene.background=new THREE.Color(0x0c0b0a);const camera=new THREE.PerspectiveCamera(45,1,.01,100000);
+const renderer=new THREE.WebGLRenderer({antialias:true,preserveDrawingBuffer:false});renderer.setPixelRatio(Math.min(window.devicePixelRatio,2));viewport.appendChild(renderer.domElement);
+scene.add(new THREE.HemisphereLight(0xffffff,0x58402c,2.5));const light=new THREE.DirectionalLight(0xffffff,2);light.position.set(3,4,7);scene.add(light);
+const controls=new OrbitControls(camera,renderer.domElement);controls.enableDamping=true;let object=null;let wire=false;
+function bounds(){const b=new THREE.Box3().setFromObject(object);return {b,size:b.getSize(new THREE.Vector3()),center:b.getCenter(new THREE.Vector3())}}
+function focus(){if(!object)return;const {size,center}=bounds();const max=Math.max(size.x,size.y,size.z,1);controls.target.copy(center);camera.position.copy(center).add(new THREE.Vector3(max*1.3,max*.85,max*1.5));camera.near=Math.max(.001,max/1000);camera.far=Math.max(1000,max*100);camera.updateProjectionMatrix();controls.update()}
+function info(){if(!object)return;const {size}=bounds();$('result').textContent='Dimensões aproximadas da visualização:\nX: '+size.x.toFixed(2)+' · Y: '+size.y.toFixed(2)+' · Z: '+size.z.toFixed(2)+'\nUnidades do arquivo não verificadas.'}
+function clear(){if(!object)return;scene.remove(object);object.traverse(o=>{if(o.geometry)o.geometry.dispose();if(o.material){for(const m of Array.isArray(o.material)?o.material:[o.material])m.dispose()}});object=null}
+$('file').addEventListener('change',async()=>{
+ const file=$('file').files?.[0];if(!file)return;const ext=file.name.split('.').pop().toLowerCase();$('result').textContent='Abrindo '+file.name+'...';
+ if(!['stl','obj','glb'].includes(ext)||file.size>80*1024*1024){$('result').textContent='Use STL, OBJ ou GLB de até 80 MB.';return}
+ try{const buffer=await file.arrayBuffer();let loaded;
+ if(ext==='stl'){const geo=new STLLoader().parse(buffer);geo.computeVertexNormals();loaded=new THREE.Mesh(geo,new THREE.MeshStandardMaterial({color:0xd6a16d,roughness:.8,side:THREE.DoubleSide}))}
+ if(ext==='obj'){loaded=new OBJLoader().parse(new TextDecoder().decode(buffer));loaded.traverse(o=>{if(o.isMesh)o.material=new THREE.MeshStandardMaterial({color:0xd6a16d,roughness:.8,side:THREE.DoubleSide})})}
+ if(ext==='glb'){const gltf=await new GLTFLoader().parseAsync(buffer,'');loaded=gltf.scene}
+ if(!loaded)throw Error('Modelo não reconhecido.');clear();object=loaded;scene.add(object);wire=false;$('wire').textContent='Exibir malha';$('scale').value=100;$('scaleOutput').textContent='100%';for(const id of ['reset','wire','scale'])$(id).disabled=false;focus();info();
+ }catch(e){console.error(e);$('result').textContent='Não foi possível abrir o arquivo: '+e.message}
+});
+$('scale').addEventListener('input',()=>{if(!object)return;const n=+$('scale').value/100;object.scale.setScalar(n);$('scaleOutput').textContent=Math.round(n*100)+'%';info()});
+$('reset').addEventListener('click',focus);
+$('wire').addEventListener('click',()=>{if(!object)return;wire=!wire;object.traverse(o=>{if(o.isMesh)for(const m of Array.isArray(o.material)?o.material:[o.material])m.wireframe=wire});$('wire').textContent=wire?'Ocultar malha':'Exibir malha'});
+function resize(){camera.aspect=viewport.clientWidth/viewport.clientHeight;camera.updateProjectionMatrix();renderer.setSize(viewport.clientWidth,viewport.clientHeight,false)}new ResizeObserver(resize).observe(viewport);resize();camera.position.set(3,4,6);
+function animate(){requestAnimationFrame(animate);controls.update();renderer.render(scene,camera)}animate();
+</script></body></html>
