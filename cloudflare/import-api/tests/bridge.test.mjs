@@ -37,7 +37,7 @@ function setup() {
       return stmt;
     }
   };
-  return { DB: db, ADMIN_TOKEN: token, ALLOWED_ORIGIN: 'chrome-extension://extensao-expressarte' };
+  const images = new Map();\n  const IMAGES = { async put(key, value, options) { images.set(key, { value, options }); }, async delete(key) { images.delete(key); } };\n  return { DB: db, ADMIN_TOKEN: token, ALLOWED_ORIGIN: 'https://relrys03.github.io', IMAGES, PUBLIC_ASSETS_URL: 'https://images.example.com', _images: images };
 }
 async function send(env, method, path, body, authorized = false, origin) {
   const headers = {};
@@ -84,4 +84,37 @@ test('duplicidade, valores inválidos e política CORS', async () => {
   assert.equal(allowed.headers.get('Access-Control-Allow-Origin'), env.ALLOWED_ORIGIN);
   const denied = await send(env, 'OPTIONS', '/api/imports', undefined, false, 'https://site-nao-autorizado.com');
   assert.equal(denied.status, 403);
+});
+
+test('PWA recebe link e arquivo de imagem via Web Share Target e API grava imagem em R2', async () => {
+  const env = setup();
+  const form = new FormData();
+  form.append('sourceUrl', 'https://makerworld.com/models/1675562');
+  form.append('sourceSite', 'makerworld.com');
+  form.append('title', 'circle slicer_v2.1.1');
+  form.append('author', 'stephen_WS');
+  form.append('category', 'Suportes');
+  form.append('priceCents', '2990');
+  form.append('licenseName', '');
+  form.append('image', new Blob(['imagem-teste'], { type: 'image/png' }), 'capa.png');
+  const req = new Request(base + '/api/imports', { method: 'POST', headers: { Authorization: 'Bearer ' + token }, body: form });
+  const res = await worker.fetch(req, env);
+  const data = await res.json();
+  assert.equal(res.status, 201);
+  assert.equal(data.status, 'pending');
+  assert.equal(data.imageStored, true);
+  const rows = await env.DB.prepare('SELECT * FROM catalog_imports').all();
+  assert.equal(rows.results[0].title, 'circle slicer_v2.1.1');
+  assert.match(rows.results[0].image_url, /^https:\/\/images\.example\.com\/catalog-imports\//);
+  assert.equal(env._images.size, 1);
+});
+test('manifest declara o destino de compartilhamento Android', async () => {
+  const { readFile } = await import('node:fs/promises');
+  const { fileURLToPath } = await import('node:url');
+  const manifestPath = new URL('../../../importador/manifest.webmanifest', import.meta.url);
+  const manifest = JSON.parse(await readFile(fileURLToPath(manifestPath), 'utf8'));
+  assert.equal(manifest.share_target.action, './compartilhar');
+  assert.equal(manifest.share_target.method, 'POST');
+  assert.equal(manifest.share_target.params.url, 'url');
+  assert.equal(manifest.share_target.params.files[0].name, 'images');
 });
