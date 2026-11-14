@@ -138,23 +138,88 @@
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Falha ao enviar cadastro.');
       $('draftStatus').textContent = 'Enviado · pendente';
-      say('Cadastro enviado! Ele está na fila privada para sua aprovação. Código: ' + data.id, 'success');
+      say('Cadastro enviado! Ele está na fila privada para sua aprovação. Código: ' + data.id, 'success');\n      await loadQueue();
     } catch (error) { say(error.message || 'Não foi possível enviar. Verifique a conexão.', 'error'); }
     finally { button.disabled = false; button.textContent = 'Enviar para Express’Arte'; }
+  }
+  function escapeHtml(value) {
+    return String(value ?? '').replace(/[&<>"']/g, char => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[char]));
+  }
+  async function updateQueueItem(button) {
+    const card = button.closest('.queue-card');
+    const status = button.dataset.queueAction;
+    button.disabled = true;
+    try {
+      const body = {
+        status,
+        commercialUseAllowed: Boolean(card.querySelector('[data-commercial]').checked),
+        imageUseAllowed: Boolean(card.querySelector('[data-image-rights]').checked)
+      };
+      const res = await fetch(endpoint('/api/imports/' + encodeURIComponent(card.dataset.id)), {
+        method: 'PATCH',
+        headers: { Authorization: 'Bearer ' + token(), 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Não foi possível atualizar o cadastro.');
+      say(status === 'approved' ? 'Produto aprovado. Ele poderá aparecer na vitrine pública.' : 'Produto recusado e mantido fora da vitrine.', 'success');
+      await loadQueue();
+    } catch (error) {
+      say(error.message || 'Falha ao atualizar a fila.', 'error');
+      button.disabled = false;
+    }
+  }
+  async function loadQueue() {
+    const list = $('queueList');
+    if (!token()) {
+      list.innerHTML = '<div class="queue-empty">Abra “Conexão segura” e informe a chave administrativa para consultar a fila.</div>';
+      return;
+    }
+    list.innerHTML = '<div class="queue-empty">Carregando importações…</div>';
+    try {
+      const res = await fetch(endpoint('/api/imports'), { headers: { Authorization: 'Bearer ' + token() }, cache: 'no-store' });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Falha ao consultar a fila.');
+      const items = Array.isArray(data.imports) ? data.imports : [];
+      if (!items.length) {
+        list.innerHTML = '<div class="queue-empty">Nenhum modelo recebido ainda. Compartilhe um link pelo Bambu Handy para começar.</div>';
+        return;
+      }
+      const statusLabel = { pending: 'AGUARDANDO REVISÃO', approved: 'APROVADO', rejected: 'RECUSADO' };
+      list.innerHTML = items.map(item => {
+        const image = /^https:\/\//i.test(String(item.image_url || ''))
+          ? '<img src="' + escapeHtml(item.image_url) + '" alt="" loading="lazy">'
+          : '<div class="queue-image-placeholder">Sem capa</div>';
+        const source = /^https:\/\//i.test(String(item.source_url || ''))
+          ? '<a class="queue-source" href="' + escapeHtml(item.source_url) + '" target="_blank" rel="noopener noreferrer">Abrir modelo original ↗</a>'
+          : '';
+        const status = statusLabel[item.status] || 'STATUS DESCONHECIDO';
+        return '<article class="queue-card" data-id="' + escapeHtml(item.id) + '">' + image +
+          '<div class="queue-content"><strong>' + escapeHtml(item.title) + '</strong>' +
+          '<div class="queue-meta">' + escapeHtml(item.category || 'Outros') + (item.author ? ' · ' + escapeHtml(item.author) : '') + '</div>' +
+          '<span class="queue-status">' + status + '</span><br>' + source + '</div>' +
+          '<div class="queue-rights"><label><input type="checkbox" data-commercial ' + (item.commercial_use_allowed ? 'checked' : '') + '> Confirmei que a licença permite uso comercial/impressão para venda.</label>' +
+          '<label><input type="checkbox" data-image-rights ' + (item.image_use_allowed ? 'checked' : '') + '> Tenho autorização para exibir esta imagem no catálogo.</label></div>' +
+          '<div class="queue-actions"><button class="queue-approve" type="button" data-queue-action="approved">Aprovar</button><button class="queue-reject" type="button" data-queue-action="rejected">Recusar</button></div></article>';
+      }).join('');
+      list.querySelectorAll('[data-queue-action]').forEach(button => button.addEventListener('click', () => updateQueueItem(button)));
+    } catch (error) {
+      list.innerHTML = '<div class="queue-empty">' + escapeHtml(error.message || 'Não foi possível carregar a fila.') + '</div>';
+    }
   }
   $('imageFile').addEventListener('change', event => {
     sharedImage = event.target.files && event.target.files[0] || null;
     if (sharedImage) showImage(sharedImage);
   });
   $('removeImage').addEventListener('click', () => { sharedImage = null; $('imageFile').value = ''; $('filePreview').hidden = true; if (objectUrl) URL.revokeObjectURL(objectUrl); objectUrl = null; });
-  $('previewButton').addEventListener('click', fetchPreview);
+  $('previewButton').addEventListener('click', fetchPreview);\n  $('refreshQueue').addEventListener('click', loadQueue);
   $('sendButton').addEventListener('click', sendImport);
   $('saveConnection').addEventListener('click', () => {
     const value = $('adminToken').value.trim();
     if (value) sessionStorage.setItem('expressarte_admin_token', value);
     const api = $('apiBase').value.trim();
     if (api) localStorage.setItem('expressarte_api_base', api);
-    say('Configuração guardada somente nesta sessão.', 'success'); checkHealth();
+    say('Configuração guardada somente nesta sessão.', 'success'); checkHealth(); loadQueue();
   });
   $('clearButton').addEventListener('click', () => {
     fields.forEach(id => { if (id === 'category') $(id).value = 'Outros'; else $(id).value = ''; });
@@ -165,6 +230,6 @@
   $('adminToken').value = sessionStorage.getItem('expressarte_admin_token') || '';
   $('adminToken').addEventListener('input', checkHealth);
   if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js').catch(() => setConnectionStatus('Instalação PWA indisponível'));
-  loadShared().then(checkHealth);
+  loadShared().then(() => { checkHealth(); if (token()) loadQueue(); });
   if (new URLSearchParams(location.search).has('compartilhado')) history.replaceState({}, '', location.pathname);
 })();
