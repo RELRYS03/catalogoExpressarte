@@ -245,43 +245,58 @@
   const token = () => savedAdmin(sessionStorage) || savedAdmin(localStorage);
   function promptSignIn() {
     $('secureConnection').open = true;
-    $('adminToken').focus();
+    $('adminEmail').focus();
     say('Entre em Conexão segura para continuar.', 'error');
   }
   function updateAdminControls() {
-    $('signOut').hidden = !token();
+    const credential = token();
+    const signedIn = credential.startsWith('session_');
+    $('signOut').hidden = !credential;
+    $('adminLogin').hidden = signedIn;
+    $('adminSetup').hidden = signedIn;
     $('rememberAdmin').checked = Boolean(savedAdmin(localStorage));
     $('adminSessionStatus').textContent = $('rememberAdmin').checked
       ? 'Sessão lembrada neste aparelho.'
       : token() ? 'Sessão ativa até fechar o app.' : 'Use a opção de lembrar em um aparelho de uso pessoal.';
   }
-  async function signIn() {
-    const value = $('adminToken').value.trim() || token();
-    if (!value) return promptSignIn();
-    const button = $('saveConnection');
+  async function signIn(event, setup = false) {
+    event.preventDefault();
+    const button = $(setup ? 'createAdmin' : 'saveConnection');
+    const password = $(setup ? 'setupPassword' : 'adminPassword');
     const revision = ++adminRevision;
     button.disabled = true;
     try {
       const target = endpoint('/api/imports');
       const api = $('apiBase').value.trim();
-      const remember = $('rememberAdmin').checked;
+      const remember = $(setup ? 'rememberSetup' : 'rememberAdmin').checked;
       if (!/^https:\/\//i.test(target)) throw new Error('Informe um endereço HTTPS para a API.');
-      const response = await fetch(target, { headers: { Authorization: 'Bearer ' + value }, cache: 'no-store', redirect: 'error' });
-      if (response.status === 401) throw new Error('Confira a chave administrativa.');
+      const headers = { 'Content-Type': 'application/json' };
+      if (setup) {
+        const key = $('adminToken').value.trim() || token();
+        if (!key) throw new Error('Informe a chave administrativa atual.');
+        headers.Authorization = 'Bearer ' + key;
+      }
+      const response = await fetch(endpoint('/api/admin/' + (setup ? 'setup' : 'login')), {
+        method: 'POST', headers, cache: 'no-store', redirect: 'error',
+        body: JSON.stringify({ email: $(setup ? 'setupEmail' : 'adminEmail').value, password: password.value, remember })
+      });
       const data = await response.json().catch(() => null);
-      if (!response.ok || !Array.isArray(data?.imports)) throw new Error('Não foi possível conectar ao catálogo.');
+      if (!response.ok || !/^session_[0-9a-f]{64}$/.test(data?.token || '')) {
+        throw new Error(data?.error || 'Não foi possível entrar no catálogo.');
+      }
       if (revision !== adminRevision) return;
       if (target !== endpoint('/api/imports')) throw new Error('O endereço mudou. Entre novamente.');
-      const credentials = JSON.stringify({ endpoint: target, token: value });
+      const credentials = JSON.stringify({ endpoint: target, token: data.token });
       const storage = remember ? localStorage : sessionStorage;
       storage.setItem(adminKey, credentials);
       (remember ? sessionStorage : localStorage).removeItem(adminKey);
       sessionStorage.removeItem('expressarte_admin_token');
       localStorage.setItem('expressarte_api_base', api);
       $('adminToken').value = '';
+      password.value = '';
       updateAdminControls();
       say(remember ? 'Sessão lembrada neste aparelho.' : 'Sessão iniciada.', 'success');
-      await loadQueue(data);
+      await loadQueue();
     } catch (error) {
       say(error.message || 'Não foi possível entrar.', 'error');
     } finally {
@@ -289,6 +304,12 @@
     }
   }
   function signOut() {
+    const credential = token();
+    if (credential.startsWith('session_')) {
+      fetch(endpoint('/api/admin/logout'), {
+        method: 'POST', headers: { Authorization: 'Bearer ' + credential }, redirect: 'error', keepalive: true
+      }).catch(() => {});
+    }
     adminRevision++;
     localStorage.removeItem(adminKey);
     sessionStorage.removeItem(adminKey);
@@ -619,7 +640,8 @@
   restoreCalculatorRates();
   calculatorFields.forEach(id => $(id).addEventListener('input', updatePriceCalculator));
   $('useCalculatedPrice').addEventListener('click', useCalculatedPrice);
-  $('saveConnection').addEventListener('click', signIn);
+  $('adminLogin').addEventListener('submit', event => signIn(event));
+  $('adminSetupForm').addEventListener('submit', event => signIn(event, true));
   $('signOut').addEventListener('click', signOut);
   $('apiBase').addEventListener('change', () => { updateAdminControls(); checkHealth(); loadQueue(); });
   window.addEventListener('storage', event => {

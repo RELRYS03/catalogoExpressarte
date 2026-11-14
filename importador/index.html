@@ -108,13 +108,29 @@
         <summary>Conexão segura com o catálogo</summary>
         <label for="apiBase">Endereço da API Cloudflare</label>
         <input id="apiBase" type="url" inputmode="url" placeholder="https://seu-worker.workers.dev">
-        <label for="adminToken">Chave administrativa</label>
-        <input id="adminToken" type="password" autocomplete="off" placeholder="Cole a chave fornecida na configuração">
-        <label class="remember-session"><input id="rememberAdmin" type="checkbox"> Lembrar neste aparelho</label>
-        <div class="actions">
-          <button class="secondary-button" type="button" id="saveConnection">Entrar</button>
-          <button class="text-button" type="button" id="signOut" hidden>Sair</button>
-        </div>
+        <form id="adminLogin">
+          <label for="adminEmail">E-mail</label>
+          <input id="adminEmail" type="email" autocomplete="username" maxlength="254" required>
+          <label for="adminPassword">Senha</label>
+          <input id="adminPassword" type="password" autocomplete="current-password" minlength="12" maxlength="128" required>
+          <label class="remember-session"><input id="rememberAdmin" type="checkbox"> Lembrar neste aparelho</label>
+          <button class="secondary-button" type="submit" id="saveConnection">Entrar</button>
+        </form>
+        <button class="text-button" type="button" id="signOut" hidden>Sair</button>
+        <details class="advanced" id="adminSetup">
+          <summary>Criar meu usuário administrador</summary>
+          <form id="adminSetupForm">
+            <label for="setupEmail">Seu e-mail</label>
+            <input id="setupEmail" type="email" autocomplete="username" maxlength="254" required>
+            <label for="setupPassword">Escolha uma senha</label>
+            <input id="setupPassword" type="password" autocomplete="new-password" minlength="12" maxlength="128" aria-describedby="setupPasswordHint" required>
+            <p class="hint" id="setupPasswordHint">Use pelo menos 12 caracteres.</p>
+            <label for="adminToken">Chave administrativa atual</label>
+            <input id="adminToken" type="password" autocomplete="off" placeholder="Necessária apenas se a chave ainda não estiver salva neste aparelho">
+            <label class="remember-session"><input id="rememberSetup" type="checkbox"> Lembrar neste aparelho</label>
+            <button class="secondary-button" type="submit" id="createAdmin">Criar usuário</button>
+          </form>
+        </details>
         <p class="hint" id="adminSessionStatus" role="status">Use a opção de lembrar em um aparelho de uso pessoal.</p>
       </details>
       <div class="actions">

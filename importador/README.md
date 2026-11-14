@@ -24,7 +24,7 @@ O Android só mostrará o app na lista de compartilhamento depois de ele estar p
 
 ## Configuração da API
 
-O campo de conexão aceita /api (mesma origem) ou a URL base do Worker Cloudflare, por exemplo https://nome-do-worker.workers.dev. A chave administrativa fica na sessão do navegador por padrão. Em um aparelho pessoal, marque **Lembrar neste aparelho** ao entrar para manter o acesso após fechar o app. Use **Sair** para remover a chave guardada no navegador.
+Em **Conexão segura com o catálogo**, use **Criar meu usuário administrador** uma vez, com o e-mail escolhido, uma senha de pelo menos 12 caracteres e a chave administrativa atual. Depois, use **Entrar** nos seus aparelhos. **Lembrar neste aparelho** mantém a sessão por até 30 dias em um aparelho pessoal. A sessão comum dura até 8 horas. **Sair** encerra a sessão.
 
 A API precisa permitir a origem HTTPS exata do PWA em ALLOWED_ORIGIN. A implantação segura precisa configurar D1, segredo ADMIN_TOKEN, binding R2 IMAGES e PUBLIC_ASSETS_URL se for receber imagens enviadas como arquivos. Sem R2, links e metadados podem ser importados, mas upload de arquivo de imagem deve ser habilitado depois de provisionar o bucket.
 

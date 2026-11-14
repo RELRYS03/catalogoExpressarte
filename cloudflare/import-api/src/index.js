@@ -1,4 +1,5 @@
 // Express'Arte Catálogo: API de importação Cloudflare Workers + D1 + R2 opcional.
+import { adminAuth, authorized } from './admin-auth.js';
 const json = (value, status = 200, cors = {}) => new Response(JSON.stringify(value), {
   status, headers: { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store', ...cors }
 });
@@ -8,20 +9,6 @@ function corsHeaders(request, env) {
     ? { 'Access-Control-Allow-Origin': origin, 'Vary': 'Origin',
         'Access-Control-Allow-Headers': 'Authorization, Content-Type',
         'Access-Control-Allow-Methods': 'GET, POST, PATCH, OPTIONS' } : {};
-}
-async function authorized(request, env) {
-  if (!env.ADMIN_TOKEN || env.ADMIN_TOKEN.length < 32) return false;
-  const auth = request.headers.get('Authorization') || '';
-  if (!auth.startsWith('Bearer ')) return false;
-  const enc = new TextEncoder();
-  const [a, b] = await Promise.all([
-    crypto.subtle.digest('SHA-256', enc.encode(auth.slice(7))),
-    crypto.subtle.digest('SHA-256', enc.encode(env.ADMIN_TOKEN))
-  ]);
-  const aa = new Uint8Array(a), bb = new Uint8Array(b);
-  let diff = aa.length ^ bb.length;
-  for (let i = 0; i < Math.max(aa.length, bb.length); i++) diff |= (aa[i] || 0) ^ (bb[i] || 0);
-  return diff === 0;
 }
 function safeUrl(input) {
   if (typeof input !== 'string' || input.length > 2048) return null;
@@ -172,6 +159,12 @@ export default {
     if (!env.DB) return json({ error: 'D1 não configurado' }, 503, cors);
     let uploadedKey = null;
     try {
+      const authRoute = path.match(/^\/api\/admin\/(setup|login|logout)$/);
+      if (authRoute && request.method === 'POST') {
+        const action = authRoute[1];
+        return await adminAuth(request, env, action, action === 'logout' ? null : await parseJson(request),
+          (data, status) => json(data, status, cors));
+      }
       if (path === '/api/category-suggestion' && request.method === 'POST') {
         return await suggestImageCategory(request, env, cors);
       }

@@ -1,9 +1,53 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
+import { DatabaseSync } from 'node:sqlite';
 import worker from '../src/index.js';
 
 const token = 'teste-segredo-com-mais-de-32-caracteres-e-nao-real';
 const base = 'https://api.expressarte.test';
+test('login privado cria uma conta, limita tentativas e revoga sessões', async () => {
+  const db = new DatabaseSync(':memory:');
+  try {
+    db.exec(await readFile(new URL('../admin-auth.sql', import.meta.url), 'utf8'));
+    const env = { ADMIN_TOKEN: token, DB: {
+      prepare(sql) {
+        const bind = (...args) => {
+          const statement = db.prepare(sql);
+          return {
+            async run() { return { meta: { changes: statement.run(...args).changes } }; },
+            async first() { return statement.get(...args); },
+            async all() { return { results: statement.all(...args) }; }
+          };
+        };
+        return { ...bind(), bind };
+      },
+      batch(statements) { return Promise.all(statements.map(statement => statement.run())); }
+    } };
+    db.exec('CREATE TABLE catalog_imports (created_at TEXT)');
+    const setupUrl = '/api/admin/setup', loginUrl = '/api/admin/login';
+    const credentials = { email: 'Test@Example.com', password: 'senha-de-teste-apenas', remember: true };
+    assert.equal((await send(env, 'POST', setupUrl, credentials)).status, 401);
+    const created = await send(env, 'POST', setupUrl, credentials, true);
+    assert.equal(created.status, 200);
+    assert.equal((await send(env, 'POST', setupUrl, credentials, true)).status, 409);
+    assert.ok(db.prepare('SELECT expires_at FROM admin_sessions').get().expires_at > Date.now() + 29 * 86400000);
+    assert.equal(db.prepare('SELECT token_hash FROM admin_sessions').get().token_hash.length, 64);
+    const login = await send(env, 'POST', loginUrl, credentials);
+    assert.equal(login.status, 200);
+    const headers = { Authorization: 'Bearer ' + login.body.token };
+    const call = (path, method = 'GET') => worker.fetch(new Request(base + path, { headers, method }), env);
+    assert.equal((await call('/api/imports')).status, 200);
+    assert.equal((await call('/api/admin/logout', 'POST')).status, 200);
+    assert.equal((await call('/api/imports')).status, 401);
+    for (let i = 0; i < 8; i++) {
+      assert.equal((await send(env, 'POST', loginUrl, { ...credentials, password: 'senha-incorreta' })).status, 401);
+    }
+    assert.equal((await send(env, 'POST', loginUrl, credentials)).status, 401);
+    db.exec('UPDATE admin_account SET retry_after=0');
+    assert.equal((await send(env, 'POST', loginUrl, credentials)).status, 200);
+  } finally { db.close(); }
+});
 function setup() {
   const saved = new Map();
   const db = {
