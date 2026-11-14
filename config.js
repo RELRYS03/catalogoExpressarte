@@ -9,5 +9,9 @@ window.EXPRESSARTE_CONFIG = {
   // Endpoint HTTPS opcional para a IA real. Nunca coloque chaves de API neste arquivo.
   expressinhoEndpoint: "",
   // Origem pública da API Cloudflare usada pelo catálogo e pelo importador.
-  catalogApiEndpoint: "https://expressarte-import-api.relrys17.workers.dev"
+  catalogApiEndpoint: "https://expressarte-import-api.relrys17.workers.dev",
+  builtInProducts: [
+    { id: 'academia-001', name: 'Pote Anilha 28KG / 64LB', category: 'Academia', price: 34.90, priceLabel: 'preço provisório', draft: true, cover: 'assets/products/pote-anilha-28kg-64lb-01.webp' },
+    { id: 'religioso-001', name: 'Bandeja Porta Rosário Nossa Senhora Aparecida 130mm', category: 'Religiosos', price: 30.00, priceLabel: 'preço atual', draft: true, cover: 'assets/products/bandeja-porta-rosario-01.webp' }
+  ]
 };

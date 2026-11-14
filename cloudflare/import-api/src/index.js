@@ -78,6 +78,41 @@ async function limitedText(response, maxBytes = 2_000_000) {
 function imageExtension(type) {
   return ({'image/jpeg':'jpg','image/png':'png','image/webp':'webp','image/avif':'avif'})[type] || null;
 }
+async function saveProductEdit(request, env, id, builtIn, cors) {
+  const form = await request.formData();
+  const rawPrice = form.get('priceCents');
+  const price = rawPrice === '' ? null : typeof rawPrice === 'string' && /^\d+$/.test(rawPrice) ? Number(rawPrice) : NaN;
+  if (price === null ? builtIn : !Number.isSafeInteger(price) || price > 100000000) {
+    return json({ error: 'Informe um preço válido.' }, 400, cors);
+  }
+  const file = form.get('image');
+  let key, image = '';
+  if (file !== null) {
+    if (!(file instanceof File) || !file.size || file.size > 5 * 1024 * 1024) return json({ error: 'Escolha uma foto de até 5 MB.' }, 400, cors);
+    const ext = imageExtension(file.type);
+    if (!ext) return json({ error: 'Use uma foto JPG, PNG, WEBP ou AVIF.' }, 415, cors);
+    if (form.get('imageRights') !== 'yes') return json({ error: 'Confirme que você tem autorização para usar a foto.' }, 400, cors);
+    if (!env.IMAGES || !env.PUBLIC_ASSETS_URL) return json({ error: 'Armazenamento de fotos indisponível.' }, 503, cors);
+    key = 'catalog-imports/' + id + '/' + crypto.randomUUID() + '.' + ext;
+    await env.IMAGES.put(key, file.stream(), { httpMetadata: { contentType: file.type, cacheControl: 'public, max-age=31536000, immutable' } });
+    image = env.PUBLIC_ASSETS_URL.replace(/\/$/, '') + '/' + key;
+  }
+  const sql = builtIn
+    ? "INSERT INTO catalog_product_overrides (price_cents,image_url,id) VALUES (?,?,?) ON CONFLICT(id) DO UPDATE SET price_cents=excluded.price_cents,image_url=COALESCE(NULLIF(excluded.image_url,''),image_url) RETURNING price_cents,image_url"
+    : "UPDATE catalog_imports SET price_cents=?,image_url=COALESCE(NULLIF(?,''),image_url),updated_at=CURRENT_TIMESTAMP WHERE id=? RETURNING price_cents,image_url";
+  let saved;
+  try {
+    saved = await env.DB.prepare(sql).bind(price, image, id).first();
+  } catch (error) {
+    if (key) await env.IMAGES.delete(key);
+    throw error;
+  }
+  if (!saved) {
+    if (key) await env.IMAGES.delete(key);
+    return json({ error: 'Cadastro não encontrado.' }, 404, cors);
+  }
+  return json({ priceCents: saved.price_cents, imageUrl: saved.image_url }, 200, cors);
+}
 async function fetchMakerWorldMetadata(sourceUrl, host) {
   if (host !== 'makerworld.com' && host !== 'www.makerworld.com') return null;
   const match = new URL(sourceUrl).pathname.match(/^\/(?:[a-z]{2}(?:-[a-z]{2})?\/)?models\/(\d{1,16})(?:[-/]|$)/i);
@@ -180,7 +215,9 @@ export default {
           ? env.DB.prepare(sql + ' ORDER BY updated_at DESC LIMIT 200')
           : env.DB.prepare(sql + ' AND id=?').bind(id);
         const { results } = await query.all();
-        return json({ products: results }, 200, cors);
+        if (id !== null) return json({ products: results }, 200, cors);
+        const overrides = await env.DB.prepare('SELECT id,price_cents,image_url FROM catalog_product_overrides').all();
+        return json({ products: results, overrides: overrides.results }, 200, cors);
       }
       if (path === '/api/preview' && request.method === 'GET') {
         if (!await authorized(request, env)) return json({ error: 'Não autorizado' }, 401, cors);
@@ -212,7 +249,8 @@ export default {
         if (!await authorized(request, env)) return json({ error: 'Não autorizado' }, 401, cors);
         if (request.method === 'GET') {
           const { results } = await env.DB.prepare('SELECT * FROM catalog_imports ORDER BY created_at DESC LIMIT 200').all();
-          return json({ imports: results }, 200, cors);
+          const overrides = await env.DB.prepare('SELECT id,price_cents,image_url FROM catalog_product_overrides').all();
+          return json({ imports: results, overrides: overrides.results }, 200, cors);
         }
         const contentType = request.headers.get('Content-Type') || '';
         let body, imageFile = null;
@@ -249,6 +287,14 @@ export default {
           throw error;
         }
         return json({ id, status: 'pending', imageStored: Boolean(uploadedKey) }, 201, cors);
+      }
+      const productEdit = path.match(/^\/api\/admin\/products\/(academia-001|religioso-001|[0-9a-f-]{36})$/);
+      if (productEdit && request.method === 'PATCH') {
+        if (!await authorized(request, env)) return json({ error: 'Não autorizado' }, 401, cors);
+        if (!request.headers.get('Content-Type')?.startsWith('multipart/form-data')) return json({ error: 'Formato inválido.' }, 400, cors);
+        if (Number(request.headers.get('Content-Length')) > 5 * 1024 * 1024 + 8192) return json({ error: 'Escolha uma foto de até 5 MB.' }, 413, cors);
+        const id = productEdit[1];
+        return await saveProductEdit(request, env, id, id.length !== 36, cors);
       }
       const match = path.match(/^\/api\/imports\/([0-9a-f-]{36})$/i);
       if (match && request.method === 'PATCH') {

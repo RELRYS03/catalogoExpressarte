@@ -10,6 +10,7 @@ test('login privado cria uma conta, limita tentativas e revoga sessões', async 
   const db = new DatabaseSync(':memory:');
   try {
     db.exec(await readFile(new URL('../admin-auth.sql', import.meta.url), 'utf8'));
+    db.exec(await readFile(new URL('../product-overrides.sql', import.meta.url), 'utf8'));
     const env = { ADMIN_TOKEN: token, DB: {
       prepare(sql) {
         const bind = (...args) => {
@@ -81,6 +82,7 @@ function setup() {
           throw new Error('SQL não simulado: ' + sql);
         },
         async all() {
+          if (sql.includes('FROM catalog_product_overrides')) return { results: [] };
           if (sql.includes("status='approved'")) {
             return { results: [...saved.values()].filter(x => x.status === 'approved' && x.commercial_use_allowed && x.image_use_allowed && (!values.length || x.id === values[0])).map(({ id, title, author, image_url, category, price_cents, source_url, license_name }) => ({ id, title, author, image_url, category, price_cents, source_url, license_name })) };
           }
@@ -111,6 +113,34 @@ const sample = {
   sourceSite: 'makerworld', title: 'Presépio', author: 'Criador original',
   priceCents: 4900, category: 'Religiosos'
 };
+test('editor privado salva foto e preço do produto original sem trocar seu ID', async () => {
+  const db = new DatabaseSync(':memory:');
+  try {
+    db.exec(await readFile(new URL('../product-overrides.sql', import.meta.url), 'utf8'));
+    const uploads = [];
+    const env = {
+      ADMIN_TOKEN: token, PUBLIC_ASSETS_URL: 'https://images.example.com',
+      IMAGES: { async put(key) { uploads.push(key); } },
+      DB: { prepare(sql) { return { bind(...args) { return { async first() { return db.prepare(sql).get(...args); } }; } }; } }
+    };
+    const edit = (price, { key = token, image = false, rights = false } = {}) => {
+      const form = new FormData();
+      form.set('priceCents', price);
+      if (image) form.set('image', new Blob(['foto de teste'], { type: 'image/png' }), 'foto.png');
+      if (rights) form.set('imageRights', 'yes');
+      return worker.fetch(new Request(base + '/api/admin/products/academia-001', {
+        method: 'PATCH', headers: { Authorization: 'Bearer ' + key }, body: form
+      }), env);
+    };
+    assert.equal((await edit('3490', { key: '' })).status, 401);
+    assert.equal((await edit('3490', { image: true })).status, 400);
+    const photo = await (await edit('3490', { image: true, rights: true })).json();
+    assert.match(photo.imageUrl, /^https:\/\/images\.example\.com\/catalog-imports\/academia-001\//);
+    const price = await (await edit('3890')).json();
+    assert.deepEqual(price, { priceCents: 3890, imageUrl: photo.imageUrl });
+    assert.equal(uploads.length, 1);
+  } finally { db.close(); }
+});
 test('só o administrador altera o preço e o produto conserva o link e a aprovação', async () => {
   const env = setup();
   const added = await send(env, 'POST', '/api/imports', sample, true);
@@ -147,7 +177,7 @@ test('ponte: extensão simulada cadastra item pendente e público não o vê at�
   const published = await send(env, 'GET', '/api/products');
   assert.equal(published.body.products.length, 1);
   assert.equal(published.body.products[0].title, sample.title);
-  assert.deepEqual((await send(env, 'GET', productLink)).body, published.body);
+  assert.deepEqual((await send(env, 'GET', productLink)).body.products, published.body.products);
   assert.deepEqual((await send(env, 'GET', '/api/products?id=00000000-0000-4000-8000-000000000000')).body.products, []);
   assert.equal((await send(env, 'GET', '/api/products?id=invalid')).status, 400);
 });

@@ -565,39 +565,60 @@
       button.disabled = false;
     }
   }
-  async function saveQueuePrice(event) {
+  async function saveProductEdit(event) {
     event.preventDefault();
     const form = event.currentTarget;
     const input = form.elements.namedItem('price');
+    const photo = form.elements.namedItem('photo');
+    const rights = form.elements.namedItem('photoRights');
+    const card = form.closest('.queue-card');
     const button = form.querySelector('button');
     const result = form.querySelector('[role="status"]');
     const price = parsePrice(input.value);
-    if (Number.isNaN(price) || price > 100000000) {
+    if (Number.isNaN(price) || price > 100000000 || (price === null && card.dataset.builtIn === 'true')) {
       result.textContent = 'Confira o valor informado.';
       return;
     }
+    const file = photo.files[0];
+    if (file && !rights.checked) {
+      result.textContent = 'Confirme a autorização de uso da foto.';
+      return;
+    }
     if (!token()) return promptSignIn();
-    button.disabled = true;
-    input.disabled = true;
+    const fields = [button, input, photo, rights];
+    fields.forEach(field => { field.disabled = true; });
     result.textContent = 'Salvando…';
     try {
-      const id = form.closest('.queue-card').dataset.id;
-      const response = await fetch(endpoint('/api/imports/' + encodeURIComponent(id)), {
+      const body = new FormData();
+      body.append('priceCents', price === null ? '' : String(price));
+      if (file) {
+        body.append('image', file);
+        body.append('imageRights', 'yes');
+      }
+      const response = await fetch(endpoint('/api/admin/products/' + encodeURIComponent(card.dataset.id)), {
         method: 'PATCH',
-        headers: { Authorization: 'Bearer ' + token(), 'Content-Type': 'application/json' },
-        body: JSON.stringify({ priceCents: price })
+        headers: { Authorization: 'Bearer ' + token() },
+        body
       });
       const data = await response.json();
-      if (!response.ok) throw new Error(data.error || 'Não foi possível salvar o preço.');
+      if (!response.ok) throw new Error(data.error || 'Não foi possível salvar o produto.');
       input.value = data.priceCents === null ? '' : (data.priceCents / 100).toFixed(2).replace('.', ',');
-      form.parentElement.querySelector('summary').textContent = 'Editar preço · ' +
+      form.parentElement.querySelector('summary').textContent = 'Editar produto · ' +
         (data.priceCents === null ? 'Sob consulta' : formatMoney.format(data.priceCents / 100));
-      result.textContent = data.priceCents === null ? 'Preço salvo como sob consulta.' : 'Preço atualizado.';
+      if (file) {
+        const image = document.createElement('img');
+        image.src = data.imageUrl;
+        image.alt = '';
+        card.firstElementChild.replaceWith(image);
+      }
+      photo.value = '';
+      rights.checked = false;
+      form.querySelector('.edit-photo-name').textContent = '';
+      result.textContent = 'Alterações salvas.';
     } catch (error) {
-      result.textContent = error.message || 'Não foi possível salvar o preço.';
+      result.textContent = error.message || 'Não foi possível salvar o produto.';
     } finally {
-      button.disabled = false;
-      input.disabled = false;
+      fields.forEach(field => { field.disabled = false; });
     }
   }
   async function loadQueue(loadedData) {
@@ -621,13 +642,16 @@
         }
         if (!res.ok) throw new Error(data.error || 'Falha ao consultar a fila.');
       }
-      const items = Array.isArray(data.imports) ? data.imports : [];
-      if (!items.length) {
-        list.innerHTML = '<div class="queue-empty">Nenhum modelo recebido ainda. Compartilhe um link pelo Bambu Handy para começar.</div>';
-        return;
-      }
+      const edits = new Map((data.overrides || []).map(edit => [edit.id, edit]));
+      const originals = (window.EXPRESSARTE_CONFIG?.builtInProducts || []).map(product => {
+        const edit = edits.get(product.id);
+        return { id: product.id, title: product.name, category: product.category, builtIn: true,
+          price_cents: edit?.price_cents ?? Math.round(product.price * 100),
+          image_url: edit?.image_url || new URL('../' + product.cover, location.href).href };
+      });
+      const imports = Array.isArray(data.imports) ? data.imports : [];
       const statusLabel = { pending: 'AGUARDANDO REVISÃO', approved: 'APROVADO', rejected: 'RECUSADO' };
-      list.innerHTML = items.map(item => {
+      const renderCard = item => {
         const image = /^https:\/\//i.test(String(item.image_url || ''))
           ? '<img src="' + escapeHtml(item.image_url) + '" alt="" loading="lazy">'
           : '<div class="queue-image-placeholder">Sem capa</div>';
@@ -643,21 +667,33 @@
             '<button class="secondary-button" type="button" data-copy-product>Copiar link</button>' +
             '<p class="queue-link-status" role="status"></p></div>'
           : '';
-        return '<article class="queue-card" data-id="' + escapeHtml(item.id) + '">' + image +
-          '<div class="queue-content"><strong>' + escapeHtml(item.title) + '</strong>' +
-          '<div class="queue-meta">' + escapeHtml(item.category || 'Outros') + (item.author ? ' · ' + escapeHtml(item.author) : '') + '</div>' +
-          '<span class="queue-status">' + status + '</span><br>' + source + '</div>' +
+        const review = item.builtIn ? '' :
           '<div class="queue-rights"><label><input type="checkbox" data-commercial ' + (item.commercial_use_allowed ? 'checked' : '') + '> Confirmei que a licença permite uso comercial/impressão para venda.</label>' +
           '<label><input type="checkbox" data-image-rights ' + (item.image_use_allowed ? 'checked' : '') + '> Tenho autorização para exibir esta imagem no catálogo.</label></div>' +
-          '<div class="queue-actions"><button class="queue-approve" type="button" data-queue-action="approved">Aprovar</button><button class="queue-reject" type="button" data-queue-action="rejected">Recusar</button></div>' +
-          '<details class="queue-price"><summary>Editar preço · ' + (price ? escapeHtml(formatMoney.format(item.price_cents / 100)) : 'Sob consulta') + '</summary>' +
+          '<div class="queue-actions"><button class="queue-approve" type="button" data-queue-action="approved">Aprovar</button><button class="queue-reject" type="button" data-queue-action="rejected">Recusar</button></div>';
+        return '<article class="queue-card" data-built-in="' + Boolean(item.builtIn) + '" data-id="' + escapeHtml(item.id) + '">' + image +
+          '<div class="queue-content"><strong>' + escapeHtml(item.title) + '</strong>' +
+          '<div class="queue-meta">' + escapeHtml(item.category || 'Outros') + (item.author ? ' · ' + escapeHtml(item.author) : '') + '</div>' +
+          (item.builtIn ? '' : '<span class="queue-status">' + status + '</span><br>' + source) + '</div>' + review +
+          '<details class="queue-price"><summary>Editar produto · ' + (price ? escapeHtml(formatMoney.format(item.price_cents / 100)) : 'Sob consulta') + '</summary>' +
           '<form><label>Preço de venda (R$)<input name="price" inputmode="decimal" maxlength="12" value="' + escapeHtml(price) +
-          '" placeholder="Sob consulta"></label><button class="secondary-button" type="submit">Salvar preço</button><p role="status"></p></form></details>' +
+          '" placeholder="Sob consulta"></label><label>Nova foto principal<input type="file" name="photo" accept="image/jpeg,image/png,image/webp,image/avif"></label>' +
+          '<p class="edit-photo-name"></p><label class="edit-photo-rights"><input type="checkbox" name="photoRights"> Tenho autorização para usar esta foto</label>' +
+          '<button class="secondary-button" type="submit">Salvar alterações</button><p role="status"></p></form></details>' +
           share + '</article>';
-      }).join('');
+      };
+      list.innerHTML = (originals.length ? '<h3 class="queue-group-title">Produtos do catálogo</h3>' + originals.map(renderCard).join('') : '') +
+        '<h3 class="queue-group-title">Modelos importados</h3>' +
+        (imports.length ? imports.map(renderCard).join('') : '<div class="queue-empty">Nenhum modelo importado ainda.</div>');
       list.querySelectorAll('[data-queue-action]').forEach(button => button.addEventListener('click', () => updateQueueItem(button)));
       list.querySelectorAll('[data-copy-product]').forEach(button => button.addEventListener('click', () => copyProductLink(button)));
-      list.querySelectorAll('.queue-price form').forEach(form => form.addEventListener('submit', saveQueuePrice));
+      list.querySelectorAll('.queue-price form').forEach(form => {
+        form.addEventListener('submit', saveProductEdit);
+        form.elements.namedItem('photo').addEventListener('change', event => {
+          form.elements.namedItem('photoRights').checked = false;
+          form.querySelector('.edit-photo-name').textContent = event.target.files[0]?.name || '';
+        });
+      });
     } catch (error) {
       if (token() === credential) list.innerHTML = '<div class="queue-empty">' + escapeHtml(error.message || 'Não foi possível carregar a fila.') + '</div>';
     }

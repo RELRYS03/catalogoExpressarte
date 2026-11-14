@@ -21,6 +21,9 @@ await writeFile(join(dist, '_headers'), [
   '  Permissions-Policy: camera=(), microphone=(), geolocation=()',
   '  Cache-Control: no-cache',
   '',
+  '/config.js',
+  '  Cache-Control: no-cache',
+  '',
   '/*',
   '  X-Content-Type-Options: nosniff',
   ''

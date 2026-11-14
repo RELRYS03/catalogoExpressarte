@@ -2,10 +2,7 @@
   'use strict';
   const config = window.EXPRESSARTE_CONFIG || { whatsappNumber: '', storeName: "Express'Arte", draftMode: true };
   const money = value => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
-  const products = [
-    { id: 'academia-001', name: 'Pote Anilha 28KG / 64LB', category: 'Academia', price: 34.90, priceLabel: 'preço provisório', draft: true },
-    { id: 'religioso-001', name: 'Bandeja Porta Rosário Nossa Senhora Aparecida 130mm', category: 'Religiosos', price: 30.00, priceLabel: 'preço atual', draft: true }
-  ];
+  const products = (config.builtInProducts || []).map(product => ({ ...product }));
   const state = { category: '', search: '', quantities: Object.fromEntries(products.map(p => [p.id, 1])), order: new Map() };
   const $ = selector => document.querySelector(selector);
   const $$ = selector => Array.from(document.querySelectorAll(selector));
@@ -221,6 +218,36 @@
     if (!String(config.catalogApiEndpoint || '').trim()) return;
     try {
       const data = await fetchProducts(productsEndpoint());
+      for (const edit of data.overrides || []) {
+        const product = getProduct(edit.id);
+        const card = $$('#productGrid .product-card').find(item => item.dataset.productId === edit.id);
+        if (!product || !card) continue;
+        if (Number.isSafeInteger(edit.price_cents)) {
+          product.price = edit.price_cents / 100;
+          card.querySelector('.price').textContent = money(product.price);
+          const previous = $$('[data-weekly-deal]').find(deal => deal.dataset.weeklyDeal === edit.id)?.querySelector('del');
+          if (previous) {
+            const offerPrice = Number(previous.closest('[data-weekly-deal]').querySelector('[data-promo-price]').dataset.promoPrice);
+            previous.hidden = product.price <= offerPrice;
+            previous.textContent = money(product.price);
+          }
+        }
+        if (/^https:\/\//i.test(edit.image_url || '')) {
+          const main = card.querySelector('.product-main-photo');
+          const first = card.querySelector('.photo-thumb');
+          if (first) {
+            first.dataset.photo = edit.image_url;
+            first.dataset.alt = product.name;
+            first.querySelector('img').src = edit.image_url;
+          }
+          if (!first || first.classList.contains('active')) {
+            main.src = edit.image_url;
+            main.alt = product.name;
+          }
+          const promo = $$('[data-weekly-deal]').find(deal => deal.dataset.weeklyDeal === edit.id)?.querySelector('.weekly-deal-photo img');
+          if (promo) { promo.src = edit.image_url; promo.alt = product.name; }
+        }
+      }
       (Array.isArray(data.products) ? data.products : []).forEach(addImportedProduct);
       applyFilters();
     } catch (error) {
