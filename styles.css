@@ -160,7 +160,14 @@
 }
 .back-to-top:hover { background: var(--cream-2); }
 @media (max-width: 680px) {
-  .back-to-top { bottom: calc(92px + env(safe-area-inset-bottom)); }
+  .back-to-top {
+    bottom: calc(92px + env(safe-area-inset-bottom));
+    padding-inline: 10px;
+    border-color: rgb(74 43 28 / 18%);
+    background: rgb(255 253 250 / 38%);
+    text-shadow: 0 1px 2px var(--white), 0 -1px 2px var(--white);
+  }
+  .back-to-top:focus-visible { background: var(--white); }
 }
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
