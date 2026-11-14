@@ -144,12 +144,12 @@
 .promotion-controls .icon-button{width:44px;height:44px;border:1px solid var(--line)}
 .promotion-controls .icon-button svg{width:17px;height:17px}
 .weekly-deals-grid{
-  --offer-gap:16px;
-  --visible-offers:4;
+  --offer-gap:12px;
+  --visible-offers:5;
   position:relative;
   display:grid;
   grid-auto-flow:column;
-  grid-auto-columns:calc((100% + var(--offer-gap)) / var(--visible-offers) - var(--offer-gap));
+  grid-auto-columns:max(108px, calc((100% + var(--offer-gap)) / var(--visible-offers) - var(--offer-gap)));
   gap:var(--offer-gap);
   overflow-x:auto;
   scroll-snap-type:x mandatory;
@@ -172,12 +172,14 @@
 .weekly-deal-button:hover{background:var(--caramel);transform:translateY(-1px)}
 .weekly-deal-button:focus-visible{outline:3px solid var(--caramel);outline-offset:3px}
 .weekly-deal-button{width:100%}
-@media(max-width:960px){.weekly-deals-grid{--visible-offers:3}}
+@media(max-width:960px){.weekly-deals-grid{--visible-offers:4}}
 @media(max-width:620px){
  .weekly-deals-section{padding:0 14px}
- .weekly-deals-grid{--visible-offers:2;--offer-gap:10px}
- .weekly-deal-content{padding:10px}
- .weekly-deal-content h3{font-size:14px}
+ .weekly-deals-grid{--visible-offers:3;--offer-gap:8px}
+ .weekly-deal-content{padding:8px}
+ .weekly-deal-content h3{font-size:13px}
+ .weekly-deal-price strong{font-size:17px}
+ .weekly-deal-button{padding-inline:6px;font-size:11px}
 }
 
 
