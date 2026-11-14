@@ -1,15 +1,15 @@
-name: Testar ponte de importação
+name: Testar ponte e PWA Express'Arte
 on:
   push:
     branches: [feat/cloudflare-catalog-import-bridge]
     paths:
       - 'cloudflare/import-api/**'
       - 'importador/**'
-      - 'importador/**'
       - '.github/workflows/import-bridge-tests.yml'
   pull_request:
     paths:
       - 'cloudflare/import-api/**'
+      - 'importador/**'
       - '.github/workflows/import-bridge-tests.yml'
 jobs:
   test:
@@ -19,5 +19,5 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: Testar API da ponte com extensão simulada
+      - name: Testar API e contrato de compartilhamento Android
         run: node --test cloudflare/import-api/tests/bridge.test.mjs
