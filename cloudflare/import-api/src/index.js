@@ -257,6 +257,15 @@ export default {
       if (match && request.method === 'PATCH') {
         if (!await authorized(request, env)) return json({ error: 'Não autorizado' }, 401, cors);
         const body = await parseJson(request);
+        if (body && Object.keys(body).length === 1 && Object.hasOwn(body, 'priceCents')) {
+          const price = body.priceCents;
+          if (price !== null && (!Number.isSafeInteger(price) || price < 0 || price > 100000000)) {
+            return json({ error: 'Preço inválido' }, 400, cors);
+          }
+          const result = await env.DB.prepare('UPDATE catalog_imports SET price_cents=?,updated_at=CURRENT_TIMESTAMP WHERE id=?')
+            .bind(price, match[1]).run();
+          return result.meta.changes ? json({ priceCents: price }, 200, cors) : json({ error: 'Cadastro não encontrado' }, 404, cors);
+        }
         if (!body || !['pending','approved','rejected'].includes(body.status)) return json({ error: 'status inválido' }, 400, cors);
         const commercial = body.commercialUseAllowed === true ? 1 : 0;
         const image = body.imageUseAllowed === true ? 1 : 0;

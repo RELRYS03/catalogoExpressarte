@@ -18,6 +18,13 @@ function setup() {
             saved.set(id, { id, source_url, source_site, title, author, image_url, category, price_cents, license_name, commercial_use_allowed: 0, image_use_allowed: 0, status: 'pending', created_at: '2026-11-13', updated_at: '2026-11-13' });
             return { meta: { changes: 1 } };
           }
+          if (sql.startsWith('UPDATE catalog_imports SET price_cents=')) {
+            const [price, id] = values;
+            const row = saved.get(id);
+            if (!row) return { meta: { changes: 0 } };
+            row.price_cents = price;
+            return { meta: { changes: 1 } };
+          }
           if (sql.startsWith('UPDATE')) {
             const [status, commercial, image, id] = values;
             const row = saved.get(id);
@@ -58,6 +65,22 @@ const sample = {
   sourceSite: 'makerworld', title: 'Presépio', author: 'Criador original',
   priceCents: 4900, category: 'Religiosos'
 };
+test('só o administrador altera o preço e o produto conserva o link e a aprovação', async () => {
+  const env = setup();
+  const added = await send(env, 'POST', '/api/imports', sample, true);
+  const id = added.body.id;
+  const route = '/api/imports/' + id;
+  const product = '/api/products?id=' + id;
+  assert.equal((await send(env, 'PATCH', route, { priceCents: 600 })).status, 401);
+  assert.equal((await send(env, 'PATCH', route, { priceCents: 600 }, true)).status, 200);
+  assert.deepEqual((await send(env, 'GET', product)).body.products, []);
+  await send(env, 'PATCH', route, { status: 'approved', commercialUseAllowed: true, imageUseAllowed: true }, true);
+  assert.equal((await send(env, 'PATCH', route, { priceCents: 650 }, true)).status, 200);
+  assert.equal((await send(env, 'PATCH', route, { priceCents: -1 }, true)).status, 400);
+  assert.equal((await send(env, 'GET', product)).body.products[0].price_cents, 650);
+  assert.equal((await send(env, 'PATCH', route, { priceCents: null }, true)).status, 200);
+  assert.equal((await send(env, 'GET', product)).body.products[0].price_cents, null);
+});
 test('ponte: extensão simulada cadastra item pendente e público não o vê até aprovação explícita', async () => {
   const env = setup();
   assert.equal((await send(env, 'GET', '/api/health')).status, 200);

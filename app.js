@@ -6,10 +6,12 @@
     { id: 'academia-001', name: 'Pote Anilha 28KG / 64LB', category: 'Academia', price: 34.90, priceLabel: 'preço provisório', draft: true },
     { id: 'religioso-001', name: 'Bandeja Porta Rosário Nossa Senhora Aparecida 130mm', category: 'Religiosos', price: 30.00, priceLabel: 'preço atual', draft: true }
   ];
-  const state = { category: 'Todas', search: '', quantities: Object.fromEntries(products.map(p => [p.id, 1])), order: new Map() };
+  const state = { category: '', search: '', quantities: Object.fromEntries(products.map(p => [p.id, 1])), order: new Map() };
   const $ = selector => document.querySelector(selector);
   const $$ = selector => Array.from(document.querySelectorAll(selector));
   const productGrid = $('#productGrid');
+  const catalog = $('#catalogo');
+  const catalogTitle = $('#catalogTitle');
   const emptyState = $('#emptyState');
   const orderItems = $('#orderItems');
   const orderTotal = $('#orderTotal');
@@ -32,9 +34,12 @@
   function visibleProduct(card) {
     const name = (card.dataset.name || '').toLocaleLowerCase('pt-BR');
     const category = card.dataset.category;
-    return (!state.search || name.includes(state.search)) && (state.category === 'Todas' || category === state.category);
+    return Boolean(state.search || state.category) &&
+      (!state.search || name.includes(state.search)) && (!state.category || category === state.category);
   }
   function applyFilters() {
+    catalog.hidden = !state.category && !state.search;
+    catalogTitle.textContent = state.category || 'Resultados da busca';
     let visible = 0;
     $$('.product-card').forEach(card => {
       const show = visibleProduct(card);
@@ -69,6 +74,13 @@
     const value = Math.max(1, Math.min(999, next));
     state.quantities[card.dataset.productId] = value;
     card.querySelector('.qty-value').textContent = value;
+  }
+  function browseCategory(category) {
+    state.search = '';
+    $('#searchInput').value = '';
+    setCategory(category);
+    catalogTitle.focus({ preventScroll: true });
+    catalog.scrollIntoView({ block: 'start', behavior: 'instant' });
   }
   function addProduct(id, priceOverride = null, priceLabelOverride = null) {
     const product = getProduct(id);
@@ -118,7 +130,7 @@
     button.dataset.category = category;
     button.setAttribute('aria-pressed', 'false');
     button.innerHTML = '<span class="category-circle"><span aria-hidden="true">✦</span></span><span>' + escapeHtml(category) + '</span>';
-    button.addEventListener('click', () => setCategory(category));
+    button.addEventListener('click', () => browseCategory(category));
     strip.append(button);
   }
   function addImportedProduct(item) {
@@ -189,7 +201,7 @@
     if (!visibleProduct(card) || card.hidden) {
       state.search = '';
       $('#searchInput').value = '';
-      setCategory('Todas');
+      setCategory(card.dataset.category);
     }
     card.classList.add('linked-product');
     card.focus({ preventScroll: true });
@@ -257,10 +269,18 @@
     addProduct(id, price, 'promoção da semana (teste)');
     goToOrder();
   }));
-  $$('.category-item').forEach(button => button.addEventListener('click', () => setCategory(button.dataset.category)));
-  $('#searchInput').addEventListener('input', event => { state.search = event.target.value.trim().toLocaleLowerCase('pt-BR'); applyFilters(); });
+  $$('.category-item').forEach(button => button.addEventListener('click', () => browseCategory(button.dataset.category)));
+  $('#searchInput').addEventListener('input', event => {
+    state.search = event.target.value.trim().toLocaleLowerCase('pt-BR');
+    setCategory('');
+  });
+  $('#searchInput').addEventListener('keydown', event => {
+    if (event.key !== 'Enter' || !state.search) return;
+    catalogTitle.focus({ preventScroll: true });
+    catalog.scrollIntoView({ block: 'start', behavior: 'instant' });
+  });
   $('#clearSearch').addEventListener('click', () => { $('#searchInput').value = ''; state.search = ''; applyFilters(); $('#searchInput').focus(); });
-  $('#resetFilters').addEventListener('click', () => { state.search = ''; $('#searchInput').value = ''; setCategory('Todas'); });
+  $('#backToCategories').addEventListener('click', () => { state.search = ''; $('#searchInput').value = ''; setCategory(''); });
   $$('.product-card').forEach(card => {
     card.querySelector('.qty-minus').addEventListener('click', () => updateQuantity(card, state.quantities[card.dataset.productId] - 1));
     card.querySelector('.qty-plus').addEventListener('click', () => updateQuantity(card, state.quantities[card.dataset.productId] + 1));

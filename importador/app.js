@@ -502,6 +502,41 @@
       button.disabled = false;
     }
   }
+  async function saveQueuePrice(event) {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const input = form.elements.namedItem('price');
+    const button = form.querySelector('button');
+    const result = form.querySelector('[role="status"]');
+    const price = parsePrice(input.value);
+    if (Number.isNaN(price) || price > 100000000) {
+      result.textContent = 'Confira o valor informado.';
+      return;
+    }
+    if (!token()) return promptSignIn();
+    button.disabled = true;
+    input.disabled = true;
+    result.textContent = 'Salvando…';
+    try {
+      const id = form.closest('.queue-card').dataset.id;
+      const response = await fetch(endpoint('/api/imports/' + encodeURIComponent(id)), {
+        method: 'PATCH',
+        headers: { Authorization: 'Bearer ' + token(), 'Content-Type': 'application/json' },
+        body: JSON.stringify({ priceCents: price })
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Não foi possível salvar o preço.');
+      input.value = data.priceCents === null ? '' : (data.priceCents / 100).toFixed(2).replace('.', ',');
+      form.parentElement.querySelector('summary').textContent = 'Editar preço · ' +
+        (data.priceCents === null ? 'Sob consulta' : formatMoney.format(data.priceCents / 100));
+      result.textContent = data.priceCents === null ? 'Preço salvo como sob consulta.' : 'Preço atualizado.';
+    } catch (error) {
+      result.textContent = error.message || 'Não foi possível salvar o preço.';
+    } finally {
+      button.disabled = false;
+      input.disabled = false;
+    }
+  }
   async function loadQueue(loadedData) {
     const list = $('queueList');
     const credential = token();
@@ -537,6 +572,7 @@
           ? '<a class="queue-source" href="' + escapeHtml(item.source_url) + '" target="_blank" rel="noopener noreferrer">Abrir modelo original ↗</a>'
           : '';
         const status = statusLabel[item.status] || 'STATUS DESCONHECIDO';
+        const price = Number.isSafeInteger(item.price_cents) ? (item.price_cents / 100).toFixed(2).replace('.', ',') : '';
         const publicUrl = item.status === 'approved' && item.commercial_use_allowed && item.image_use_allowed && /^[0-9a-f-]{36}$/i.test(item.id)
           ? new URL('../#imported-' + item.id, location.href).href : '';
         const share = publicUrl
@@ -550,10 +586,15 @@
           '<span class="queue-status">' + status + '</span><br>' + source + '</div>' +
           '<div class="queue-rights"><label><input type="checkbox" data-commercial ' + (item.commercial_use_allowed ? 'checked' : '') + '> Confirmei que a licença permite uso comercial/impressão para venda.</label>' +
           '<label><input type="checkbox" data-image-rights ' + (item.image_use_allowed ? 'checked' : '') + '> Tenho autorização para exibir esta imagem no catálogo.</label></div>' +
-          '<div class="queue-actions"><button class="queue-approve" type="button" data-queue-action="approved">Aprovar</button><button class="queue-reject" type="button" data-queue-action="rejected">Recusar</button></div>' + share + '</article>';
+          '<div class="queue-actions"><button class="queue-approve" type="button" data-queue-action="approved">Aprovar</button><button class="queue-reject" type="button" data-queue-action="rejected">Recusar</button></div>' +
+          '<details class="queue-price"><summary>Editar preço · ' + (price ? escapeHtml(formatMoney.format(item.price_cents / 100)) : 'Sob consulta') + '</summary>' +
+          '<form><label>Preço de venda (R$)<input name="price" inputmode="decimal" maxlength="12" value="' + escapeHtml(price) +
+          '" placeholder="Sob consulta"></label><button class="secondary-button" type="submit">Salvar preço</button><p role="status"></p></form></details>' +
+          share + '</article>';
       }).join('');
       list.querySelectorAll('[data-queue-action]').forEach(button => button.addEventListener('click', () => updateQueueItem(button)));
       list.querySelectorAll('[data-copy-product]').forEach(button => button.addEventListener('click', () => copyProductLink(button)));
+      list.querySelectorAll('.queue-price form').forEach(form => form.addEventListener('submit', saveQueuePrice));
     } catch (error) {
       if (token() === credential) list.innerHTML = '<div class="queue-empty">' + escapeHtml(error.message || 'Não foi possível carregar a fila.') + '</div>';
     }

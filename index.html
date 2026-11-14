@@ -56,7 +56,7 @@
         <span class="eyebrow"><span class="sparkle">✦</span> EXPRESS'ARTE · PERSONALIZADOS 3D</span>
         <h1>Produtos feitos<br><span>com criatividade.</span></h1>
         <p>Área reservada para a promoção que você escolher.</p>
-        <a class="light-button" href="#destaques">Conhecer o catálogo <span aria-hidden="true">→</span></a>
+        <a class="light-button" href="#categorias">Explorar categorias <span aria-hidden="true">→</span></a>
       </div>
       <div class="promo-mascot-wrap">
         <div class="mascot-glow"></div>
@@ -71,7 +71,6 @@
     <section class="categories-section" id="categorias">
       <div class="section-heading"><div><span class="section-kicker">ENCONTRE O QUE PROCURA</span><h2>Categorias</h2></div><span class="heading-note">Escolha uma categoria</span></div>
       <div class="category-strip" id="categoryStrip" aria-label="Categorias de produtos">
-        <button class="category-item active" data-category="Todas" type="button" aria-pressed="true"><span class="category-circle"><svg viewBox="0 0 24 24"><path d="M4 5h6v6H4zM14 5h6v6h-6zM4 15h6v5H4zM14 15h6v5h-6z"/></svg></span><span>Todas</span></button>
         <button class="category-item" data-category="Academia" type="button" aria-pressed="false"><span class="category-circle"><svg viewBox="0 0 24 24"><path d="M3 9v6M6 7v10M9 10v4M15 10v4M18 7v10M21 9v6M6 12h12"/></svg></span><span>Academia</span></button>
         <button class="category-item" data-category="Canecas" type="button" aria-pressed="false"><span class="category-circle"><svg viewBox="0 0 24 24"><path d="M5 5h12v11a4 4 0 0 1-4 4H9a4 4 0 0 1-4-4V5Z"/><path d="M17 8h2a3 3 0 0 1 0 6h-2"/></svg></span><span>Canecas</span></button>
         <button class="category-item" data-category="Chaveiros" type="button" aria-pressed="false"><span class="category-circle"><svg viewBox="0 0 24 24"><circle cx="8.5" cy="8.5" r="4.5"/><path d="m12 12 8 8m-3-3 2-2m-5-1 2-2"/></svg></span><span>Chaveiros</span></button>
@@ -107,8 +106,8 @@
         </article>
       </div>
     </section>
-    <section class="products-section" id="catalogo" aria-labelledby="catalogTitle">
-      <div class="section-heading product-heading"><div><span class="section-kicker">ESCOLHA O QUE MAIS COMBINA COM VOCÊ</span><h2 id="catalogTitle">Nosso Catálogo <span class="heading-star">✦</span></h2></div><span class="heading-note">Navegue por todas as categorias acima</span></div>
+    <section class="products-section" id="catalogo" aria-labelledby="catalogTitle" hidden>
+      <div class="section-heading product-heading"><h2 id="catalogTitle" tabindex="-1">Produtos</h2><a class="heading-note" id="backToCategories" href="#categorias">Ver categorias</a></div>
       <div class="product-grid" id="productGrid">
         <article class="product-card" data-product-id="academia-001" data-category="Academia" data-name="Pote Anilha 28KG 64LB">
           <div class="product-photo-area">
@@ -155,7 +154,7 @@
           </div>
         </article>
       </div>
-      <div class="empty-state" id="emptyState" hidden><span>✦</span><h3>Nenhum produto encontrado</h3><p>Tente outra busca ou escolha uma categoria diferente.</p><button type="button" id="resetFilters">Ver todos os produtos</button></div>
+      <div class="empty-state" id="emptyState" hidden><h3>Nenhum produto encontrado</h3><p>Tente outra busca ou escolha uma categoria diferente.</p></div>
     </section>
 
     <section class="order-panel" id="orderPanel" aria-labelledby="orderTitle">

@@ -68,3 +68,10 @@ label{display:block;font-size:12px;font-weight:800;color:var(--brown2);margin:15
 .advanced .remember-session { display: flex; align-items: center; gap: 8px; min-height: 44px; margin: 0; }
 .advanced .remember-session input { width: 18px; min-height: 18px; margin: 0; accent-color: var(--brown); }
 #adminSessionStatus { color: var(--brown2); }
+.queue-price { grid-column: 1 / -1; border-top: 1px solid var(--line); }
+.queue-price summary { padding: 12px 2px; color: var(--brown2); font-weight: 800; cursor: pointer; }
+.queue-price form { display: grid; gap: 8px; }
+.queue-price label { margin: 0; }
+.queue-price input { margin-top: 4px; }
+.queue-price button { min-height: 44px; justify-self: start; }
+.queue-price p { margin: 0; color: var(--brown2); font-size: 13px; }

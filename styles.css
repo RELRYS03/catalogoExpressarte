@@ -178,3 +178,11 @@
 .imported-product-card .product-footnote{overflow-wrap:anywhere}
 .imported-product-card[id]{scroll-margin-top:100px}
 .imported-product-card.linked-product,.imported-product-card:focus-visible{outline:2px solid var(--brown);outline-offset:3px}
+
+#catalogo { scroll-margin-top: 100px; }
+.products-section #productGrid > .product-card,
+.products-section #productGrid:has(> .product-card:only-child) > .product-card { height: auto; align-self: start; }
+.products-section #productGrid .product-photo-area { min-height: 0; }
+.products-section #productGrid .product-info { flex: initial; }
+.products-section #productGrid .product-info .quantity-row { margin-top: 0; }
+#backToCategories { color: var(--brown-2); text-decoration: underline; text-underline-offset: 3px; }
