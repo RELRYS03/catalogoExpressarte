@@ -218,6 +218,7 @@
     if (!String(config.catalogApiEndpoint || '').trim()) return;
     try {
       const data = await fetchProducts(productsEndpoint());
+      (data.categories || []).forEach(ensureCategoryButton);
       for (const edit of data.overrides || []) {
         const product = getProduct(edit.id);
         const card = $$('#productGrid .product-card').find(item => item.dataset.productId === edit.id);

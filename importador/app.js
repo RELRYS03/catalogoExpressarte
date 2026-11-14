@@ -61,6 +61,8 @@
       : suggestion
         ? 'Expressinho sugere ' + suggestion + ' ' + (visual?.category ? 'pela imagem.' : 'pelo título ou link.')
         : visual ? 'O Expressinho não identificou uma categoria pela imagem. Escolha uma categoria para o modelo.' : '';
+    if (visual?.proposed) advice.textContent = 'Expressinho sugere criar a categoria ' + visual.proposed + '.';
+    $('newCategory').textContent = visual?.proposed ? 'Revisar nova categoria' : 'Nova categoria';
     apply.textContent = 'Usar ' + (suggestion || '');
     apply.hidden = !suggestion || field.value === suggestion;
     advice.hidden = !advice.textContent;
@@ -107,13 +109,65 @@
       if (sharedImage !== file || $('title').value.trim() !== title) return;
       const options = Array.from($('category').options);
       const category = options.some(option => option.value === result.category) ? result.category : null;
-      imageSuggestion = { file, title, category };
+      imageSuggestion = { file, title, category, proposed: typeof result.suggestedCategory === 'string' ? result.suggestedCategory : '' };
       updateCategoryAdvice();
     } catch {
       say('A análise da imagem falhou. Confira a conexão ou escolha a categoria manualmente.', 'error');
     } finally {
       button.disabled = false;
       button.textContent = 'Analisar imagem';
+    }
+  }
+  function addCategory(name) {
+    const select = $('category');
+    if (Array.from(select.options).some(option => option.value === name)) return;
+    select.add(new Option(name, name));
+  }
+  async function loadCategories() {
+    try {
+      const response = await fetch(endpoint('/api/categories'), { cache: 'no-store' });
+      if (!response.ok) return;
+      const { categories } = await response.json();
+      if (Array.isArray(categories)) categories.forEach(addCategory);
+    } catch { /* The built-in categories stay available. */ }
+  }
+  function showCategoryForm(show) {
+    $('categoryForm').hidden = !show;
+    $('newCategory').setAttribute('aria-expanded', String(show));
+    if (show) {
+      const proposal = imageSuggestion;
+      $('categoryName').value = proposal?.file === sharedImage && proposal.title === $('title').value.trim() ? proposal.proposed || '' : '';
+      $('categoryFeedback').textContent = '';
+      $('categoryName').focus();
+    }
+  }
+  async function createCategory(event) {
+    event.preventDefault();
+    if (!token()) return promptSignIn();
+    const button = event.currentTarget.querySelector('[type="submit"]');
+    const feedback = $('categoryFeedback');
+    button.disabled = true;
+    feedback.textContent = 'Criando categoria…';
+    try {
+      const response = await fetch(endpoint('/api/categories'), {
+        method: 'POST',
+        headers: { Authorization: 'Bearer ' + token(), 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: $('categoryName').value })
+      });
+      const result = await response.json();
+      if (!response.ok || typeof result.name !== 'string') throw new Error(result.error || 'Não foi possível criar a categoria.');
+      addCategory(result.name);
+      $('category').value = result.name;
+      categoryEdited = true;
+      imageSuggestion = null;
+      updateCategoryAdvice();
+      showCategoryForm(false);
+      $('category').focus();
+      say('Categoria disponível no catálogo.', 'success');
+    } catch (error) {
+      feedback.textContent = error.message || 'Não foi possível criar a categoria.';
+    } finally {
+      button.disabled = false;
     }
   }
   function parseShared(data) {
@@ -131,6 +185,9 @@
       $('shareNote').textContent = 'Link recebido do compartilhamento. Confira o endereço e complete os dados.';
       $('draftStatus').textContent = 'Link recebido';
       say('Link recebido. Agora revise o nome, o preço e a categoria.');
+    } else if (data.images?.length) {
+      $('shareNote').textContent = 'Foto recebida. Dê um nome ao produto para cadastrar.';
+      say('Foto recebida. Você pode cadastrar o produto sem link.');
     } else if (title) {
       $('shareNote').textContent = 'Texto recebido. Cole ou informe o link original do modelo.';
       say('Recebemos o compartilhamento, mas não encontramos um link HTTPS.');
@@ -499,17 +556,22 @@
     say('Preço sugerido preenchido. Você pode ajustá-lo antes de enviar.', 'success');
   }
   async function sendImport() {
-    const sourceUrl = cleanUrl($('sourceUrl').value);
+    const rawLink = $('sourceUrl').value.trim();
+    const sourceUrl = cleanUrl(rawLink);
     const title = $('title').value.trim();
     const priceCents = parsePrice($('price').value);
-    if (!sourceUrl) return say('Informe o link original do modelo.', 'error');
+    if (rawLink && !sourceUrl) return say('Confira o link HTTPS informado.', 'error');
+    if (!sourceUrl && !sharedImage) return say('Adicione um link ou escolha uma foto do produto.', 'error');
     if (!title) return say('Informe o nome do modelo.', 'error');
     if (Number.isNaN(priceCents)) return say('Confira o preço informado.', 'error');
     if (!token()) return promptSignIn();
     const button = $('sendButton'); button.disabled = true; button.textContent = 'Enviando…';
     try {
       const body = new FormData();
-      body.append('sourceUrl', sourceUrl); body.append('sourceSite', hostOf(sourceUrl));
+      if (sourceUrl) {
+        body.append('sourceUrl', sourceUrl);
+        body.append('sourceSite', hostOf(sourceUrl));
+      }
       body.append('title', title); body.append('author', $('author').value.trim());
       body.append('category', $('category').value); body.append('priceCents', priceCents == null ? '' : String(priceCents));
       const preview = $('previewCard').dataset;
@@ -699,6 +761,12 @@
     }
   }
   $('imageFile').addEventListener('change', event => selectImage(event.target.files[0] || null));
+  $('cameraFile').addEventListener('change', event => selectImage(event.target.files[0] || null));
+  $('takePhoto').addEventListener('click', () => $('cameraFile').click());
+  $('choosePhoto').addEventListener('click', () => $('imageFile').click());
+  $('newCategory').addEventListener('click', () => showCategoryForm($('categoryForm').hidden));
+  $('cancelCategory').addEventListener('click', () => { showCategoryForm(false); $('newCategory').focus(); });
+  $('categoryForm').addEventListener('submit', createCategory);
   $('title').addEventListener('input', updateCategoryAdvice);
   $('sourceUrl').addEventListener('input', () => {
     if ($('previewCard').dataset.sourceUrl !== cleanUrl($('sourceUrl').value)) clearModelPreview();
@@ -707,7 +775,7 @@
   $('category').addEventListener('change', () => { categoryEdited = Boolean($('category').value); updateCategoryAdvice(); });
   $('applyCategory').addEventListener('click', () => { categoryEdited = false; updateCategoryAdvice(); });
   $('analyzeCategory').addEventListener('click', analyzeCategory);
-  $('removeImage').addEventListener('click', () => { $('imageFile').value = ''; selectImage(null); });
+  $('removeImage').addEventListener('click', () => { $('imageFile').value = $('cameraFile').value = ''; selectImage(null); });
   $('editCover').addEventListener('click', () => coverSource ? closeCover() : openCover());
   $('cancelCover').addEventListener('click', () => { closeCover(); $('editCover').focus(); });
   $('applyCover').addEventListener('click', applyCover);
@@ -741,13 +809,14 @@
     restoreCalculatorRates();
     updatePriceCalculator();
     $('priceCalculator').open = false;
-    $('imageFile').value = ''; selectImage(null); clearModelPreview();
+    $('imageFile').value = $('cameraFile').value = ''; selectImage(null); clearModelPreview();
+    showCategoryForm(false);
     $('draftStatus').textContent = 'Rascunho local'; say('Formulário limpo.');
   });
   $('apiBase').value = localStorage.getItem('expressarte_api_base') || window.EXPRESSARTE_CONFIG?.catalogApiEndpoint || '';
   $('adminToken').value = token() ? '' : sessionStorage.getItem('expressarte_admin_token') || '';
   updateAdminControls();
   if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js').catch(() => setConnectionStatus('Instalação PWA indisponível'));
-  loadShared().then(() => { checkAdminSetup(); checkHealth(); if (token()) loadQueue(); });
+  loadShared().then(() => { checkAdminSetup(); checkHealth(); loadCategories(); if (token()) loadQueue(); });
   if (new URLSearchParams(location.search).has('compartilhado')) history.replaceState({}, '', location.pathname);
 })();

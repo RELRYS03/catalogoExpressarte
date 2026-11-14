@@ -34,11 +34,19 @@
         <span class="share-icon">↗</span>
         <span>Nesta tela aparecerão os links e as imagens que você compartilhar pelo Bambu Handy ou por outro aplicativo.</span>
       </div>
-      <label for="sourceUrl">Link original do modelo</label>
+      <label for="sourceUrl">Link do modelo (opcional)</label>
       <div class="url-row">
         <input id="sourceUrl" type="url" inputmode="url" placeholder="https://makerworld.com/models/..." autocomplete="url">
         <button class="secondary-button" id="previewButton" type="button">Buscar dados</button>
       </div>
+      <div class="category-actions photo-actions">
+        <button id="takePhoto" class="secondary-button" type="button">Tirar foto</button>
+        <button id="choosePhoto" class="secondary-button" type="button">Escolher da galeria</button>
+      </div>
+      <input id="cameraFile" type="file" accept="image/*" capture="environment" hidden>
+      <input id="imageFile" type="file" accept="image/*" hidden>
+      <p class="hint">Use o link do MakerWorld ou cadastre um produto próprio com uma foto.</p>
+      <div class="file-preview" id="filePreview" hidden><img id="filePreviewImage" alt="Imagem selecionada"><span id="filePreviewName"></span><button type="button" id="removeImage" aria-label="Remover imagem">×</button></div>
       <div class="preview-card" id="previewCard" hidden>
         <img id="coverPreview" alt="Prévia da imagem do modelo">
         <div><strong id="previewTitle">Prévia do modelo</strong><small id="previewMeta">Imagem e informações encontradas</small></div>
@@ -58,7 +66,17 @@
         <div class="category-actions">
           <button class="secondary-button" id="applyCategory" type="button" hidden></button>
           <button class="secondary-button" id="analyzeCategory" type="button" hidden>Analisar imagem</button>
+          <button class="secondary-button" id="newCategory" type="button" aria-expanded="false" aria-controls="categoryForm">Nova categoria</button>
         </div>
+        <form id="categoryForm" hidden>
+          <label for="categoryName">Nome da nova categoria</label>
+          <input id="categoryName" minlength="2" maxlength="48" required>
+          <div class="category-actions">
+            <button class="secondary-button" type="submit">Criar no catálogo</button>
+            <button class="text-button" id="cancelCategory" type="button">Cancelar</button>
+          </div>
+          <p class="hint" id="categoryFeedback" role="status"></p>
+        </form>
       </div>
       <details class="price-calculator" id="priceCalculator">
         <summary>Calcular custo e preço</summary>
@@ -83,10 +101,6 @@
         </div>
         <button type="button" class="secondary-button" id="useCalculatedPrice" disabled>Usar preço sugerido</button>
       </details>
-      <label for="imageFile">Imagem de capa (opcional)</label>
-      <input id="imageFile" type="file" accept="image/*">
-      <p class="hint">Selecione uma foto ou um print salvo no celular, ou compartilhe uma imagem com o importador.</p>
-      <div class="file-preview" id="filePreview" hidden><img id="filePreviewImage" alt="Imagem selecionada"><span id="filePreviewName"></span><button type="button" id="removeImage" aria-label="Remover imagem">×</button></div>
       <button class="secondary-button" id="editCover" type="button" aria-expanded="false" aria-controls="coverEditor" hidden>Ajustar capa com Expressinho</button>
       <fieldset class="cover-editor" id="coverEditor" hidden>
         <legend>Ajustar capa</legend>

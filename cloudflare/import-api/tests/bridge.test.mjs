@@ -11,6 +11,7 @@ test('login privado cria uma conta, limita tentativas e revoga sessões', async 
   try {
     db.exec(await readFile(new URL('../admin-auth.sql', import.meta.url), 'utf8'));
     db.exec(await readFile(new URL('../product-overrides.sql', import.meta.url), 'utf8'));
+    db.exec(await readFile(new URL('../catalog-categories.sql', import.meta.url), 'utf8'));
     const env = { ADMIN_TOKEN: token, DB: {
       prepare(sql) {
         const bind = (...args) => {
@@ -83,6 +84,7 @@ function setup() {
         },
         async all() {
           if (sql.includes('FROM catalog_product_overrides')) return { results: [] };
+          if (sql.includes('FROM catalog_categories')) return { results: [] };
           if (sql.includes("status='approved'")) {
             return { results: [...saved.values()].filter(x => x.status === 'approved' && x.commercial_use_allowed && x.image_use_allowed && (!values.length || x.id === values[0])).map(({ id, title, author, image_url, category, price_cents, source_url, license_name }) => ({ id, title, author, image_url, category, price_cents, source_url, license_name })) };
           }
@@ -113,6 +115,46 @@ const sample = {
   sourceSite: 'makerworld', title: 'Presépio', author: 'Criador original',
   priceCents: 4900, category: 'Religiosos'
 };
+test('cadastro por foto cria identificador próprio e fica pendente', async () => {
+  const env = setup();
+  assert.equal((await send(env, 'POST', '/api/imports', { title: 'Peça sem foto' }, true)).status, 400);
+  const ids = [];
+  for (let i = 0; i < 2; i++) {
+    const form = new FormData();
+    form.set('title', 'Produto próprio');
+    form.set('image', new Blob(['foto'], { type: 'image/png' }), 'foto.png');
+    const response = await worker.fetch(new Request(base + '/api/imports', {
+      method: 'POST', headers: { Authorization: 'Bearer ' + token }, body: form
+    }), env);
+    assert.equal(response.status, 201);
+    const row = await response.json();
+    assert.equal(row.status, 'pending');
+    assert.equal(row.imageStored, true);
+    ids.push(row.id);
+  }
+  assert.notEqual(ids[0], ids[1]);
+  const queue = (await send(env, 'GET', '/api/imports', undefined, true)).body.imports;
+  assert.ok(queue.every(row => row.source_site === 'foto-propria' && row.source_url === 'urn:expressarte:product:' + row.id));
+  assert.deepEqual((await send(env, 'GET', '/api/products')).body.products, []);
+});
+
+test('categorias novas exigem login e são deduplicadas e públicas', async () => {
+  const db = new DatabaseSync(':memory:');
+  try {
+    db.exec(await readFile(new URL('../catalog-categories.sql', import.meta.url), 'utf8'));
+    const env = { ADMIN_TOKEN: token, DB: { prepare(sql) {
+      const statement = db.prepare(sql);
+      return { async all() { return { results: statement.all() }; },
+        bind(...args) { return { async first() { return statement.get(...args); } }; } };
+    } } };
+    const path = '/api/categories';
+    assert.equal((await send(env, 'POST', path, { name: 'Papelaria' })).status, 401);
+    assert.equal((await send(env, 'POST', path, { name: '<script>' }, true)).status, 400);
+    assert.equal((await send(env, 'POST', path, { name: 'Organização' }, true)).body.name, 'Organização');
+    assert.equal((await send(env, 'POST', path, { name: 'organizacao' }, true)).body.name, 'Organização');
+    assert.deepEqual((await send(env, 'GET', path)).body.categories, ['Organização']);
+  } finally { db.close(); }
+});
 test('editor privado salva foto e preço do produto original sem trocar seu ID', async () => {
   const db = new DatabaseSync(':memory:');
   try {
@@ -210,6 +252,8 @@ test('análise visual exige autenticação e só devolve categorias do catálogo
   assert.equal(sentImage, body.image);
   answer = 'Categoria desconhecida';
   assert.deepEqual((await send(env, 'POST', route, body, true)).body, { category: null });
+  answer = 'NOVA: Papelaria';
+  assert.deepEqual((await send(env, 'POST', route, body, true)).body, { category: null, suggestedCategory: 'Papelaria' });
 });
 
 test('prévia MakerWorld consulta metadados por ID e usa a página como fallback', async t => {
@@ -298,6 +342,6 @@ test('importador aceita origem do Worker, /api e configuração compartilhada se
     await new Promise(resolve => setImmediate(resolve));
     assert.equal(elements.get('apiBase').value, configured);
     const origin = configured.startsWith('https') ? 'https://worker.example' : 'https://preview.example';
-    assert.deepEqual(calls, [origin + '/api/health']);
+    assert.deepEqual(calls, [origin + '/api/health', origin + '/api/categories']);
   }
 });
