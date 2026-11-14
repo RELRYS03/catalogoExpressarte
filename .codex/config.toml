@@ -1,0 +1,5 @@
+# Cloudflare MCP para o Codex neste repositório.
+# O Codex só carrega esta configuração depois que você confiar no projeto.
+[mcp_servers.cloudflare]
+url = "https://mcp.cloudflare.com/mcp"
+enabled = true
