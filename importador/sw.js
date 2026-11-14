@@ -1,4 +1,4 @@
-const CACHE_NAME = 'expressarte-importador-v5';
+const CACHE_NAME = 'expressarte-importador-v6';
 const SHELL = ['./','./index.html','./styles.css','./app.js','./manifest.webmanifest','./icon.svg','../config.js'];
 const DB_NAME = 'expressarte-share-v1';
 function openShareDb() {

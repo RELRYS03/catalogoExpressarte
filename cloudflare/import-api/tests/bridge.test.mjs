@@ -29,7 +29,7 @@ function setup() {
         },
         async all() {
           if (sql.includes("status='approved'")) {
-            return { results: [...saved.values()].filter(x => x.status === 'approved' && x.commercial_use_allowed && x.image_use_allowed).map(({ id, title, author, image_url, category, price_cents, source_url, license_name }) => ({ id, title, author, image_url, category, price_cents, source_url, license_name })) };
+            return { results: [...saved.values()].filter(x => x.status === 'approved' && x.commercial_use_allowed && x.image_use_allowed && (!values.length || x.id === values[0])).map(({ id, title, author, image_url, category, price_cents, source_url, license_name }) => ({ id, title, author, image_url, category, price_cents, source_url, license_name })) };
           }
           return { results: [...saved.values()] };
         }
@@ -70,12 +70,17 @@ test('ponte: extensão simulada cadastra item pendente e público não o vê at�
   assert.equal(drafts.body.imports[0].image_url, sample.imageUrl);
   assert.equal(drafts.body.imports[0].price_cents, sample.priceCents);
   assert.equal((await send(env, 'GET', '/api/products')).body.products.length, 0);
+  const productLink = '/api/products?id=' + added.body.id;
+  assert.deepEqual((await send(env, 'GET', productLink)).body.products, []);
   assert.equal((await send(env, 'PATCH', '/api/imports/' + added.body.id, { status: 'approved' }, true)).status, 400);
   const approved = await send(env, 'PATCH', '/api/imports/' + added.body.id, { status: 'approved', commercialUseAllowed: true, imageUseAllowed: true }, true);
   assert.equal(approved.status, 200);
   const published = await send(env, 'GET', '/api/products');
   assert.equal(published.body.products.length, 1);
   assert.equal(published.body.products[0].title, sample.title);
+  assert.deepEqual((await send(env, 'GET', productLink)).body, published.body);
+  assert.deepEqual((await send(env, 'GET', '/api/products?id=00000000-0000-4000-8000-000000000000')).body.products, []);
+  assert.equal((await send(env, 'GET', '/api/products?id=invalid')).status, 400);
 });
 test('duplicidade, valores inválidos e política CORS', async () => {
   const env = setup();

@@ -334,6 +334,17 @@
   function escapeHtml(value) {
     return String(value ?? '').replace(/[&<>"']/g, char => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[char]));
   }
+  async function copyProductLink(button) {
+    const card = button.closest('.queue-card');
+    const link = card.querySelector('.queue-catalog-link');
+    const status = card.querySelector('.queue-link-status');
+    try {
+      await navigator.clipboard.writeText(link.href);
+      status.textContent = 'Link copiado. Já pode colar no WhatsApp.';
+    } catch {
+      status.textContent = 'Abra “Ver no catálogo” e copie o endereço no navegador.';
+    }
+  }
   async function updateQueueItem(button) {
     const card = button.closest('.queue-card');
     const status = button.dataset.queueAction;
@@ -383,15 +394,23 @@
           ? '<a class="queue-source" href="' + escapeHtml(item.source_url) + '" target="_blank" rel="noopener noreferrer">Abrir modelo original ↗</a>'
           : '';
         const status = statusLabel[item.status] || 'STATUS DESCONHECIDO';
+        const publicUrl = item.status === 'approved' && item.commercial_use_allowed && item.image_use_allowed && /^[0-9a-f-]{36}$/i.test(item.id)
+          ? new URL('../#imported-' + item.id, location.href).href : '';
+        const share = publicUrl
+          ? '<div class="queue-actions queue-share"><a class="secondary-button queue-catalog-link" href="' + escapeHtml(publicUrl) + '" target="_blank" rel="noopener">Ver no catálogo</a>' +
+            '<button class="secondary-button" type="button" data-copy-product>Copiar link</button>' +
+            '<p class="queue-link-status" role="status"></p></div>'
+          : '';
         return '<article class="queue-card" data-id="' + escapeHtml(item.id) + '">' + image +
           '<div class="queue-content"><strong>' + escapeHtml(item.title) + '</strong>' +
           '<div class="queue-meta">' + escapeHtml(item.category || 'Outros') + (item.author ? ' · ' + escapeHtml(item.author) : '') + '</div>' +
           '<span class="queue-status">' + status + '</span><br>' + source + '</div>' +
           '<div class="queue-rights"><label><input type="checkbox" data-commercial ' + (item.commercial_use_allowed ? 'checked' : '') + '> Confirmei que a licença permite uso comercial/impressão para venda.</label>' +
           '<label><input type="checkbox" data-image-rights ' + (item.image_use_allowed ? 'checked' : '') + '> Tenho autorização para exibir esta imagem no catálogo.</label></div>' +
-          '<div class="queue-actions"><button class="queue-approve" type="button" data-queue-action="approved">Aprovar</button><button class="queue-reject" type="button" data-queue-action="rejected">Recusar</button></div></article>';
+          '<div class="queue-actions"><button class="queue-approve" type="button" data-queue-action="approved">Aprovar</button><button class="queue-reject" type="button" data-queue-action="rejected">Recusar</button></div>' + share + '</article>';
       }).join('');
       list.querySelectorAll('[data-queue-action]').forEach(button => button.addEventListener('click', () => updateQueueItem(button)));
+      list.querySelectorAll('[data-copy-product]').forEach(button => button.addEventListener('click', () => copyProductLink(button)));
     } catch (error) {
       list.innerHTML = '<div class="queue-empty">' + escapeHtml(error.message || 'Não foi possível carregar a fila.') + '</div>';
     }

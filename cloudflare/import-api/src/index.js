@@ -151,9 +151,13 @@ export default {
         return await suggestImageCategory(request, env, cors);
       }
       if (path === '/api/products' && request.method === 'GET') {
-        const { results } = await env.DB.prepare(
-          "SELECT id, title, author, image_url, category, price_cents, source_url, license_name FROM catalog_imports WHERE status='approved' AND image_use_allowed=1 AND commercial_use_allowed=1 ORDER BY updated_at DESC LIMIT 200"
-        ).all();
+        const id = url.searchParams.get('id');
+        if (id !== null && !/^[0-9a-f-]{36}$/i.test(id)) return json({ error: 'ID inválido' }, 400, cors);
+        const sql = "SELECT id, title, author, image_url, category, price_cents, source_url, license_name FROM catalog_imports WHERE status='approved' AND image_use_allowed=1 AND commercial_use_allowed=1";
+        const query = id === null
+          ? env.DB.prepare(sql + ' ORDER BY updated_at DESC LIMIT 200')
+          : env.DB.prepare(sql + ' AND id=?').bind(id);
+        const { results } = await query.all();
         return json({ products: results }, 200, cors);
       }
       if (path === '/api/preview' && request.method === 'GET') {

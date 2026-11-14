@@ -176,3 +176,5 @@
 .imported-placeholder{display:grid;place-items:center;padding:18px;text-align:center;background:linear-gradient(135deg,#f4e5d1,#ead4bb);color:#6b3f28;font-size:13px;font-weight:800}
 .imported-source-link{display:inline-block;margin-top:6px;color:#8c5936;font-size:11px;font-weight:800;text-decoration:underline;text-underline-offset:3px}
 .imported-product-card .product-footnote{overflow-wrap:anywhere}
+.imported-product-card[id]{scroll-margin-top:100px}
+.imported-product-card:target,.imported-product-card:focus-visible{outline:2px solid var(--brown);outline-offset:3px}

@@ -139,6 +139,8 @@
     ensureCategoryButton(category);
     const card = document.createElement('article');
     card.className = 'product-card imported-product-card';
+    card.id = id;
+    card.tabIndex = -1;
     card.dataset.productId = id;
     card.dataset.category = category;
     card.dataset.name = name;
@@ -161,21 +163,56 @@
     card.querySelector('.qty-plus').addEventListener('click', () => updateQuantity(card, state.quantities[id] + 1));
     card.querySelector('.add-order-button').addEventListener('click', () => addProduct(id));
   }
+  async function revealLinkedProduct() {
+    const target = location.hash.slice(1);
+    if (!/^imported-[0-9a-f-]{36}$/i.test(target)) return;
+    let card = document.getElementById(target);
+    if (!card) {
+      try {
+        const endpoint = new URL(productsEndpoint());
+        endpoint.searchParams.set('id', target.slice('imported-'.length));
+        const { products: matches } = await fetchProducts(endpoint);
+        if (location.hash.slice(1) !== target) return;
+        matches.forEach(addImportedProduct);
+        card = document.getElementById(target);
+        if (card) applyFilters();
+      } catch {
+        if (location.hash.slice(1) === target) notify('Não foi possível carregar o produto. Tente novamente.');
+        return;
+      }
+    }
+    if (!card) {
+      notify('Este produto não está disponível na vitrine.');
+      return;
+    }
+    if (!visibleProduct(card) || card.hidden) {
+      state.search = '';
+      $('#searchInput').value = '';
+      setCategory('Todas');
+    }
+    card.focus({ preventScroll: true });
+    card.scrollIntoView({ block: 'start', behavior: 'instant' });
+  }
+  function productsEndpoint() {
+    const base = String(config.catalogApiEndpoint || '').trim().replace(/\/+$/, '');
+    const path = base.endsWith('/api') ? base + '/products' : base + '/api/products';
+    return new URL(path, location.origin).toString();
+  }
+  async function fetchProducts(endpoint) {
+    const response = await fetch(endpoint, { headers: { Accept: 'application/json' }, cache: 'no-store' });
+    if (!response.ok) throw new Error('API de produtos indisponível');
+    return response.json();
+  }
   async function loadApprovedImports() {
-    const configured = String(config.catalogApiEndpoint || '').trim();
-    if (!configured) return;
+    if (!String(config.catalogApiEndpoint || '').trim()) return;
     try {
-      const base = configured.replace(/\/+$/, '');
-      const path = base.endsWith('/api') ? base + '/products' : base + '/api/products';
-      const endpoint = /^https?:\/\//i.test(path) ? path : new URL(path, location.origin).toString();
-      const response = await fetch(endpoint, { headers: { Accept: 'application/json' }, cache: 'no-store' });
-      if (!response.ok) throw new Error('API de produtos indisponível');
-      const data = await response.json();
+      const data = await fetchProducts(productsEndpoint());
       (Array.isArray(data.products) ? data.products : []).forEach(addImportedProduct);
       applyFilters();
     } catch (error) {
       console.warn('Não foi possível atualizar os produtos importados do catálogo.', error);
     }
+    await revealLinkedProduct();
   }
 
   function sendOrder() {
@@ -241,5 +278,6 @@
   $('#whatsappNote').textContent = config.whatsappNumber ? 'O WhatsApp abrirá com os produtos e quantidades para você confirmar o pedido. Preços ainda provisórios.' : 'Falta configurar o número da loja em config.js.';
   renderOrder();
   applyFilters();
+  window.addEventListener('hashchange', revealLinkedProduct);
   loadApprovedImports();
 })();
