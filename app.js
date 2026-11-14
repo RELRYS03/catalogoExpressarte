@@ -302,6 +302,7 @@
     await revealLinkedProduct();
   }
   const promotionGrid = $('#promotionGrid');
+  const promotionSection = $('#destaques');
   const promotionControls = $('#promotionControls');
   const promotionHeading = $('.promotion-heading');
   const promotionMascot = $('#promotionMascot');
@@ -322,7 +323,9 @@
       return center >= left && center <= right;
     });
     const theme = (visibleCard || promotionMascotCards[0])?.dataset.theme;
-    promotionHeading.dataset.theme = theme || commonPromotionTheme;
+    const displayTheme = theme || commonPromotionTheme;
+    promotionHeading.dataset.theme = displayTheme;
+    promotionSection.dataset.theme = displayTheme;
     promotionMascot.hidden = !theme;
     if (theme) {
       const source = promotionMascotImages.get(theme);
@@ -357,6 +360,9 @@
   $('#nextPromotion').addEventListener('click', () => movePromotion(1));
   promotionGrid.addEventListener('scroll', updatePromotionMascot, { passive: true });
   new ResizeObserver(updatePromotionControls).observe(promotionGrid);
+  new IntersectionObserver(([entry]) => {
+    promotionSection.classList.toggle('promotion-in-view', entry.isIntersecting);
+  }, { threshold: 0.15 }).observe(promotionSection);
 
   function renderPromotions(promotions) {
     const grid = promotionGrid;
@@ -400,7 +406,7 @@
       });
       grid.append(card);
     }
-    $('#destaques').hidden = !grid.childElementCount;
+    promotionSection.hidden = !grid.childElementCount;
     commonPromotionTheme = themesInUse.size === 1 ? themesInUse.values().next().value : 'default';
     updatePromotionControls();
   }

@@ -15,6 +15,44 @@
   background: var(--offer-paper);
 }
 .promotion-heading[data-theme] h2 { color: var(--offer-ink, var(--brown)); }
+.weekly-deals-section { position: relative; isolation: isolate; }
+.promotion-snow { display: none; }
+.weekly-deals-section[data-theme="natal"] .promotion-snow {
+  display: block;
+  position: absolute;
+  inset: -10px 0 -12px;
+  z-index: -1;
+  overflow: hidden;
+  border: 1px solid #b48a3b;
+  border-radius: 18px;
+  background: linear-gradient(145deg, #245541, #14392d 75%);
+  pointer-events: none;
+}
+.promotion-snow::before,
+.promotion-snow::after {
+  content: "";
+  position: absolute;
+  inset: -112px 0 0;
+  background:
+    radial-gradient(circle at 18px 20px, #fff9ec 0 1px, transparent 2px),
+    radial-gradient(circle at 78px 61px, #fff9ec 0 1.5px, transparent 2.5px),
+    radial-gradient(circle at 126px 93px, #fff9ec 0 1px, transparent 2px);
+  background-size: 152px 112px;
+  opacity: 0.58;
+}
+.promotion-snow::after {
+  background-position: 42px 40px;
+  opacity: 0.28;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .weekly-deals-section[data-theme="natal"].promotion-in-view .promotion-snow::before,
+  .weekly-deals-section[data-theme="natal"].promotion-in-view .promotion-snow::after {
+    animation: promotion-snowfall 4.8s linear;
+  }
+}
+@keyframes promotion-snowfall {
+  to { transform: translateY(112px); }
+}
 .promotion-heading-title { display: flex; align-items: center; gap: clamp(8px, 2vw, 24px); }
 .promotion-heading .promotion-mascot {
   display: block;
