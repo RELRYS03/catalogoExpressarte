@@ -112,3 +112,27 @@ Na branch `feature/expressinho-ai-economico` foi adicionado um primeiro adaptado
 Variáveis documentadas em `expressinho-core/.env.example`.
 
 **Limitação nesta etapa:** ainda não há seleção entre vários provedores, cota gratuita automática, teto monetário por período ou painel de gastos. O fallback é um único endpoint OpenAI-compatible configurado pelo administrador. A configuração não está ativada e não houve chamada externa.
+
+
+## Etapa de ferramentas com evidências — implementação inicial
+
+Foi adicionada uma camada local inspirada nos contratos explícitos de ferramentas do REA, sem importar o servidor MCP nem as dependências de engenharia reversa.
+
+Arquivos:
+- `expressinho-core/tools.mjs`: catálogo fechado de ferramentas internas de consulta.
+- `expressinho-core/tools.test.mjs`: testes de contrato, cálculo e limites.
+- `expressinho-core/server.mjs`: inclui as evidências retornadas pelas ferramentas no contexto do provedor de IA.
+
+Ferramentas disponíveis nesta etapa:
+- `catalog_summary`: conta produtos e separa publicados de rascunhos.
+- `product_lookup`: consulta somente campos existentes na base.
+- `estimate_total`: calcula quantidade × preço provisório; não funciona sem ambos.
+
+Regras:
+- As ferramentas só executam no modo Loja.
+- Não executam ações externas nem alteram a base.
+- A origem `knowledge.json` acompanha os resultados.
+- Campos ausentes permanecem ausentes; o modelo recebe instrução explícita para não completá-los por suposição.
+- Estimativas não são ofertas nem confirmação de venda.
+
+Verificação pendente: executar `node --test expressinho-core/*.test.mjs` e `node --check expressinho-core/server.mjs` no checkout da branch. Nenhum teste é declarado como aprovado até essa execução.
