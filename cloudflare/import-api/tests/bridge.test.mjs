@@ -48,8 +48,10 @@ async function send(env, method, path, body, authorized = false, origin) {
   if (origin) headers.Origin = origin;
   const req = new Request(base + path, { method, headers, body: body === undefined ? undefined : JSON.stringify(body) });
   const res = await worker.fetch(req, env);
-  return { status: res.status, headers: res.headers, body: res.status === 204 ? null : await res.json() };
+  const text = await res.text();
+  return { status: res.status, headers: res.headers, body: text ? JSON.parse(text) : null };
 }
+
 const sample = {
   sourceUrl: 'https://makerworld.com/pt/models/3462526-nativity-scene-with-mary-joseph-sheep',
   imageUrl: 'https://cdn.example.com/capa.jpg',
