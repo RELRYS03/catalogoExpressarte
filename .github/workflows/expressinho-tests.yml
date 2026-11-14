@@ -1,0 +1,28 @@
+name: Expressinho tests
+
+on:
+  push:
+    branches:
+      - feature/expressinho-ai-economico
+    paths:
+      - "expressinho-core/**"
+      - ".github/workflows/expressinho-tests.yml"
+  pull_request:
+    paths:
+      - "expressinho-core/**"
+      - ".github/workflows/expressinho-tests.yml"
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Run Expressinho tests
+        run: node --test expressinho-core/*.test.mjs
+      - name: Check server syntax
+        run: node --check expressinho-core/server.mjs
