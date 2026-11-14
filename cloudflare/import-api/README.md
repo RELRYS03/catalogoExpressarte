@@ -1,37 +1,50 @@
-# Ponte de importação Express'Arte Catálogo (prévia isolada)
+# Express'Arte: API de importação (Cloudflare Workers + D1 + R2)
 
-**Escopo atual:** preparar a ligação entre a extensão Chrome já existente e o catálogo, **sem recriar a extensão**. Este código foi adicionado em branch separada; não está publicado e não altera a vitrine da branch main.
+Esta API recebe cadastros do Express'Arte Importador Mobile e da futura extensão Chrome. Ela não baixa nem hospeda arquivos STL.
 
-## Situação encontrada
+## Rotas
 
-Na main, o site é HTML/CSS/JavaScript estático. `app.js` contém uma lista fixa de produtos e lógica de pedido. Uma página estática, sozinha, não consegue persistir os cadastros enviados pela extensão. Esta API em Cloudflare Workers + D1 preenche a lacuna.
+- GET /api/health: informa se D1 e armazenamento de imagens estão configurados.
+- GET /api/preview?url=...: exige Bearer ADMIN_TOKEN; consulta metadados Open Graph de domínios permitidos (MakerWorld, Printables, Thingiverse, Cults3D e Thangs). É uma tentativa best-effort: alguns sites podem bloquear consultas automatizadas.
+- POST /api/imports: exige Bearer ADMIN_TOKEN; aceita JSON ou multipart/form-data. Campos: sourceUrl, sourceSite, title, author, category, priceCents, imageUrl, licenseName. No multipart, pode receber um arquivo no campo image.
+- GET /api/imports: exige Bearer ADMIN_TOKEN e lista a fila privada.
+- PATCH /api/imports/{id}: exige Bearer ADMIN_TOKEN e altera status. Para aprovar, exige confirmação explícita de licença comercial e autorização de uso da imagem.
+- GET /api/products: lista somente itens aprovados com as duas permissões confirmadas.
 
-## Fluxo proposto
+Todos os cadastros começam como pending. O envio nunca publica automaticamente.
 
-1. A extensão original captura link, imagem/capa, nome, preço e categoria.
-2. O usuário confirma o cadastro. A extensão envia JSON com autorização para `POST /api/imports`.
-3. O Worker registra no D1 como `pending`. **Nada é publicado automaticamente.**
-4. O administrador consulta `GET /api/imports` e revisa direitos/licença, preço e categoria.
-5. `PATCH /api/imports/:id` aprova explicitamente. Só entram em `GET /api/products` os registros com confirmação de licença comercial **e** autorização de uso da imagem.
-6. A ligação do catálogo público a `GET /api/products` será implementada após validar o contrato com a extensão recuperada.
+## Configuração Cloudflare
 
-Não faça upload de STL nesta fase. Não trate “download grátis” como permissão de venda ou reutilização de fotos. Não armazene a chave de administração diretamente nos arquivos públicos do catálogo ou em uma extensão distribuída.
+O arquivo wrangler.toml é um modelo inicial. Substitua o database_id pelo ID real do D1 e configure um domínio público do R2 em PUBLIC_ASSETS_URL. Não publique com os valores SUBSTITUIR... ainda presentes.
 
-## Cloudflare
+1. Crie o D1 expressarte-catalog-imports.
+2. Execute a migração em cloudflare/import-api/schema.sql.
+3. Crie o bucket R2 expressarte-catalog-images e configure acesso público por domínio customizado (recomendado) ou endpoint público autorizado.
+4. Configure os bindings DB (D1) e IMAGES (R2).
+5. Configure os valores ALLOWED_ORIGIN com a origem HTTPS exata do PWA e PUBLIC_ASSETS_URL com a origem pública de imagens.
+6. Crie o segredo ADMIN_TOKEN com pelo menos 32 caracteres aleatórios usando wrangler secret put ADMIN_TOKEN.
+7. A partir desta pasta, instale/configure Wrangler conforme a documentação oficial e publique com wrangler deploy.
 
-Crie um banco D1 e rode a migração `schema.sql` **no ambiente escolhido**. Configure um Worker com a pasta `src` e binding D1 `DB`. Defina `ADMIN_TOKEN` como segredo longo (mínimo 32 caracteres) e `ALLOWED_ORIGIN` como origem exata do painel administrativo/Chrome extension que for aprovada. Não há recursos provisionados automaticamente por este commit, e não há dependências globais a instalar.
+O segredo ADMIN_TOKEN nunca deve ser colocado no JavaScript público, no manifesto, no repositório ou em uma extensão distribuída. O administrador o digita no importador; o PWA guarda a chave apenas em sessionStorage durante a sessão. Prefira usar o PWA e a API sob domínios controlados pela loja e mantenha a chave privada.
 
-Rotas:
-- `GET /api/health` verifica serviço.
-- `POST /api/imports` exige `Authorization: Bearer <ADMIN_TOKEN>`, JSON `{ "sourceUrl":"https://makerworld.com/...", "title":"...", "imageUrl":"https://...", "author":"...", "category":"Religiosos", "priceCents": 2990, "licenseName":"..." }`.
-- `GET /api/imports` exige autenticação e lista a fila.
-- `PATCH /api/imports/{id}` exige autenticação e JSON `{"status":"approved","commercialUseAllowed":true,"imageUseAllowed":true}`.
-- `GET /api/products` é somente leitura pública e retorna produtos aprovados.
+## PWA Importador Mobile
 
-## Pendências antes da implantação
+A pasta importador/ contém a aplicação instalável e seu manifesto Web Share Target. Para aparecer no menu Compartilhar do Android, publique-a em HTTPS e instale-a no Chrome. O manifesto recebe title, text, url e, se a origem compartilhar arquivo, imagens.
 
-- Recuperar a extensão Chrome original para inspecionar formato do formulário e requisições (o computador está indisponível).
-- Definir login de administração seguro (evitar colocar o segredo no código da extensão ou no JavaScript do site); potencialmente usar Cloudflare Access com sessão/autorização específica.
-- Revisar permissão de imagens externas, CSP, antifraude, limite de requisições e proteção contra URLs indevidas antes de publicação.
-- Conectar a vitrine pública à API e testar em ambiente de prévia.
-- Validar o fluxo real extensão → Worker → D1 → catálogo após recuperar o computador.
+O importador pode apontar para a API no mesmo domínio (/api) ou para a origem do Worker, informada no campo de conexão. Se usar origem separada, ALLOWED_ORIGIN precisa corresponder exatamente à origem HTTPS onde o PWA está hospedado.
+
+O Bambu Handy do teste compartilhou o título e o link MakerWorld; não compartilhou a capa como arquivo. Por isso o PWA tenta buscar a capa pela rota /api/preview. Se o site de origem bloquear a consulta, o usuário poderá selecionar/compartilhar uma imagem manualmente. O envio de arquivo de imagem exige o binding R2 e PUBLIC_ASSETS_URL.
+
+## Testes
+
+Na raiz do repositório, execute:
+- node --check cloudflare/import-api/src/index.js
+- node --check importador/app.js
+- node --check importador/sw.js
+- node --test cloudflare/import-api/tests/bridge.test.mjs
+
+Os testes simulam D1/R2 e verificam importação pendente, aprovação explícita, CORS, upload de imagem e contrato Web Share Target. Eles não substituem teste real no Android ou implantação Cloudflare.
+
+## Estado desta entrega
+
+Código em branch de desenvolvimento isolada. Ainda não foi provisionado D1/R2, não foi publicado o Worker/PWA e não foi testado no Bambu Handy real. A branch main permanece intocada.
