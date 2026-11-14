@@ -8,6 +8,6 @@ window.EXPRESSARTE_CONFIG = {
   draftMode: true,
   // Endpoint HTTPS opcional para a IA real. Nunca coloque chaves de API neste arquivo.
   expressinhoEndpoint: "",
-  // Origem pública da API Cloudflare. Deixe vazio até a implantação.
-  catalogApiEndpoint: ""
+  // Origem pública da API Cloudflare usada pelo catálogo e pelo importador.
+  catalogApiEndpoint: "https://expressarte-import-api.relrys17.workers.dev"
 };
