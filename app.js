@@ -395,12 +395,13 @@
   }
   function goToOrder() { $('#orderPanel').scrollIntoView({ behavior: 'smooth', block: 'start' }); }
 
-  $$('.product-gallery').forEach(gallery => {
-    const mainPhoto = gallery.querySelector('.product-main-photo');
-    gallery.querySelectorAll('.photo-thumb').forEach(button => button.addEventListener('click', () => {
+  $$('#productGrid .product-card').forEach(card => {
+    const mainPhoto = card.querySelector('.product-main-photo');
+    const thumbnails = card.querySelectorAll('.photo-thumb');
+    thumbnails.forEach(button => button.addEventListener('click', () => {
       mainPhoto.src = button.dataset.photo;
       mainPhoto.alt = button.dataset.alt || 'Foto do produto';
-      gallery.querySelectorAll('.photo-thumb').forEach(thumb => {
+      thumbnails.forEach(thumb => {
         const active = thumb === button;
         thumb.classList.toggle('active', active);
         thumb.setAttribute('aria-pressed', String(active));
