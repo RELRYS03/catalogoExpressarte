@@ -38,6 +38,7 @@ function openDetails(){
  lastFocus=document.activeElement;
  dialog.querySelector('.ea-details-qty').value='1';
  dialog.querySelector('.ea-details-price').textContent=card.querySelector('.price').textContent;
+ dialog.querySelector('.ea-details-description').textContent=card.querySelector('.product-description').textContent;
  photoButtons.forEach((b,i)=>{
    gallery[i]={src:b.dataset.photo,alt:b.dataset.alt||'Produto Express’Arte'};
    thumbs.children[i].querySelector('img').src=gallery[i].src;

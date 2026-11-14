@@ -92,6 +92,25 @@ async function uploadEditPhoto(form, env, prefix) {
   await env.IMAGES.put(key, file.stream(), { httpMetadata: { contentType: file.type, cacheControl: 'public, max-age=31536000, immutable' } });
   return { key, image: env.PUBLIC_ASSETS_URL.replace(/\/$/, '') + '/' + key };
 }
+function readProductDetails(raw) {
+  if (typeof raw !== 'string' || raw.length > 20000) return null;
+  try {
+    const value = JSON.parse(raw);
+    if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+    const { description, printMinutes, filamentGrams, assembly, leadTime } = value;
+    if ([[description, 1200], [assembly, 1600], [leadTime, 100]].some(([field, limit]) => typeof field !== 'string' || field.length > limit)) return null;
+    if (printMinutes !== null && (!Number.isSafeInteger(printMinutes) || printMinutes < 1 || printMinutes > 100000)) return null;
+    if (filamentGrams !== null && (typeof filamentGrams !== 'number' || !Number.isFinite(filamentGrams) || filamentGrams <= 0 || filamentGrams > 100000)) return null;
+    return { description: description.trim(), printMinutes, filamentGrams, assembly: assembly.trim(), leadTime: leadTime.trim() };
+  } catch { return null; }
+}
+const productDetailsField = table =>
+  '(SELECT details_json FROM catalog_product_details WHERE product_id=' + table + '.id) AS details_json';
+function storeProductDetails(env, source, id, details) {
+  return env.DB.prepare(`INSERT INTO catalog_product_details (product_id,details_json)
+    SELECT id,? FROM ${source} WHERE id=? ON CONFLICT(product_id) DO UPDATE SET details_json=excluded.details_json`)
+    .bind(JSON.stringify(details), id);
+}
 async function saveProductEdit(request, env, id, builtIn, cors) {
   const form = await request.formData();
   const rawPrice = form.get('priceCents');
@@ -103,6 +122,9 @@ async function saveProductEdit(request, env, id, builtIn, cors) {
   const category = requested === null ? null : await registeredCategory(env, requested);
   if (requested !== null && !category) return json({ error: 'Escolha ou crie uma categoria válida.' }, 400, cors);
   if (builtIn && category) return json({ error: 'A categoria dos produtos originais é fixa.' }, 400, cors);
+  const rawDetails = form.get('details');
+  const details = rawDetails === null ? null : readProductDetails(rawDetails);
+  if (rawDetails !== null && !details) return json({ error: 'Confira os detalhes de impressão e os limites dos campos.' }, 400, cors);
   const { key, image = '', error, status } = await uploadEditPhoto(form, env, 'catalog-imports/' + id);
   if (error) return json({ error }, status, cors);
   const sql = builtIn
@@ -110,7 +132,15 @@ async function saveProductEdit(request, env, id, builtIn, cors) {
     : "UPDATE catalog_imports SET price_cents=?,image_url=COALESCE(NULLIF(?,''),image_url),category=COALESCE(?,category),updated_at=CURRENT_TIMESTAMP WHERE id=? RETURNING price_cents,image_url,category";
   let saved;
   try {
-    saved = await env.DB.prepare(sql).bind(...(builtIn ? [price, image, id] : [price, image, category, id])).first();
+    const edit = env.DB.prepare(sql).bind(...(builtIn ? [price, image, id] : [price, image, category, id]));
+    if (details) {
+      const source = builtIn ? 'catalog_product_overrides' : 'catalog_imports';
+      const updateDetails = storeProductDetails(env, source, id, details);
+      const [result] = await env.DB.batch([edit, updateDetails]);
+      saved = result.results[0];
+    } else {
+      saved = await edit.first();
+    }
   } catch (error) {
     if (key) await env.IMAGES.delete(key);
     throw error;
@@ -291,13 +321,14 @@ export default {
       if (path === '/api/products' && request.method === 'GET') {
         const id = url.searchParams.get('id');
         if (id !== null && !/^[0-9a-f-]{36}$/i.test(id)) return json({ error: 'ID inválido' }, 400, cors);
-        const sql = "SELECT id, title, author, image_url, category, price_cents, source_url, license_name FROM catalog_imports WHERE status='approved' AND image_use_allowed=1 AND commercial_use_allowed=1";
+        const sql = "SELECT id, title, author, image_url, category, price_cents, source_url, license_name," +
+          productDetailsField('catalog_imports') + " FROM catalog_imports WHERE status='approved' AND image_use_allowed=1 AND commercial_use_allowed=1";
         const query = id === null
           ? env.DB.prepare(sql + ' ORDER BY updated_at DESC LIMIT 200')
           : env.DB.prepare(sql + ' AND id=?').bind(id);
         const { results } = await query.all();
         if (id !== null) return json({ products: results }, 200, cors);
-        const overrides = await env.DB.prepare('SELECT id,price_cents,image_url FROM catalog_product_overrides').all();
+        const overrides = await env.DB.prepare('SELECT id,price_cents,image_url,' + productDetailsField('catalog_product_overrides') + ' FROM catalog_product_overrides').all();
         const { results: promotions } = await env.DB.prepare(`SELECT p.* FROM catalog_promotions p WHERE p.expires_at>?
           AND (p.product_id IN ('academia-001','religioso-001') OR EXISTS (SELECT 1 FROM catalog_imports i
           WHERE i.id=p.product_id AND i.status='approved' AND i.commercial_use_allowed=1 AND i.image_use_allowed=1))`).bind(Date.now()).all();
@@ -332,8 +363,8 @@ export default {
       if (path === '/api/imports' && (request.method === 'POST' || request.method === 'GET')) {
         if (!await authorized(request, env)) return json({ error: 'Não autorizado' }, 401, cors);
         if (request.method === 'GET') {
-          const { results } = await env.DB.prepare('SELECT * FROM catalog_imports ORDER BY created_at DESC LIMIT 200').all();
-          const overrides = await env.DB.prepare('SELECT id,price_cents,image_url FROM catalog_product_overrides').all();
+          const { results } = await env.DB.prepare('SELECT *,' + productDetailsField('catalog_imports') + ' FROM catalog_imports ORDER BY created_at DESC LIMIT 200').all();
+          const overrides = await env.DB.prepare('SELECT id,price_cents,image_url,' + productDetailsField('catalog_product_overrides') + ' FROM catalog_product_overrides').all();
           const { results: promotions } = await env.DB.prepare('SELECT * FROM catalog_promotions').all();
           return json({ imports: results, overrides: overrides.results, promotions }, 200, cors);
         }
@@ -342,9 +373,11 @@ export default {
         if (contentType.includes('multipart/form-data')) {
           const form = await request.formData();
           imageFile = form.get('image');
-          body = Object.fromEntries(['sourceUrl','sourceSite','title','author','category','priceCents','imageUrl','licenseName'].map(key => [key, form.get(key)]));
+          body = Object.fromEntries(['sourceUrl','sourceSite','title','author','description','category','priceCents','imageUrl','licenseName'].map(key => [key, form.get(key)]));
         } else body = await parseJson(request);
         if (!body) return json({ error: 'Dados inválidos ou muito grandes' }, 400, cors);
+        if (body.description != null && (typeof body.description !== 'string' || body.description.length > 1200)) return json({ error: 'Escreva uma descrição de até 1200 caracteres.' }, 400, cors);
+        const description = body.description?.trim();
         const linkProvided = body.sourceUrl != null && body.sourceUrl !== '';
         const sourceUrl = linkProvided ? safeUrl(body.sourceUrl) : null;
         let imageUrl = body.imageUrl ? safeUrl(body.imageUrl) : '';
@@ -364,10 +397,16 @@ export default {
           imageUrl = env.PUBLIC_ASSETS_URL.replace(/\/$/, '') + '/' + uploadedKey;
         }
         try {
-          await env.DB.prepare(
+          const insert = env.DB.prepare(
             "INSERT INTO catalog_imports (id,source_url,source_site,title,author,image_url,category,price_cents,license_name,status) VALUES (?,?,?,?,?,?,?,?,?,'pending')"
           ).bind(id, sourceUrl || 'urn:expressarte:product:' + id, sourceUrl ? str(body.sourceSite, 80) || new URL(sourceUrl).hostname : 'foto-propria', title, str(body.author, 120), imageUrl,
-            str(body.category, 80) || 'Outros', price, str(body.licenseName, 120)).run();
+            str(body.category, 80) || 'Outros', price, str(body.licenseName, 120));
+          if (description) {
+            const details = { description, printMinutes: null, filamentGrams: null, assembly: '', leadTime: '' };
+            await env.DB.batch([insert, storeProductDetails(env, 'catalog_imports', id, details)]);
+          } else {
+            await insert.run();
+          }
         } catch (error) {
           if (uploadedKey && env.IMAGES) await env.IMAGES.delete(uploadedKey);
           uploadedKey = null;

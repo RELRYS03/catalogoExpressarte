@@ -186,3 +186,12 @@
 .products-section #productGrid .product-info { flex: initial; }
 .products-section #productGrid .product-info .quantity-row { margin-top: 0; }
 #backToCategories { color: var(--brown-2); text-decoration: underline; text-underline-offset: 3px; }
+.catalog-product-details { width: 100%; }
+.catalog-product-details .product-description, .catalog-product-assembly p { white-space: pre-line; overflow-wrap: anywhere; }
+.catalog-product-specs { display: grid; gap: 5px; margin: 0 0 12px; font-size: 12px; color: var(--brown-2); }
+.catalog-product-specs div { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 6px; }
+.catalog-product-specs dt { font-weight: 700; }
+.catalog-product-specs dd { margin: 0; max-width: 10ch; text-align: right; overflow-wrap: anywhere; }
+.catalog-product-assembly { margin-bottom: 12px; font-size: 12px; color: var(--brown-2); }
+.catalog-product-assembly summary { font-weight: 700; cursor: pointer; }
+.product-author { margin: 0 0 12px; font-size: 12px; color: var(--brown-2); overflow-wrap: anywhere; }

@@ -1,7 +1,7 @@
 (() => {
   'use strict';
   const $ = id => document.getElementById(id);
-  const fields = ['sourceUrl','title','author','price','category'];
+  const fields = ['sourceUrl','title','author','description','price','category'];
   let sharedImage = null;
   let originalImage = null;
   let coverSource = null;
@@ -576,6 +576,7 @@
         body.append('sourceSite', hostOf(sourceUrl));
       }
       body.append('title', title); body.append('author', $('author').value.trim());
+      if ($('description').value.trim()) body.append('description', $('description').value.trim());
       body.append('category', $('category').value); body.append('priceCents', priceCents == null ? '' : String(priceCents));
       const preview = $('previewCard').dataset;
       const currentPreview = preview.sourceUrl === sourceUrl ? preview : {};
@@ -630,6 +631,26 @@
       button.disabled = false;
     }
   }
+  const detailFields = [
+    ['description', 'Descrição do produto', 1200],
+    ['printMinutes', 'Tempo de impressão (minutos)', 6],
+    ['filamentGrams', 'Filamento consumido (g)', 10],
+    ['leadTime', 'Prazo de produção', 100],
+    ['assembly', 'Como montar ou usar', 1600]
+  ];
+  function renderProductDetailFields(item) {
+    const details = JSON.parse(item.details_json || '{}');
+    return '<fieldset class="edit-product-details"><legend>Detalhes do produto</legend>' + detailFields.map(([name, label, limit]) => {
+      const value = escapeHtml(String(details[name] ?? '').replace('.', name === 'filamentGrams' ? ',' : '.'));
+      const attrs = ' name="' + name + '" maxlength="' + limit + '"';
+      if (name === 'description' || name === 'assembly') {
+        return '<label>' + label + '<textarea' + attrs + ' rows="3">' + value + '</textarea></label>';
+      }
+      const mode = name === 'printMinutes' ? 'numeric' : name === 'filamentGrams' ? 'decimal' : 'text';
+      const example = name === 'leadTime' ? ' placeholder="Ex.: até 3 dias úteis"' : '';
+      return '<label>' + label + '<input' + attrs + ' inputmode="' + mode + '" value="' + value + '"' + example + '></label>';
+    }).join('') + '</fieldset>';
+  }
   async function saveProductEdit(event) {
     event.preventDefault();
     const form = event.currentTarget;
@@ -642,6 +663,14 @@
     const button = form.querySelector('button');
     const result = form.querySelector('[role="status"]');
     const price = parsePrice(input.value);
+    const details = Object.fromEntries(detailFields.map(([name]) => [name, form.elements.namedItem(name).value.trim()]));
+    if ((details.printMinutes && !/^\d+$/.test(details.printMinutes)) ||
+        (details.filamentGrams && !/^\d+(?:[,.]\d+)?$/.test(details.filamentGrams))) {
+      result.textContent = 'Informe o tempo em minutos inteiros e o filamento em gramas.';
+      return;
+    }
+    details.printMinutes = details.printMinutes ? Number(details.printMinutes) : null;
+    details.filamentGrams = details.filamentGrams ? Number(details.filamentGrams.replace(',', '.')) : null;
     if (Number.isNaN(price) || price > 100000000 || (price === null && card.dataset.builtIn === 'true')) {
       result.textContent = 'Confira o valor informado.';
       return;
@@ -652,12 +681,13 @@
       return;
     }
     if (!token()) return promptSignIn();
-    const fields = [button, input, photo, rights, category, newCategory].filter(Boolean);
+    const fields = Array.from(form.elements);
     fields.forEach(field => { field.disabled = true; });
     result.textContent = 'Salvando…';
     try {
       const body = new FormData();
       body.append('priceCents', price === null ? '' : String(price));
+      body.append('details', JSON.stringify(details));
       if (category && category.value !== category.dataset.saved) {
         const name = category.value || await createCategoryByName(newCategory.value);
         if (!Array.from(category.options).some(option => option.value === name)) category.add(new Option(name, name));
@@ -790,7 +820,7 @@
         const edit = edits.get(product.id);
         return { id: product.id, title: product.name, category: product.category, builtIn: true,
           price_cents: edit?.price_cents ?? Math.round(product.price * 100),
-          image_url: edit?.image_url || new URL('../' + product.cover, location.href).href };
+          image_url: edit?.image_url || new URL('../' + product.cover, location.href).href, details_json: edit?.details_json };
       });
       const imports = Array.isArray(data.imports) ? data.imports : [];
       await loadCategories();
@@ -829,7 +859,8 @@
           (item.builtIn ? '' : '<span class="queue-status">' + status + '</span><br>' + source) + '</div>' + review +
           '<details class="queue-price"><summary>Editar produto · ' + (price ? escapeHtml(formatMoney.format(item.price_cents / 100)) : 'Sob consulta') + '</summary>' +
           '<form>' + categoryField + '<label>Preço de venda (R$)<input name="price" inputmode="decimal" maxlength="12" value="' + escapeHtml(price) +
-          '" placeholder="Sob consulta"></label><label>Nova foto principal<input type="file" name="photo" accept="image/jpeg,image/png,image/webp,image/avif"></label>' +
+          '" placeholder="Sob consulta"></label>' + renderProductDetailFields(item) +
+          '<label>Nova foto principal<input type="file" name="photo" accept="image/jpeg,image/png,image/webp,image/avif"></label>' +
           '<p class="edit-photo-name"></p><label class="edit-photo-rights"><input type="checkbox" name="photoRights"> Tenho autorização para usar esta foto</label>' +
           '<button class="secondary-button" type="submit">Salvar alterações</button><p role="status"></p></form></details>' +
           share + '</article>';

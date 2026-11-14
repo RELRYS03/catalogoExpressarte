@@ -13,6 +13,7 @@ test('login privado cria uma conta, limita tentativas e revoga sessões', async 
     db.exec(await readFile(new URL('../product-overrides.sql', import.meta.url), 'utf8'));
     db.exec(await readFile(new URL('../catalog-categories.sql', import.meta.url), 'utf8'));
     db.exec(await readFile(new URL('../catalog-promotions.sql', import.meta.url), 'utf8'));
+    db.exec(await readFile(new URL('../catalog-product-details.sql', import.meta.url), 'utf8'));
     const env = { ADMIN_TOKEN: token, DB: {
       prepare(sql) {
         const bind = (...args) => {
@@ -25,9 +26,11 @@ test('login privado cria uma conta, limita tentativas e revoga sessões', async 
         };
         return { ...bind(), bind };
       },
-      batch(statements) { return Promise.all(statements.map(statement => statement.run())); }
+      batch(statements) {
+        return Promise.all(statements.map(statement => statement.all()));
+      }
     } };
-    db.exec('CREATE TABLE catalog_imports (created_at TEXT)');
+    db.exec(await readFile(new URL('../schema.sql', import.meta.url), 'utf8'));
     const setupUrl = '/api/admin/setup', loginUrl = '/api/admin/login';
     const credentials = { email: 'Test@Example.com', password: 'senha-de-teste-apenas', remember: true };
     assert.deepEqual((await send(env, 'GET', '/api/admin/status')).body, { configured: false });
@@ -43,6 +46,21 @@ test('login privado cria uma conta, limita tentativas e revoga sessões', async 
     const headers = { Authorization: 'Bearer ' + login.body.token };
     const call = (path, method = 'GET') => worker.fetch(new Request(base + path, { headers, method }), env);
     assert.equal((await call('/api/imports')).status, 200);
+    const product = await send(env, 'POST', '/api/imports', { title: 'Modelo teste', sourceUrl: 'https://example.com/demo', description: 'Kit para montar' }, true);
+    assert.equal(product.status, 201);
+    const id = product.body.id;
+    const row = db.prepare('SELECT details_json FROM catalog_product_details WHERE product_id=?').get(id);
+    assert.equal(JSON.parse(row.details_json).description, 'Kit para montar');
+    const form = new FormData();
+    form.set('priceCents', '1200');
+    form.set('details', JSON.stringify({ description: 'Kit revisto', printMinutes: 90, filamentGrams: 21.5, assembly: 'Encaixe as rodas.', leadTime: 'Até três dias' }));
+    const saved = await worker.fetch(new Request(base + '/api/admin/products/' + id, { method: 'PATCH', headers, body: form }), env);
+    assert.equal(saved.status, 200);
+    const pending = await send(env, 'GET', '/api/products?id=' + id);
+    assert.deepEqual(pending.body.products, []);
+    await send(env, 'PATCH', '/api/imports/' + id, { status: 'approved', commercialUseAllowed: true, imageUseAllowed: true }, true);
+    const live = await send(env, 'GET', '/api/products?id=' + id);
+    assert.equal(JSON.parse(live.body.products[0].details_json).filamentGrams, 21.5);
     const promotionUrl = '/api/admin/promotions/day';
     const promotion = new FormData();
     promotion.set('productId', 'academia-001');
