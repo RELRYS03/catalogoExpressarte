@@ -21,6 +21,7 @@ O arquivo wrangler.toml é um modelo inicial. Substitua o database_id pelo ID re
 1. Crie o D1 expressarte-catalog-imports.
 2. Execute a migração em cloudflare/import-api/schema.sql.
    Em um banco existente, aplique `catalog-removed-products.sql` antes de publicar a rota de exclusão.
+   Aplique `catalog-promotion-themes.sql` após `catalog-promotion-items.sql` para ativar os temas das ofertas.
 3. Crie o bucket R2 expressarte-catalog-images e configure acesso público por domínio customizado (recomendado) ou endpoint público autorizado.
 4. Configure os bindings DB (D1) e IMAGES (R2).
 5. Configure os valores ALLOWED_ORIGIN com a origem HTTPS exata do PWA e PUBLIC_ASSETS_URL com a origem pública de imagens.

@@ -303,6 +303,8 @@
   }
   const promotionGrid = $('#promotionGrid');
   const promotionControls = $('#promotionControls');
+  const promotionHeading = $('.promotion-heading');
+  const promotionThemes = config.promotionThemes || {};
   const promotionMotion = matchMedia('(prefers-reduced-motion: reduce)');
 
   function updatePromotionControls() {
@@ -334,6 +336,7 @@
   function renderPromotions(promotions) {
     const grid = promotionGrid;
     grid.replaceChildren();
+    const themesInUse = new Set();
     for (const offer of promotions) {
       const product = getProduct(offer.product_id) || getProduct('imported-' + offer.product_id);
       if (!product || offer.expires_at <= Date.now()) continue;
@@ -344,6 +347,12 @@
       const cover = /^https:\/\//i.test(offer.image_url || '') ? offer.image_url : product.cover;
       const card = document.createElement('article');
       card.className = 'weekly-deal-card';
+      const theme = Object.hasOwn(promotionThemes, offer.theme) ? offer.theme : 'default';
+      themesInUse.add(theme);
+      if (theme !== 'default') {
+        card.classList.add('promotion-theme');
+        card.dataset.theme = theme;
+      }
       card.innerHTML = '<div class="weekly-deal-photo">' +
         (cover ? '<img src="' + escapeHtml(cover) + '" alt="' + escapeHtml(product.name) + '" loading="lazy">' : '') +
         '<span class="weekly-deal-tag">' + label + '</span></div>' +
@@ -363,6 +372,7 @@
       grid.append(card);
     }
     $('#destaques').hidden = !grid.childElementCount;
+    promotionHeading.dataset.theme = themesInUse.size === 1 ? themesInUse.values().next().value : 'default';
     updatePromotionControls();
   }
 

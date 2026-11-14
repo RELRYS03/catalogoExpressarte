@@ -1,5 +1,5 @@
-const CACHE_NAME = 'expressarte-importador-v21';
-const SHELL = ['./','./index.html','./styles.css','./app.js','./manifest.webmanifest','./icon.svg','../config.js'];
+const CACHE_NAME = 'expressarte-importador-v22';
+const SHELL = ['./','./index.html','./styles.css','./app.js','./manifest.webmanifest','./icon.svg','../config.js','../promotion-themes.css?v=1'];
 const DB_NAME = 'expressarte-share-v1';
 function openShareDb() {
   return new Promise((resolve,reject) => {
@@ -40,7 +40,9 @@ self.addEventListener('fetch', event => {
     })());
     return;
   }
-  if (request.method === 'GET' && url.origin === self.location.origin && (url.pathname.startsWith(new URL(self.registration.scope).pathname) || url.pathname === new URL('../config.js', self.registration.scope).pathname)) {
+  const scope = self.registration.scope;
+  const sharedAsset = ['../config.js', '../promotion-themes.css'].some(file => url.pathname === new URL(file, scope).pathname);
+  if (request.method === 'GET' && url.origin === self.location.origin && (url.pathname.startsWith(new URL(scope).pathname) || sharedAsset)) {
     event.respondWith(fetch(request).then(response => {
       if (response.ok) { const copy = response.clone(); caches.open(CACHE_NAME).then(cache => cache.put(request,copy)); }
       return response;

@@ -14,6 +14,7 @@ test('login privado cria uma conta, limita tentativas e revoga sessões', async 
     db.exec(await readFile(new URL('../catalog-categories.sql', import.meta.url), 'utf8'));
     db.exec(await readFile(new URL('../catalog-promotions.sql', import.meta.url), 'utf8'));
     db.exec(await readFile(new URL('../catalog-promotion-items.sql', import.meta.url), 'utf8'));
+    db.exec(await readFile(new URL('../catalog-promotion-themes.sql', import.meta.url), 'utf8'));
     db.exec(await readFile(new URL('../catalog-removed-products.sql', import.meta.url), 'utf8'));
     db.exec(await readFile(new URL('../catalog-product-details.sql', import.meta.url), 'utf8'));
     const env = { ADMIN_TOKEN: token, DB: {
@@ -83,13 +84,26 @@ test('login privado cria uma conta, limita tentativas e revoga sessões', async 
     assert.equal((await editPromotion(promotion, false)).status, 401);
     const firstOffer = await (await editPromotion(promotion)).json();
     assert.equal(firstOffer.promotion.product_id, 'academia-001');
+    assert.equal(firstOffer.promotion.theme, 'default');
     assert.ok(firstOffer.promotion.expires_at > Date.now() + 23 * 3600000);
     promotion.set('priceCents', '1900');
     assert.equal((await (await editPromotion(promotion)).json()).promotion.expires_at, firstOffer.promotion.expires_at);
     promotion.set('productId', 'religioso-001');
     promotion.set('campaign', 'Natal');
+    promotion.set('theme', 'inexistente');
+    assert.equal((await editPromotion(promotion)).status, 400);
+    promotion.set('theme', 'natal');
     const secondOffer = await (await editPromotion(promotion)).json();
     assert.equal(secondOffer.promotion.campaign, 'Natal');
+    assert.equal(secondOffer.promotion.theme, 'natal');
+    promotion.set('theme', 'reveillon');
+    const changedTheme = (await (await editPromotion(promotion)).json()).promotion;
+    assert.equal(changedTheme.theme, 'reveillon');
+    assert.equal(changedTheme.expires_at, secondOffer.promotion.expires_at);
+    promotion.delete('theme');
+    promotion.set('campaign', 'Presentes de fim de ano');
+    assert.equal((await (await editPromotion(promotion)).json()).promotion.theme, 'reveillon');
+    assert.equal((await send(env, 'GET', '/api/products')).body.promotions.find(item => item.product_id === 'religioso-001').theme, 'reveillon');
     assert.equal(db.prepare("SELECT count(*) AS total FROM catalog_promotion_items WHERE slot='day'").get().total, 2);
     promotion.set('productId', 'academia-001');
     promotion.set('remove', 'yes');

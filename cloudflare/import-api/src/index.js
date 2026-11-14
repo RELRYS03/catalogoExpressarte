@@ -150,6 +150,8 @@ async function saveProductEdit(request, env, id, builtIn, cors) {
   }
   return json({ priceCents: saved.price_cents, imageUrl: saved.image_url, ...(saved.category ? { category: saved.category } : {}) }, 200, cors);
 }
+const promotionThemes = new Set(['default', 'carnaval', 'pascoa', 'maes', 'junina', 'pais', 'criancas', 'aparecida', 'natal', 'reveillon']);
+
 async function savePromotion(request, env, slot, cors) {
   const form = await request.formData();
   const id = form.get('productId');
@@ -166,6 +168,8 @@ async function savePromotion(request, env, slot, cors) {
     : "EXISTS (SELECT 1 FROM catalog_imports WHERE id=? AND status='approved' AND commercial_use_allowed=1 AND image_use_allowed=1)";
   const rawPrice = form.get('priceCents');
   const campaign = str(form.get('campaign'), 60);
+  const theme = form.get('theme');
+  if (theme !== null && !promotionThemes.has(theme)) return json({ error: 'Escolha um tema disponível.' }, 400, cors);
   const price = typeof rawPrice === 'string' && /^\d+$/.test(rawPrice) ? Number(rawPrice) : NaN;
   if (!Number.isSafeInteger(price) || price <= 0 || price > 100000000) return json({ error: 'Informe um preço promocional válido.' }, 400, cors);
   const priceRow = builtInIds.includes(id)
@@ -180,13 +184,13 @@ async function savePromotion(request, env, slot, cors) {
   if (error) return json({ error }, status, cors);
   const now = Date.now();
   try {
-    const promotion = await env.DB.prepare(`INSERT INTO catalog_promotion_items (slot,product_id,price_cents,image_url,expires_at,campaign)
-      SELECT ?,?,?,?,?,? WHERE ${canPromote} ON CONFLICT(slot,product_id) DO UPDATE SET
+    const promotion = await env.DB.prepare(`INSERT INTO catalog_promotion_items (slot,product_id,price_cents,image_url,expires_at,campaign,theme)
+      SELECT ?,?,?,?,?,?,COALESCE(?,'default') WHERE ${canPromote} ON CONFLICT(slot,product_id) DO UPDATE SET
       image_url=COALESCE(NULLIF(excluded.image_url,''),image_url),
       expires_at=CASE WHEN expires_at>? AND campaign=excluded.campaign THEN expires_at ELSE excluded.expires_at END,
-      price_cents=excluded.price_cents,campaign=excluded.campaign
-      RETURNING slot,product_id,price_cents,image_url,expires_at,campaign`)
-      .bind(slot, id, price, image, now + (slot === 'day' ? 1 : 7) * 86400000, campaign, id, now).first();
+      price_cents=excluded.price_cents,campaign=excluded.campaign,theme=COALESCE(?,catalog_promotion_items.theme)
+      RETURNING slot,product_id,price_cents,image_url,expires_at,campaign,theme`)
+      .bind(slot, id, price, image, now + (slot === 'day' ? 1 : 7) * 86400000, campaign, theme, id, now, theme).first();
     if (!promotion) {
       if (key) await env.IMAGES.delete(key);
       return json({ error: 'Escolha um produto publicado.' }, 400, cors);

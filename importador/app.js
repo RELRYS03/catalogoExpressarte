@@ -813,20 +813,39 @@
         promotionForm(slot, current, product, promotions) + '</details>';
     }).join('');
   }
+  const promotionThemes = window.EXPRESSARTE_CONFIG?.promotionThemes || { default: 'Padrão' };
+
   function promotionForm(slot, current, product, offers) {
       const names = [...new Set(offers.filter(offer => offer.slot === slot && offer.expires_at > Date.now()).map(offer => offer.campaign).filter(Boolean))];
+      const theme = Object.hasOwn(promotionThemes, current?.theme) ? current.theme : 'default';
+      const options = Object.entries(promotionThemes).map(([key, label]) =>
+        '<option value="' + key + '"' + (key === theme ? ' selected' : '') + '>' + escapeHtml(label) + '</option>').join('');
       return '<form data-promotion="' + slot + '"><input type="hidden" name="productId" value="' + escapeHtml(product.id) + '">' +
         '<label>Campanha (opcional)<input name="campaign" maxlength="60" placeholder="Ex.: Natal" value="' +
         escapeHtml(current?.campaign ?? (names.length === 1 ? names[0] : '')) + '"></label>' +
+        '<label>Tema da campanha<select name="theme">' + options + '</select></label>' +
         '<label>Preço promocional (R$)<input name="promotionPrice" inputmode="decimal" maxlength="12" value="' +
         (current ? (current.price_cents / 100).toFixed(2).replace('.', ',') : '') +
-        '"></label><label>Foto da promoção (opcional)<input name="promotionPhoto" type="file" accept="image/jpeg,image/png,image/webp,image/avif"></label>' +
+        '"></label><div class="promotion-preview promotion-theme" data-theme="' + theme + '">' +
+        '<small>Prévia visual · <span data-preview-campaign></span></small><strong>' + escapeHtml(product.title) + '</strong>' +
+        '<span class="promotion-preview-price" data-preview-price hidden></span></div>' +
+        '<label>Foto da promoção (opcional)<input name="promotionPhoto" type="file" accept="image/jpeg,image/png,image/webp,image/avif"></label>' +
         '<label class="edit-photo-rights"><input name="promotionRights" type="checkbox"> Tenho autorização para usar esta foto</label>' +
         '<div class="category-actions"><button class="secondary-button" type="submit">Enviar pra promoção</button>' +
         (current ? '<button class="text-button" type="submit" name="remove" formnovalidate>Remover oferta</button>' : '') +
         '</div><p class="hint" role="status">' +
         (current ? (product && current.expires_at > Date.now() ? 'Ativa até ' + escapeHtml(formatPromotionDate(current.expires_at)) : 'Oferta inativa.')
           : 'Duração: ' + (slot === 'day' ? '24 horas.' : '7 dias.')) + '</p></form>';
+  }
+  function updatePromotionPreview(form) {
+    const { theme, campaign, promotionPrice } = form.elements;
+    const preview = form.querySelector('.promotion-preview');
+    preview.dataset.theme = theme.value;
+    preview.querySelector('[data-preview-campaign]').textContent = campaign.value.trim() || promotionThemes[theme.value];
+    const price = parsePrice(promotionPrice.value);
+    const priceLabel = preview.querySelector('[data-preview-price]');
+    priceLabel.hidden = !Number.isSafeInteger(price) || price <= 0;
+    priceLabel.textContent = priceLabel.hidden ? '' : formatMoney.format(price / 100);
   }
   function formatPromotionDate(timestamp) {
     return new Date(timestamp).toLocaleString('pt-BR', {dateStyle:'short', timeStyle:'short'});
@@ -861,6 +880,7 @@
       } else {
         body.set('priceCents', String(price));
         body.set('campaign', fields.namedItem('campaign').value.trim());
+        body.set('theme', fields.namedItem('theme').value);
         if (file) { body.set('image', file); body.set('imageRights', 'yes'); }
       }
       const response = await fetch(endpoint('/api/admin/promotions/' + form.dataset.promotion), {
@@ -868,6 +888,9 @@
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || 'Não foi possível salvar a promoção.');
+      if (!remove && data.promotion?.theme === undefined && fields.namedItem('theme').value !== 'default') {
+        throw new Error('O tema ainda não foi confirmado pela API. Atualize a fila antes de tentar novamente.');
+      }
       const notice = data.promotion ? 'Promoção ativa até ' + formatPromotionDate(data.promotion.expires_at) + '.' : 'Oferta removida da vitrine.';
       await loadQueue(undefined, { productId: id, slot: form.dataset.promotion, notice });
     } catch (error) {
@@ -961,7 +984,13 @@
       list.querySelectorAll('[data-queue-action="rejected"]').forEach(button => button.addEventListener('click', () => updateQueueItem(button)));
       list.querySelectorAll('[data-delete-product]').forEach(button => button.addEventListener('click', () => deleteQueueProduct(button)));
       list.querySelectorAll('[data-copy-product]').forEach(button => button.addEventListener('click', () => copyProductLink(button)));
-      list.querySelectorAll('[data-promotion]').forEach(form => form.addEventListener('submit', savePromotion));
+      list.querySelectorAll('[data-promotion]').forEach(form => {
+        form.addEventListener('submit', savePromotion);
+        form.addEventListener('input', event => {
+          if (['theme', 'campaign', 'promotionPrice'].includes(event.target.name)) updatePromotionPreview(form);
+        });
+        updatePromotionPreview(form);
+      });
       if (promotionUpdate) {
         const card = Array.from(list.querySelectorAll('.queue-card')).find(item => item.dataset.id === promotionUpdate.productId);
         if (card) {

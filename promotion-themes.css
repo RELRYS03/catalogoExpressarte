@@ -1,0 +1,38 @@
+.promotion-theme[data-theme="carnaval"] { --offer-ink: #5d226d; --offer-paper: #fff0da; --offer-accent: #dc8850; }
+.promotion-theme[data-theme="pascoa"] { --offer-ink: #54326d; --offer-paper: #f6eef9; --offer-accent: #c1a1cc; }
+.promotion-theme[data-theme="maes"] { --offer-ink: #7b344e; --offer-paper: #fbedf1; --offer-accent: #ca879d; }
+.promotion-theme[data-theme="junina"] { --offer-ink: #753619; --offer-paper: #fff1cd; --offer-accent: #d89447; }
+.promotion-theme[data-theme="pais"] { --offer-ink: #214961; --offer-paper: #eaf3f7; --offer-accent: #81a9bf; }
+.promotion-theme[data-theme="criancas"] { --offer-ink: #204f62; --offer-paper: #eaf8ed; --offer-accent: #77ae93; }
+.promotion-theme[data-theme="aparecida"] { --offer-ink: #203e77; --offer-paper: #edf2fa; --offer-accent: #bf9f5d; }
+.promotion-theme[data-theme="natal"] { --offer-ink: #174a37; --offer-paper: #fcf4dd; --offer-accent: #b48a3b; }
+.promotion-theme[data-theme="reveillon"] { --offer-ink: #5e461b; --offer-paper: #fffaf0; --offer-accent: #c1a767; }
+
+.promotion-heading[data-theme]:not([data-theme="default"]) {
+  padding: 8px 12px;
+  border: 1px solid var(--offer-accent);
+  border-radius: 12px;
+  background: var(--offer-paper);
+}
+.promotion-heading[data-theme] h2 { color: var(--offer-ink, var(--brown)); }
+.weekly-deal-card[data-theme] { border-color: var(--offer-accent, var(--line)); }
+.weekly-deal-card[data-theme] .weekly-deal-photo { background: var(--offer-paper, var(--cream-2)); }
+.weekly-deal-card[data-theme] .weekly-deal-tag,
+.weekly-deal-card[data-theme] .weekly-deal-button { background: var(--offer-ink, var(--brown)); color: #fffdfa; }
+.weekly-deal-card[data-theme] .weekly-deal-button:hover { text-decoration: underline; }
+.weekly-deal-card[data-theme] .weekly-deal-category,
+.weekly-deal-card[data-theme] .weekly-deal-price strong { color: var(--offer-ink, var(--brown-2)); }
+
+.promotion-preview {
+  --preview-ink: var(--offer-ink, var(--brown));
+  --preview-paper: var(--offer-paper, var(--cream2));
+  padding: 10px 12px;
+  border: 1px solid var(--offer-accent, var(--line));
+  border-radius: 12px;
+  background: var(--preview-paper);
+  color: var(--preview-ink);
+  overflow-wrap: anywhere;
+}
+.promotion-preview small, .promotion-preview strong { display: block; }
+.promotion-preview small { margin-bottom: 4px; font-weight: 700; }
+.promotion-preview-price { display: block; margin-top: 4px; font-weight: 800; }
