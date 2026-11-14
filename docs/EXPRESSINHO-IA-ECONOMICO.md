@@ -97,3 +97,18 @@ Para clientes públicos utilizarem o Ollama do computador da loja, será necess�
 - Não adicionar chaves, dependências ou provedores ativos.
 - Não modificar o trabalho do Codex nem a branch `main`.
 - Não prometer integração direta com o ChatGPT Free; para o site, modelos acessíveis por API precisam de uma API/provedor próprio.
+
+## Implementação inicial do roteador
+
+Na branch `feature/expressinho-ai-economico` foi adicionado um primeiro adaptador para APIs compatíveis com o formato Chat Completions.
+
+- O Ollama continua sendo a primeira opção.
+- A API online fica desativada por padrão.
+- O fallback online só é tentado quando `EXPRESSINHO_ONLINE_ENABLED=true` e URL HTTPS, chave e modelo estão configurados no ambiente do servidor.
+- A chave é lida no servidor e não deve ser colocada no site nem versionada.
+- O adaptador limita a resposta a 700 tokens e usa timeout.
+- O cache de respostas Ollama permanece apenas em memória e não armazena perguntas voláteis ou com histórico.
+
+Variáveis documentadas em `expressinho-core/.env.example`.
+
+**Limitação nesta etapa:** ainda não há seleção entre vários provedores, cota gratuita automática, teto monetário por período ou painel de gastos. O fallback é um único endpoint OpenAI-compatible configurado pelo administrador. A configuração não está ativada e não houve chamada externa.
