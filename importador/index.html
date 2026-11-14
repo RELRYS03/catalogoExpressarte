@@ -55,8 +55,25 @@
       </div>
       <label for="imageFile">Imagem de capa (opcional)</label>
       <input id="imageFile" type="file" accept="image/*">
-      <p class="hint">Se o compartilhamento incluir uma imagem, ela aparecerá aqui. Também pode selecionar uma imagem salva no celular.</p>
+      <p class="hint">Selecione uma foto ou um print salvo no celular, ou compartilhe uma imagem com o importador.</p>
       <div class="file-preview" id="filePreview" hidden><img id="filePreviewImage" alt="Imagem selecionada"><span id="filePreviewName"></span><button type="button" id="removeImage" aria-label="Remover imagem">×</button></div>
+      <button class="secondary-button" id="editCover" type="button" aria-expanded="false" aria-controls="coverEditor" hidden>Ajustar capa com Expressinho</button>
+      <fieldset class="cover-editor" id="coverEditor" hidden>
+        <legend>Ajustar capa</legend>
+        <canvas id="coverPreview" width="480" height="360" role="img" aria-label="Prévia do recorte da capa"></canvas>
+        <p class="hint">O Expressinho começa pelo centro do print. Ajuste o enquadramento para destacar o modelo.</p>
+        <label for="coverZoom">Zoom</label>
+        <input id="coverZoom" type="range" min="1" max="3" step="0.01" value="1">
+        <label for="coverX">Posição horizontal</label>
+        <input id="coverX" type="range" min="0" max="100" value="50">
+        <label for="coverY">Posição vertical</label>
+        <input id="coverY" type="range" min="0" max="100" value="50">
+        <div class="actions">
+          <button class="primary-button" id="applyCover" type="button">Usar esta capa</button>
+          <button class="text-button" id="cancelCover" type="button">Cancelar</button>
+        </div>
+        <p class="hint" id="coverStatus" role="status"></p>
+      </fieldset>
       <details class="advanced">
         <summary>Conexão segura com o catálogo</summary>
         <label for="apiBase">Endereço da API Cloudflare</label>

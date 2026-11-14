@@ -3,6 +3,8 @@
   const $ = id => document.getElementById(id);
   const fields = ['sourceUrl','title','author','price','category'];
   let sharedImage = null;
+  let originalImage = null;
+  let coverSource = null;
   let objectUrl = null;
   const say = (message, type = '') => { $('feedback').textContent = message; $('feedback').className = 'feedback ' + type; };
   const cleanUrl = value => {
@@ -27,7 +29,7 @@
       const withoutUrl = String(data.text).replace(/https:\/\/[^\s<>"']+/ig,'').trim();
       if (withoutUrl) $('title').value = withoutUrl.slice(0,180);
     }
-    if (data.images && data.images.length) { sharedImage = data.images[0]; showImage(sharedImage); }
+    if (data.images && data.images.length) selectImage(data.images[0]);
     if (url) {
       $('shareNote').textContent = 'Link recebido do compartilhamento. Confira o endereço e complete os dados.';
       $('draftStatus').textContent = 'Link recebido';
@@ -37,12 +39,92 @@
       say('Recebemos o compartilhamento, mas não encontramos um link HTTPS.');
     }
   }
-  function showImage(file) {
+  function selectImage(file) {
+    originalImage = sharedImage = file;
+    closeCover();
+    renderSelectedImage();
+  }
+  function renderSelectedImage() {
     if (objectUrl) URL.revokeObjectURL(objectUrl);
-    objectUrl = URL.createObjectURL(file);
+    objectUrl = sharedImage ? URL.createObjectURL(sharedImage) : null;
+    $('filePreview').hidden = $('editCover').hidden = !sharedImage;
+    if (!sharedImage) {
+      $('filePreviewImage').removeAttribute('src');
+      return;
+    }
     $('filePreviewImage').src = objectUrl;
-    $('filePreviewName').textContent = file.name || 'Imagem compartilhada';
-    $('filePreview').hidden = false;
+    $('filePreviewName').textContent = sharedImage.name || 'Imagem compartilhada';
+  }
+  function closeCover() {
+    coverSource?.close();
+    coverSource = null;
+    $('coverEditor').hidden = true;
+    $('editCover').setAttribute('aria-expanded', 'false');
+    $('coverStatus').textContent = '';
+  }
+  function coverCrop() {
+    const zoom = Number($('coverZoom').value);
+    const width = Math.min(coverSource.width, coverSource.height * 4 / 3) / zoom;
+    const height = width * 3 / 4;
+    const x = (coverSource.width - width) * Number($('coverX').value) / 100;
+    const y = (coverSource.height - height) * Number($('coverY').value) / 100;
+    return [x, y, width, height];
+  }
+  function drawCover(canvas, crop) {
+    const context = canvas.getContext('2d');
+    context.fillStyle = '#fff';
+    context.fillRect(0, 0, canvas.width, canvas.height);
+    context.drawImage(coverSource, ...crop, 0, 0, canvas.width, canvas.height);
+  }
+  function updateCoverPreview() {
+    if (coverSource) drawCover($('coverPreview'), coverCrop());
+  }
+  async function openCover() {
+    const file = originalImage;
+    const button = $('editCover');
+    button.disabled = true;
+    try {
+      const bitmap = await createImageBitmap(file);
+      if (file !== originalImage) { bitmap.close(); return; }
+      closeCover();
+      coverSource = bitmap;
+      $('coverZoom').value = '1';
+      $('coverX').value = $('coverY').value = '50';
+      updateCoverPreview();
+      $('coverEditor').hidden = false;
+      button.setAttribute('aria-expanded', 'true');
+      $('coverZoom').focus();
+    } catch {
+      say('Não foi possível abrir esta imagem. Tente um print em PNG ou JPG.', 'error');
+    } finally {
+      button.disabled = false;
+    }
+  }
+  async function applyCover() {
+    if (!coverSource) return;
+    const source = coverSource;
+    const crop = coverCrop();
+    const canvas = document.createElement('canvas');
+    const units = Math.max(1, Math.min(240, Math.floor(crop[2] / 4)));
+    canvas.width = units * 4;
+    canvas.height = units * 3;
+    const button = $('applyCover');
+    button.disabled = true;
+    try {
+      drawCover(canvas, crop);
+      const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.9));
+      if (coverSource !== source) return;
+      if (!blob) throw new Error('Falha ao gerar capa');
+      sharedImage = new File([blob], 'capa-expressarte.jpg', {type: 'image/jpeg'});
+      renderSelectedImage();
+      closeCover();
+      $('editCover').focus();
+      say('Capa pronta para enviar.', 'success');
+    } catch {
+      if (coverSource === source) $('coverStatus').textContent = 'Não foi possível gerar a capa. Tente de novo.';
+    } finally {
+      button.disabled = false;
+    }
   }
   function setConnectionStatus(text, ok = false) {
     $('connectionStatus').innerHTML = '<i></i> ' + text;
@@ -215,11 +297,12 @@
       list.innerHTML = '<div class="queue-empty">' + escapeHtml(error.message || 'Não foi possível carregar a fila.') + '</div>';
     }
   }
-  $('imageFile').addEventListener('change', event => {
-    sharedImage = event.target.files && event.target.files[0] || null;
-    if (sharedImage) showImage(sharedImage);
-  });
-  $('removeImage').addEventListener('click', () => { sharedImage = null; $('imageFile').value = ''; $('filePreview').hidden = true; if (objectUrl) URL.revokeObjectURL(objectUrl); objectUrl = null; });
+  $('imageFile').addEventListener('change', event => selectImage(event.target.files[0] || null));
+  $('removeImage').addEventListener('click', () => { $('imageFile').value = ''; selectImage(null); });
+  $('editCover').addEventListener('click', () => coverSource ? closeCover() : openCover());
+  $('cancelCover').addEventListener('click', () => { closeCover(); $('editCover').focus(); });
+  $('applyCover').addEventListener('click', applyCover);
+  ['coverZoom', 'coverX', 'coverY'].forEach(id => $(id).addEventListener('input', updateCoverPreview));
   $('previewButton').addEventListener('click', fetchPreview);
   $('refreshQueue').addEventListener('click', loadQueue);
   $('sendButton').addEventListener('click', sendImport);
@@ -232,7 +315,7 @@
   });
   $('clearButton').addEventListener('click', () => {
     fields.forEach(id => { if (id === 'category') $(id).value = 'Outros'; else $(id).value = ''; });
-    $('imageFile').value = ''; sharedImage = null; $('filePreview').hidden = true; $('previewCard').hidden = true;
+    $('imageFile').value = ''; selectImage(null); $('previewCard').hidden = true;
     $('previewCard').dataset.imageUrl = ''; $('draftStatus').textContent = 'Rascunho local'; say('Formulário limpo.');
   });
   $('apiBase').value = localStorage.getItem('expressarte_api_base') || window.EXPRESSARTE_CONFIG?.catalogApiEndpoint || '';

@@ -29,3 +29,17 @@ label{display:block;font-size:12px;font-weight:800;color:var(--brown2);margin:15
 
 /* Respeitar o atributo hidden dos componentes do formulário. */
 [hidden]{display:none!important}
+
+.cover-editor {
+  min-inline-size: 0;
+  margin: 14px 0;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+}
+.cover-editor legend { padding: 0 6px; color: var(--brown); font-weight: 700; }
+.cover-editor .hint { color: var(--brown2); font-size: 14px; }
+.cover-editor canvas { display: block; width: 100%; max-width: 360px; height: auto; border-radius: 10px; margin-inline: auto; }
+.cover-editor input[type="range"] { display: block; min-height: 44px; padding: 0; border: 0; accent-color: var(--brown); }
+.cover-editor input[type="range"]:focus-visible { outline: 2px solid var(--brown); outline-offset: 2px; }
+.cover-editor button:disabled, #editCover:disabled { opacity: .6; cursor: wait; }
