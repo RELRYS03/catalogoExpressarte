@@ -98,7 +98,7 @@ async function fetchMakerWorldMetadata(sourceUrl, host) {
   const id = match[1];
   const upstream = await fetch('https://api.bambulab.com/v1/design-service/design/' + id, {
     headers: { Accept: 'application/json', 'User-Agent': 'ExpressArteCatalog/1.0' },
-    redirect: 'error',
+    redirect: 'manual',
     signal: AbortSignal.timeout(8000)
   });
   if (!upstream.ok) {
@@ -193,7 +193,8 @@ export default {
         if (!allowedPageHosts.has(host)) return json({ error: 'Este site ainda não está na lista de fontes suportadas' }, 422, cors);
         let metadataError = '';
         const design = await fetchMakerWorldMetadata(sourceUrl, host).catch(error => {
-          metadataError = /^(HTTP \d{3}|Metadados incompletos)$/.test(error.message) ? error.message : error.name;
+          metadataError = error instanceof TypeError ? String(error.message).slice(0, 180)
+            : /^(HTTP \d{3}|Metadados incompletos)$/.test(error.message) ? error.message : error.name;
           return null;
         });
         if (design) return json(design, 200, cors);
