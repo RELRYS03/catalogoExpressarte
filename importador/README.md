@@ -24,7 +24,7 @@ O Android só mostrará o app na lista de compartilhamento depois de ele estar p
 
 ## Configuração da API
 
-Em **Conexão segura com o catálogo**, use **Criar meu usuário administrador** uma vez, com o e-mail escolhido, uma senha de pelo menos 12 caracteres e a chave administrativa atual. Depois, use **Entrar** nos seus aparelhos. **Lembrar neste aparelho** mantém a sessão por até 30 dias em um aparelho pessoal. A sessão comum dura até 8 horas. **Sair** encerra a sessão.
+Abra `/importador/?configurar=admin` para criar o primeiro usuário administrador. Use o e-mail escolhido, uma senha de pelo menos 12 caracteres e a chave administrativa atual. Depois, abra o endereço normal do importador e use **Entrar**. **Lembrar neste aparelho** mantém a sessão por até 30 dias em um aparelho pessoal. A sessão comum dura até 8 horas. **Sair** encerra a sessão.
 
 A API precisa permitir a origem HTTPS exata do PWA em ALLOWED_ORIGIN. A implantação segura precisa configurar D1, segredo ADMIN_TOKEN, binding R2 IMAGES e PUBLIC_ASSETS_URL se for receber imagens enviadas como arquivos. Sem R2, links e metadados podem ser importados, mas upload de arquivo de imagem deve ser habilitado depois de provisionar o bucket.
 

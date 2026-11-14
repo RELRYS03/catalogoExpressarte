@@ -27,9 +27,11 @@ test('login privado cria uma conta, limita tentativas e revoga sessões', async 
     db.exec('CREATE TABLE catalog_imports (created_at TEXT)');
     const setupUrl = '/api/admin/setup', loginUrl = '/api/admin/login';
     const credentials = { email: 'Test@Example.com', password: 'senha-de-teste-apenas', remember: true };
+    assert.deepEqual((await send(env, 'GET', '/api/admin/status')).body, { configured: false });
     assert.equal((await send(env, 'POST', setupUrl, credentials)).status, 401);
     const created = await send(env, 'POST', setupUrl, credentials, true);
     assert.equal(created.status, 200);
+    assert.deepEqual((await send(env, 'GET', '/api/admin/status')).body, { configured: true });
     assert.equal((await send(env, 'POST', setupUrl, credentials, true)).status, 409);
     assert.ok(db.prepare('SELECT expires_at FROM admin_sessions').get().expires_at > Date.now() + 29 * 86400000);
     assert.equal(db.prepare('SELECT token_hash FROM admin_sessions').get().token_hash.length, 64);
@@ -265,6 +267,7 @@ test('importador aceita origem do Worker, /api e configuração compartilhada se
     runInNewContext(script, context);
     await new Promise(resolve => setImmediate(resolve));
     assert.equal(elements.get('apiBase').value, configured);
-    assert.deepEqual(calls, [configured.startsWith('https') ? 'https://worker.example/api/health' : 'https://preview.example/api/health']);
+    const origin = configured.startsWith('https') ? 'https://worker.example' : 'https://preview.example';
+    assert.deepEqual(calls, [origin + '/api/health']);
   }
 });

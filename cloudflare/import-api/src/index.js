@@ -159,6 +159,10 @@ export default {
     if (!env.DB) return json({ error: 'D1 não configurado' }, 503, cors);
     let uploadedKey = null;
     try {
+      if (path === '/api/admin/status' && request.method === 'GET') {
+        const account = await env.DB.prepare('SELECT 1 FROM admin_account WHERE id=1').first();
+        return json({ configured: Boolean(account) }, 200, cors);
+      }
       const authRoute = path.match(/^\/api\/admin\/(setup|login|logout)$/);
       if (authRoute && request.method === 'POST') {
         const action = authRoute[1];

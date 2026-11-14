@@ -231,6 +231,8 @@
   }
   const adminKey = 'expressarte_admin_connection';
   let adminRevision = 0;
+  let adminConfigured = null;
+  const setupRequested = new URLSearchParams(location.search).get('configurar') === 'admin';
   function endpoint(path) {
     const base = $('apiBase').value.trim().replace(/\/+$/, '').replace(/\/api$/, '');
     return new URL(base + path, location.origin).toString();
@@ -245,19 +247,48 @@
   const token = () => savedAdmin(sessionStorage) || savedAdmin(localStorage);
   function promptSignIn() {
     $('secureConnection').open = true;
-    $('adminEmail').focus();
-    say('Entre em Conexão segura para continuar.', 'error');
+    if (setupRequested && adminConfigured !== true) {
+      $('adminSetup').open = true;
+      $('setupEmail').focus();
+      say('Crie seu usuário administrador para continuar.', 'error');
+    } else {
+      $('adminEmail').focus();
+      say('Entre em Conexão segura para continuar.', 'error');
+    }
   }
   function updateAdminControls() {
     const credential = token();
     const signedIn = credential.startsWith('session_');
     $('signOut').hidden = !credential;
-    $('adminLogin').hidden = signedIn;
-    $('adminSetup').hidden = signedIn;
+    const showSetup = setupRequested && adminConfigured !== true && !signedIn;
+    $('adminLogin').hidden = signedIn || showSetup;
+    $('adminSetup').hidden = !showSetup;
+    if (showSetup) {
+      $('secureConnection').open = true;
+      $('adminSetup').open = true;
+    }
     $('rememberAdmin').checked = Boolean(savedAdmin(localStorage));
     $('adminSessionStatus').textContent = $('rememberAdmin').checked
       ? 'Sessão lembrada neste aparelho.'
       : token() ? 'Sessão ativa até fechar o app.' : 'Use a opção de lembrar em um aparelho de uso pessoal.';
+  }
+  async function checkAdminSetup() {
+    if (!setupRequested) return;
+    try {
+      const target = endpoint('/api/admin/status');
+      const response = await fetch(target, { cache: 'no-store' });
+      if (!response.ok) return;
+      const data = await response.json();
+      if (target !== endpoint('/api/admin/status') || typeof data.configured !== 'boolean') return;
+      adminConfigured = data.configured;
+      updateAdminControls();
+      if (adminConfigured && !token().startsWith('session_')) {
+        $('secureConnection').open = true;
+        $('adminSessionStatus').textContent = 'A conta administrativa já foi criada. Entre com seu e-mail e senha.';
+      } else if (!adminConfigured) {
+        $('adminSessionStatus').textContent = 'Crie sua conta com a chave administrativa atual. Depois, use seu e-mail e senha para entrar.';
+      }
+    } catch { /* The forms remain available if the status request fails. */ }
   }
   async function signIn(event, setup = false) {
     event.preventDefault();
@@ -282,10 +313,12 @@
       });
       const data = await response.json().catch(() => null);
       if (!response.ok || !/^session_[0-9a-f]{64}$/.test(data?.token || '')) {
+        if (setup && response.status === 409) await checkAdminSetup();
         throw new Error(data?.error || 'Não foi possível entrar no catálogo.');
       }
       if (revision !== adminRevision) return;
       if (target !== endpoint('/api/imports')) throw new Error('O endereço mudou. Entre novamente.');
+      adminConfigured = true;
       const credentials = JSON.stringify({ endpoint: target, token: data.token });
       const storage = remember ? localStorage : sessionStorage;
       storage.setItem(adminKey, credentials);
@@ -643,7 +676,13 @@
   $('adminLogin').addEventListener('submit', event => signIn(event));
   $('adminSetupForm').addEventListener('submit', event => signIn(event, true));
   $('signOut').addEventListener('click', signOut);
-  $('apiBase').addEventListener('change', () => { updateAdminControls(); checkHealth(); loadQueue(); });
+  $('apiBase').addEventListener('change', () => {
+    adminConfigured = null;
+    updateAdminControls();
+    checkAdminSetup();
+    checkHealth();
+    loadQueue();
+  });
   window.addEventListener('storage', event => {
     if (event.key !== adminKey && event.key !== null) return;
     updateAdminControls();
@@ -664,6 +703,6 @@
   $('adminToken').value = token() ? '' : sessionStorage.getItem('expressarte_admin_token') || '';
   updateAdminControls();
   if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js').catch(() => setConnectionStatus('Instalação PWA indisponível'));
-  loadShared().then(() => { checkHealth(); if (token()) loadQueue(); });
+  loadShared().then(() => { checkAdminSetup(); checkHealth(); if (token()) loadQueue(); });
   if (new URLSearchParams(location.search).has('compartilhado')) history.replaceState({}, '', location.pathname);
 })();
