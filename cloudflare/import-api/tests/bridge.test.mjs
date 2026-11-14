@@ -37,7 +37,9 @@ function setup() {
       return stmt;
     }
   };
-  const images = new Map();\n  const IMAGES = { async put(key, value, options) { images.set(key, { value, options }); }, async delete(key) { images.delete(key); } };\n  return { DB: db, ADMIN_TOKEN: token, ALLOWED_ORIGIN: 'https://relrys03.github.io', IMAGES, PUBLIC_ASSETS_URL: 'https://images.example.com', _images: images };
+  const images = new Map();
+  const IMAGES = { async put(key, value, options) { images.set(key, { value, options }); }, async delete(key) { images.delete(key); } };
+  return { DB: db, ADMIN_TOKEN: token, ALLOWED_ORIGIN: 'https://relrys03.github.io', IMAGES, PUBLIC_ASSETS_URL: 'https://images.example.com', _images: images };
 }
 async function send(env, method, path, body, authorized = false, origin) {
   const headers = {};
