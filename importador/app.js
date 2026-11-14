@@ -153,7 +153,7 @@
     const value = $('adminToken').value.trim();
     if (value) sessionStorage.setItem('expressarte_admin_token', value);
     const api = $('apiBase').value.trim();
-    if (api) sessionStorage.setItem('expressarte_api_base', api);
+    if (api) localStorage.setItem('expressarte_api_base', api);
     say('Configuração guardada somente nesta sessão.', 'success'); checkHealth();
   });
   $('clearButton').addEventListener('click', () => {
@@ -161,7 +161,7 @@
     $('imageFile').value = ''; sharedImage = null; $('filePreview').hidden = true; $('previewCard').hidden = true;
     $('previewCard').dataset.imageUrl = ''; $('draftStatus').textContent = 'Rascunho local'; say('Formulário limpo.');
   });
-  $('apiBase').value = sessionStorage.getItem('expressarte_api_base') || '';
+  $('apiBase').value = localStorage.getItem('expressarte_api_base') || '';
   $('adminToken').value = sessionStorage.getItem('expressarte_admin_token') || '';
   $('adminToken').addEventListener('input', checkHealth);
   if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js').catch(() => setConnectionStatus('Instalação PWA indisponível'));
