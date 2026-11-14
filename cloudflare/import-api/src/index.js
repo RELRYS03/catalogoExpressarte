@@ -121,18 +121,17 @@ async function saveProductEdit(request, env, id, builtIn, cors) {
   const requested = form.get('category');
   const category = requested === null ? null : await registeredCategory(env, requested);
   if (requested !== null && !category) return json({ error: 'Escolha ou crie uma categoria válida.' }, 400, cors);
-  if (builtIn && category) return json({ error: 'A categoria dos produtos originais é fixa.' }, 400, cors);
   const rawDetails = form.get('details');
   const details = rawDetails === null ? null : readProductDetails(rawDetails);
   if (rawDetails !== null && !details) return json({ error: 'Confira os detalhes de impressão e os limites dos campos.' }, 400, cors);
   const { key, image = '', error, status } = await uploadEditPhoto(form, env, 'catalog-imports/' + id);
   if (error) return json({ error }, status, cors);
   const sql = builtIn
-    ? "INSERT INTO catalog_product_overrides (price_cents,image_url,id) VALUES (?,?,?) ON CONFLICT(id) DO UPDATE SET price_cents=excluded.price_cents,image_url=COALESCE(NULLIF(excluded.image_url,''),image_url) RETURNING price_cents,image_url"
+    ? "INSERT INTO catalog_product_overrides (price_cents,image_url,category,id) VALUES (?,?,?,?) ON CONFLICT(id) DO UPDATE SET price_cents=excluded.price_cents,image_url=COALESCE(NULLIF(excluded.image_url,''),image_url),category=COALESCE(excluded.category,category) RETURNING price_cents,image_url,category"
     : "UPDATE catalog_imports SET price_cents=?,image_url=COALESCE(NULLIF(?,''),image_url),category=COALESCE(?,category),updated_at=CURRENT_TIMESTAMP WHERE id=? RETURNING price_cents,image_url,category";
   let saved;
   try {
-    const edit = env.DB.prepare(sql).bind(...(builtIn ? [price, image, id] : [price, image, category, id]));
+    const edit = env.DB.prepare(sql).bind(price, image, category, id);
     if (details) {
       const source = builtIn ? 'catalog_product_overrides' : 'catalog_imports';
       const updateDetails = storeProductDetails(env, source, id, details);
@@ -149,16 +148,20 @@ async function saveProductEdit(request, env, id, builtIn, cors) {
     if (key) await env.IMAGES.delete(key);
     return json({ error: 'Cadastro não encontrado.' }, 404, cors);
   }
-  return json({ priceCents: saved.price_cents, imageUrl: saved.image_url, category: saved.category }, 200, cors);
+  return json({ priceCents: saved.price_cents, imageUrl: saved.image_url, ...(saved.category ? { category: saved.category } : {}) }, 200, cors);
 }
 async function savePromotion(request, env, slot, cors) {
   const form = await request.formData();
   const id = form.get('productId');
-  if (id === '') {
-    await env.DB.prepare('DELETE FROM catalog_promotions WHERE slot=?').bind(slot).run();
+  if (typeof id !== 'string' || (!builtInIds.includes(id) && !importId.test(id))) {
+    return json({ error: 'Escolha um produto.' }, 400, cors);
+  }
+  if (form.get('remove') === 'yes') {
+    await env.DB.prepare('DELETE FROM catalog_promotion_items WHERE slot=? AND product_id=?').bind(slot, id).run();
     return json({ promotion: null }, 200, cors);
   }
   const rawPrice = form.get('priceCents');
+  const campaign = str(form.get('campaign'), 60);
   const price = typeof rawPrice === 'string' && /^\d+$/.test(rawPrice) ? Number(rawPrice) : NaN;
   if (!Number.isSafeInteger(price) || price <= 0 || price > 100000000) return json({ error: 'Informe um preço promocional válido.' }, 400, cors);
   const priceRow = builtInIds.includes(id)
@@ -173,13 +176,13 @@ async function savePromotion(request, env, slot, cors) {
   if (error) return json({ error }, status, cors);
   const now = Date.now();
   try {
-    const promotion = await env.DB.prepare(`INSERT INTO catalog_promotions (slot,product_id,price_cents,image_url,expires_at)
-      VALUES (?,?,?,?,?) ON CONFLICT(slot) DO UPDATE SET
-      image_url=CASE WHEN excluded.image_url<>'' THEN excluded.image_url WHEN product_id=excluded.product_id THEN image_url ELSE '' END,
-      expires_at=CASE WHEN product_id=excluded.product_id AND expires_at>? THEN expires_at ELSE excluded.expires_at END,
-      product_id=excluded.product_id,price_cents=excluded.price_cents
-      RETURNING slot,product_id,price_cents,image_url,expires_at`)
-      .bind(slot, id, price, image, now + (slot === 'day' ? 1 : 7) * 86400000, now).first();
+    const promotion = await env.DB.prepare(`INSERT INTO catalog_promotion_items (slot,product_id,price_cents,image_url,expires_at,campaign)
+      VALUES (?,?,?,?,?,?) ON CONFLICT(slot,product_id) DO UPDATE SET
+      image_url=COALESCE(NULLIF(excluded.image_url,''),image_url),
+      expires_at=CASE WHEN expires_at>? AND campaign=excluded.campaign THEN expires_at ELSE excluded.expires_at END,
+      price_cents=excluded.price_cents,campaign=excluded.campaign
+      RETURNING slot,product_id,price_cents,image_url,expires_at,campaign`)
+      .bind(slot, id, price, image, now + (slot === 'day' ? 1 : 7) * 86400000, campaign, now).first();
     return json({ promotion }, 200, cors);
   } catch (err) {
     if (key) await env.IMAGES.delete(key);
@@ -328,10 +331,18 @@ export default {
           : env.DB.prepare(sql + ' AND id=?').bind(id);
         const { results } = await query.all();
         if (id !== null) return json({ products: results }, 200, cors);
-        const overrides = await env.DB.prepare('SELECT id,price_cents,image_url,' + productDetailsField('catalog_product_overrides') + ' FROM catalog_product_overrides').all();
-        const { results: promotions } = await env.DB.prepare(`SELECT p.* FROM catalog_promotions p WHERE p.expires_at>?
+        const overrides = await env.DB.prepare('SELECT id,price_cents,image_url,category,' + productDetailsField('catalog_product_overrides') + ' FROM catalog_product_overrides').all();
+        const { results: promotions } = await env.DB.prepare(`SELECT p.* FROM catalog_promotion_items p WHERE p.expires_at>?
           AND (p.product_id IN ('academia-001','religioso-001') OR EXISTS (SELECT 1 FROM catalog_imports i
-          WHERE i.id=p.product_id AND i.status='approved' AND i.commercial_use_allowed=1 AND i.image_use_allowed=1))`).bind(Date.now()).all();
+          WHERE i.id=p.product_id AND i.status='approved' AND i.commercial_use_allowed=1 AND i.image_use_allowed=1))
+          ORDER BY p.slot,p.campaign,p.expires_at,p.product_id`).bind(Date.now()).all();
+        const missingIds = promotions.map(offer => offer.product_id).filter(id => importId.test(id) && !results.some(product => product.id === id));
+        const ids = [...new Set(missingIds)];
+        for (let offset = 0; offset < ids.length; offset += 90) {
+          const chunk = ids.slice(offset, offset + 90);
+          const extra = await env.DB.prepare(sql + ' AND id IN (' + chunk.map(() => '?').join(',') + ')').bind(...chunk).all();
+          results.push(...extra.results);
+        }
         return json({ products: results, overrides: overrides.results, categories: await customCategories(env), promotions }, 200, cors);
       }
       if (path === '/api/preview' && request.method === 'GET') {
@@ -364,8 +375,8 @@ export default {
         if (!await authorized(request, env)) return json({ error: 'Não autorizado' }, 401, cors);
         if (request.method === 'GET') {
           const { results } = await env.DB.prepare('SELECT *,' + productDetailsField('catalog_imports') + ' FROM catalog_imports ORDER BY created_at DESC LIMIT 200').all();
-          const overrides = await env.DB.prepare('SELECT id,price_cents,image_url,' + productDetailsField('catalog_product_overrides') + ' FROM catalog_product_overrides').all();
-          const { results: promotions } = await env.DB.prepare('SELECT * FROM catalog_promotions').all();
+          const overrides = await env.DB.prepare('SELECT id,price_cents,image_url,category,' + productDetailsField('catalog_product_overrides') + ' FROM catalog_product_overrides').all();
+          const { results: promotions } = await env.DB.prepare('SELECT * FROM catalog_promotion_items ORDER BY slot,expires_at').all();
           return json({ imports: results, overrides: overrides.results, promotions }, 200, cors);
         }
         const contentType = request.headers.get('Content-Type') || '';

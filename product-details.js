@@ -38,6 +38,7 @@ function openDetails(){
  lastFocus=document.activeElement;
  dialog.querySelector('.ea-details-qty').value='1';
  dialog.querySelector('.ea-details-price').textContent=card.querySelector('.price').textContent;
+ dialog.querySelector('.ea-details-eyebrow').textContent='EXPRESS’ARTE • '+card.dataset.category.toLocaleUpperCase('pt-BR');
  dialog.querySelector('.ea-details-description').textContent=card.querySelector('.product-description').textContent;
  photoButtons.forEach((b,i)=>{
    gallery[i]={src:b.dataset.photo,alt:b.dataset.alt||'Produto Express’Arte'};

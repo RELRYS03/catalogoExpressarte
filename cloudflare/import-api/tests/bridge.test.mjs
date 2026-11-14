@@ -13,6 +13,7 @@ test('login privado cria uma conta, limita tentativas e revoga sessões', async 
     db.exec(await readFile(new URL('../product-overrides.sql', import.meta.url), 'utf8'));
     db.exec(await readFile(new URL('../catalog-categories.sql', import.meta.url), 'utf8'));
     db.exec(await readFile(new URL('../catalog-promotions.sql', import.meta.url), 'utf8'));
+    db.exec(await readFile(new URL('../catalog-promotion-items.sql', import.meta.url), 'utf8'));
     db.exec(await readFile(new URL('../catalog-product-details.sql', import.meta.url), 'utf8'));
     const env = { ADMIN_TOKEN: token, DB: {
       prepare(sql) {
@@ -74,8 +75,23 @@ test('login privado cria uma conta, limita tentativas e revoga sessões', async 
     assert.ok(firstOffer.promotion.expires_at > Date.now() + 23 * 3600000);
     promotion.set('priceCents', '1900');
     assert.equal((await (await editPromotion(promotion)).json()).promotion.expires_at, firstOffer.promotion.expires_at);
-    promotion.set('productId', '');
+    promotion.set('productId', 'religioso-001');
+    promotion.set('campaign', 'Natal');
+    const secondOffer = await (await editPromotion(promotion)).json();
+    assert.equal(secondOffer.promotion.campaign, 'Natal');
+    assert.equal(db.prepare("SELECT count(*) AS total FROM catalog_promotion_items WHERE slot='day'").get().total, 2);
+    promotion.set('productId', 'academia-001');
+    promotion.set('remove', 'yes');
     assert.deepEqual(await (await editPromotion(promotion)).json(), { promotion: null });
+    assert.equal(db.prepare('SELECT product_id FROM catalog_promotion_items').get().product_id, 'religioso-001');
+    const builtInEdit = new FormData();
+    builtInEdit.set('priceCents', '2500');
+    builtInEdit.set('category', 'Decoração');
+    const moved = await worker.fetch(new Request(base + '/api/admin/products/religioso-001', {
+      method: 'PATCH', headers, body: builtInEdit
+    }), env);
+    assert.equal(moved.status, 200);
+    assert.equal((await moved.json()).category, 'Decoração');
     assert.equal((await call('/api/admin/logout', 'POST')).status, 200);
     assert.equal((await call('/api/imports')).status, 401);
     for (let i = 0; i < 8; i++) {
@@ -119,7 +135,7 @@ function setup() {
         async all() {
           if (sql.includes('FROM catalog_product_overrides')) return { results: [] };
           if (sql.includes('FROM catalog_categories')) return { results: [] };
-          if (sql.includes('FROM catalog_promotions')) return { results: [] };
+          if (sql.includes('FROM catalog_promotion_items')) return { results: [] };
           if (sql.includes("status='approved'")) {
             return { results: [...saved.values()].filter(x => x.status === 'approved' && x.commercial_use_allowed && x.image_use_allowed && (!values.length || x.id === values[0])).map(({ id, title, author, image_url, category, price_cents, source_url, license_name }) => ({ id, title, author, image_url, category, price_cents, source_url, license_name })) };
           }
@@ -194,6 +210,8 @@ test('editor privado salva foto e preço do produto original sem trocar seu ID',
   const db = new DatabaseSync(':memory:');
   try {
     db.exec(await readFile(new URL('../product-overrides.sql', import.meta.url), 'utf8'));
+    db.exec(await readFile(new URL('../catalog-promotions.sql', import.meta.url), 'utf8'));
+    db.exec(await readFile(new URL('../catalog-promotion-items.sql', import.meta.url), 'utf8'));
     const uploads = [];
     const env = {
       ADMIN_TOKEN: token, PUBLIC_ASSETS_URL: 'https://images.example.com',

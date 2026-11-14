@@ -607,7 +607,7 @@
       status.textContent = 'Abra “Ver no catálogo” e copie o endereço no navegador.';
     }
   }
-  async function updateQueueItem(button) {
+  async function updateQueueItem(button, inline = false) {
     const card = button.closest('.queue-card');
     const status = button.dataset.queueAction;
     button.disabled = true;
@@ -625,8 +625,9 @@
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Não foi possível atualizar o cadastro.');
       say(status === 'approved' ? 'Produto aprovado. Ele poderá aparecer na vitrine pública.' : 'Produto recusado e mantido fora da vitrine.', 'success');
-      await loadQueue();
+      await loadQueue(undefined, inline ? { productId: card.dataset.id, notice: 'Publicado no catálogo. Agora você pode criar uma promoção.' } : undefined);
     } catch (error) {
+      if (inline) throw error;
       say(error.message || 'Falha ao atualizar a fila.', 'error');
       button.disabled = false;
     }
@@ -660,7 +661,8 @@
     const category = form.elements.namedItem('category');
     const newCategory = form.elements.namedItem('newCategory');
     const card = form.closest('.queue-card');
-    const button = form.querySelector('button');
+    const publish = event.submitter?.name === 'publish';
+    const button = event.submitter || form.querySelector('button');
     const result = form.querySelector('[role="status"]');
     const price = parsePrice(input.value);
     const details = Object.fromEntries(detailFields.map(([name]) => [name, form.elements.namedItem(name).value.trim()]));
@@ -678,6 +680,10 @@
     const file = photo.files[0];
     if (file && !rights.checked) {
       result.textContent = 'Confirme a autorização de uso da foto.';
+      return;
+    }
+    if (publish && (!card.querySelector('[data-commercial]').checked || !card.querySelector('[data-image-rights]').checked)) {
+      result.textContent = 'Confirme as duas autorizações acima para enviar ao catálogo.';
       return;
     }
     if (!token()) return promptSignIn();
@@ -724,29 +730,35 @@
       rights.checked = false;
       form.querySelector('.edit-photo-name').textContent = '';
       result.textContent = 'Alterações salvas.';
+      if (publish) await updateQueueItem(button, true);
     } catch (error) {
       result.textContent = error.message || 'Não foi possível salvar o produto.';
     } finally {
       fields.forEach(field => { field.disabled = false; });
     }
   }
-  function renderPromotionForms(items, promotions) {
+  function renderPromotionForms(product, promotions) {
     return ['day', 'week'].map(slot => {
-      const current = promotions.find(item => item.slot === slot);
-      const active = current?.expires_at > Date.now() && items.some(item => item.id === current.product_id);
-      const selected = current && items.some(item => item.id === current.product_id) ? current.product_id : '';
-      const options = items.map(item => '<option value="' + escapeHtml(item.id) + '"' +
-        (selected === item.id ? ' selected' : '') + '>' + escapeHtml(item.title) + '</option>').join('');
-      return '<details class="promotion-editor"><summary>Promoção ' + (slot === 'day' ? 'do dia' : 'da semana') +
-        '</summary><form data-promotion="' + slot + '"><label>Produto<select name="productId"><option value="">Sem promoção</option>' + options +
-        '</select></label><label>Preço promocional (R$)<input name="promotionPrice" inputmode="decimal" maxlength="12" value="' +
+      const current = promotions.find(item => item.slot === slot && item.product_id === product.id);
+      return '<details class="promotion-editor" data-slot="' + slot + '"><summary>Promoção ' + (slot === 'day' ? 'do dia' : 'da semana') +
+        (current?.expires_at > Date.now() ? ' · Ativa' : '') + '</summary>' +
+        promotionForm(slot, current, product, promotions) + '</details>';
+    }).join('');
+  }
+  function promotionForm(slot, current, product, offers) {
+      const names = [...new Set(offers.filter(offer => offer.slot === slot && offer.expires_at > Date.now()).map(offer => offer.campaign).filter(Boolean))];
+      return '<form data-promotion="' + slot + '"><input type="hidden" name="productId" value="' + escapeHtml(product.id) + '">' +
+        '<label>Campanha (opcional)<input name="campaign" maxlength="60" placeholder="Ex.: Natal" value="' +
+        escapeHtml(current?.campaign ?? (names.length === 1 ? names[0] : '')) + '"></label>' +
+        '<label>Preço promocional (R$)<input name="promotionPrice" inputmode="decimal" maxlength="12" value="' +
         (current ? (current.price_cents / 100).toFixed(2).replace('.', ',') : '') +
         '"></label><label>Foto da promoção (opcional)<input name="promotionPhoto" type="file" accept="image/jpeg,image/png,image/webp,image/avif"></label>' +
         '<label class="edit-photo-rights"><input name="promotionRights" type="checkbox"> Tenho autorização para usar esta foto</label>' +
-        '<button class="secondary-button" type="submit">Salvar promoção</button><p class="hint" role="status">' +
-        (active ? 'Ativa até ' + escapeHtml(formatPromotionDate(current.expires_at)) : 'Nenhuma promoção ativa. Duração: ' + (slot === 'day' ? '24 horas.' : '7 dias.')) +
-        '</p></form></details>';
-    }).join('');
+        '<div class="category-actions"><button class="secondary-button" type="submit">Enviar pra promoção</button>' +
+        (current ? '<button class="text-button" type="submit" name="remove" formnovalidate>Remover oferta</button>' : '') +
+        '</div><p class="hint" role="status">' +
+        (current ? (product && current.expires_at > Date.now() ? 'Ativa até ' + escapeHtml(formatPromotionDate(current.expires_at)) : 'Oferta inativa.')
+          : 'Duração: ' + (slot === 'day' ? '24 horas.' : '7 dias.')) + '</p></form>';
   }
   function formatPromotionDate(timestamp) {
     return new Date(timestamp).toLocaleString('pt-BR', {dateStyle:'short', timeStyle:'short'});
@@ -757,16 +769,17 @@
     const form = event.currentTarget;
     const fields = form.elements;
     const id = fields.namedItem('productId').value;
+    const remove = event.submitter?.name === 'remove';
     const price = parsePrice(fields.namedItem('promotionPrice').value);
     const photo = fields.namedItem('promotionPhoto');
     const file = photo.files[0];
     const rights = fields.namedItem('promotionRights');
     const status = form.querySelector('[role="status"]');
-    if (id && (!Number.isSafeInteger(price) || price <= 0)) {
+    if (!remove && (!Number.isSafeInteger(price) || price <= 0)) {
       status.textContent = 'Informe um preço promocional válido.';
       return;
     }
-    if (id && file && !rights.checked) {
+    if (!remove && file && !rights.checked) {
       status.textContent = 'Confirme a autorização de uso da foto.';
       return;
     }
@@ -775,8 +788,11 @@
     try {
       const body = new FormData();
       body.set('productId', id);
-      if (id) {
+      if (remove) {
+        body.set('remove', 'yes');
+      } else {
         body.set('priceCents', String(price));
+        body.set('campaign', fields.namedItem('campaign').value.trim());
         if (file) { body.set('image', file); body.set('imageRights', 'yes'); }
       }
       const response = await fetch(endpoint('/api/admin/promotions/' + form.dataset.promotion), {
@@ -784,17 +800,15 @@
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || 'Não foi possível salvar a promoção.');
-      status.textContent = data.promotion ? 'Promoção ativa até ' + formatPromotionDate(data.promotion.expires_at) + '.' : 'Promoção removida da vitrine.';
-      if (!data.promotion) fields.namedItem('promotionPrice').value = '';
-      photo.value = '';
-      rights.checked = false;
+      const notice = data.promotion ? 'Promoção ativa até ' + formatPromotionDate(data.promotion.expires_at) + '.' : 'Oferta removida da vitrine.';
+      await loadQueue(undefined, { productId: id, slot: form.dataset.promotion, notice });
     } catch (error) {
       status.textContent = error.message;
     } finally {
       Array.from(fields).forEach(field => { field.disabled = false; });
     }
   }
-  async function loadQueue(loadedData) {
+  async function loadQueue(loadedData, promotionUpdate) {
     const list = $('queueList');
     const credential = token();
     if (!credential) {
@@ -818,7 +832,7 @@
       const edits = new Map((data.overrides || []).map(edit => [edit.id, edit]));
       const originals = (window.EXPRESSARTE_CONFIG?.builtInProducts || []).map(product => {
         const edit = edits.get(product.id);
-        return { id: product.id, title: product.name, category: product.category, builtIn: true,
+        return { id: product.id, title: product.name, category: edit?.category || product.category, builtIn: true,
           price_cents: edit?.price_cents ?? Math.round(product.price * 100),
           image_url: edit?.image_url || new URL('../' + product.cover, location.href).href, details_json: edit?.details_json };
       });
@@ -837,12 +851,13 @@
         const status = statusLabel[item.status] || 'STATUS DESCONHECIDO';
         const price = Number.isSafeInteger(item.price_cents) ? (item.price_cents / 100).toFixed(2).replace('.', ',') : '';
         const currentCategory = item.category || 'Outros';
-        const categoryField = item.builtIn ? '' :
+        const categoryField =
           '<label>Categoria<select name="category" data-saved="' + escapeHtml(currentCategory) + '">' +
           [...new Set([...categoryNames, currentCategory])].map(name => '<option' + (name === currentCategory ? ' selected' : '') + '>' + escapeHtml(name) + '</option>').join('') +
           '<option value="">Criar nova categoria…</option></select></label>' +
           '<label class="edit-category-name" hidden>Nome da nova categoria<input name="newCategory" minlength="2" maxlength="48"></label>';
-        const publicUrl = item.status === 'approved' && item.commercial_use_allowed && item.image_use_allowed && /^[0-9a-f-]{36}$/i.test(item.id)
+        const approved = item.status === 'approved' && item.commercial_use_allowed && item.image_use_allowed;
+        const publicUrl = approved && /^[0-9a-f-]{36}$/i.test(item.id)
           ? new URL('../#imported-' + item.id, location.href).href : '';
         const share = publicUrl
           ? '<div class="queue-actions queue-share"><a class="secondary-button queue-catalog-link" href="' + escapeHtml(publicUrl) + '" target="_blank" rel="noopener">Ver no catálogo</a>' +
@@ -852,7 +867,7 @@
         const review = item.builtIn ? '' :
           '<div class="queue-rights"><label><input type="checkbox" data-commercial ' + (item.commercial_use_allowed ? 'checked' : '') + '> Confirmei que a licença permite uso comercial/impressão para venda.</label>' +
           '<label><input type="checkbox" data-image-rights ' + (item.image_use_allowed ? 'checked' : '') + '> Tenho autorização para exibir esta imagem no catálogo.</label></div>' +
-          '<div class="queue-actions"><button class="queue-approve" type="button" data-queue-action="approved">Aprovar</button><button class="queue-reject" type="button" data-queue-action="rejected">Recusar</button></div>';
+          (approved ? '<div class="queue-actions"><button class="queue-reject" type="button" data-queue-action="rejected">Recusar</button></div>' : '');
         return '<article class="queue-card" data-built-in="' + Boolean(item.builtIn) + '" data-id="' + escapeHtml(item.id) + '">' + image +
           '<div class="queue-content"><strong>' + escapeHtml(item.title) + '</strong>' +
           '<div class="queue-meta"><span class="queue-category">' + escapeHtml(currentCategory) + '</span>' + (item.author ? ' · ' + escapeHtml(item.author) : '') + '</div>' +
@@ -862,18 +877,31 @@
           '" placeholder="Sob consulta"></label>' + renderProductDetailFields(item) +
           '<label>Nova foto principal<input type="file" name="photo" accept="image/jpeg,image/png,image/webp,image/avif"></label>' +
           '<p class="edit-photo-name"></p><label class="edit-photo-rights"><input type="checkbox" name="photoRights"> Tenho autorização para usar esta foto</label>' +
-          '<button class="secondary-button" type="submit">Salvar alterações</button><p role="status"></p></form></details>' +
+          '<div class="category-actions"><button class="secondary-button" type="submit">Salvar alterações</button>' +
+          (!item.builtIn && !approved ? '<button class="primary-button" type="submit" name="publish" data-queue-action="approved">Enviar pro catálogo</button>' : '') +
+          '</div><p role="status"></p></form>' +
+          (approved || item.builtIn ? renderPromotionForms(item, data.promotions || []) : '<p class="hint">Publique o produto no catálogo para colocá-lo em promoção.</p>') +
+          '<p class="hint promotion-notice" role="status"></p></details>' +
           share + '</article>';
       };
-      const publicItems = [...originals, ...imports.filter(item => item.status === 'approved' && item.commercial_use_allowed && item.image_use_allowed)];
-      list.innerHTML = '<h3 class="queue-group-title">Promoções</h3>' + renderPromotionForms(publicItems, data.promotions || []) +
-        (originals.length ? '<h3 class="queue-group-title">Produtos do catálogo</h3>' + originals.map(renderCard).join('') : '') +
+      list.innerHTML = (originals.length ? '<h3 class="queue-group-title">Produtos do catálogo</h3>' + originals.map(renderCard).join('') : '') +
         '<h3 class="queue-group-title">Modelos importados</h3>' +
         (imports.length ? imports.map(renderCard).join('') : '<div class="queue-empty">Nenhum modelo importado ainda.</div>');
-      list.querySelectorAll('[data-queue-action]').forEach(button => button.addEventListener('click', () => updateQueueItem(button)));
+      list.querySelectorAll('[data-queue-action="rejected"]').forEach(button => button.addEventListener('click', () => updateQueueItem(button)));
       list.querySelectorAll('[data-copy-product]').forEach(button => button.addEventListener('click', () => copyProductLink(button)));
       list.querySelectorAll('[data-promotion]').forEach(form => form.addEventListener('submit', savePromotion));
-      list.querySelectorAll('.queue-price form').forEach(form => {
+      if (promotionUpdate) {
+        const card = Array.from(list.querySelectorAll('.queue-card')).find(item => item.dataset.id === promotionUpdate.productId);
+        if (card) {
+          const editor = card.querySelector('.queue-price');
+          editor.open = true;
+          const panel = editor.querySelector('[data-slot="' + promotionUpdate.slot + '"]');
+          if (panel) panel.open = true;
+          card.querySelector('.promotion-notice').textContent = promotionUpdate.notice;
+          (panel || editor).querySelector('summary').focus();
+        }
+      }
+      list.querySelectorAll('.queue-price > form').forEach(form => {
         form.addEventListener('submit', saveProductEdit);
         form.elements.namedItem('category')?.addEventListener('change', event => {
           const creating = !event.target.value;

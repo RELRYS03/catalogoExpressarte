@@ -239,6 +239,12 @@
         const product = getProduct(edit.id);
         const card = $$('#productGrid .product-card').find(item => item.dataset.productId === edit.id);
         if (!product || !card) continue;
+        if (edit.category) {
+          product.category = card.dataset.category = edit.category;
+          const badge = card.querySelector('.product-category-label');
+          badge.lastChild.textContent = ' ' + edit.category.toLocaleUpperCase('pt-BR');
+          ensureCategoryButton(edit.category);
+        }
         if (edit.details_json) {
           const description = card.querySelector('.product-description');
           description.insertAdjacentHTML('beforebegin', renderProductDetails(edit.details_json, description.textContent));
@@ -280,13 +286,14 @@
       const price = offer.price_cents / 100;
       if (product.price > 0 && price >= product.price) continue;
       const label = offer.slot === 'day' ? 'Promoção do dia' : 'Promoção da semana';
+      const campaign = offer.campaign ? '<p class="weekly-deal-category">' + escapeHtml(offer.campaign) + '</p>' : '';
       const cover = /^https:\/\//i.test(offer.image_url || '') ? offer.image_url : product.cover;
       const card = document.createElement('article');
       card.className = 'weekly-deal-card';
       card.innerHTML = '<div class="weekly-deal-photo">' +
         (cover ? '<img src="' + escapeHtml(cover) + '" alt="' + escapeHtml(product.name) + '" loading="lazy">' : '') +
         '<span class="weekly-deal-tag">' + label + '</span></div>' +
-        '<div class="weekly-deal-content"><h3>' + escapeHtml(product.name) + '</h3><div class="weekly-deal-price">' +
+        '<div class="weekly-deal-content">' + campaign + '<h3>' + escapeHtml(product.name) + '</h3><div class="weekly-deal-price">' +
         (product.price > price ? '<del aria-label="Preço normal">' + money(product.price) + '</del>' : '') +
         '<div><span>Preço promocional</span><strong>' + money(price) + '</strong></div></div>' +
         '<button class="weekly-deal-button" type="button">Aproveitar oferta</button></div>';
