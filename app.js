@@ -109,6 +109,75 @@
   function escapeHtml(value) {
     return String(value).replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
   }
+  function ensureCategoryButton(category) {
+    const strip = $('#categoryStrip');
+    if (!strip || $('.category-item').some(button => button.dataset.category === category)) return;
+    const button = document.createElement('button');
+    button.className = 'category-item';
+    button.type = 'button';
+    button.dataset.category = category;
+    button.setAttribute('aria-pressed', 'false');
+    button.innerHTML = '<span class="category-circle"><span aria-hidden="true">✦</span></span><span>' + escapeHtml(category) + '</span>';
+    button.addEventListener('click', () => setCategory(category));
+    strip.append(button);
+  }
+  function addImportedProduct(item) {
+    const safeId = String(item.id || '').replace(/[^a-zA-Z0-9_-]/g, '');
+    if (!safeId) return;
+    const id = 'imported-' + safeId;
+    if (getProduct(id)) return;
+    const name = String(item.title || 'Modelo Express’Arte').slice(0,180);
+    const category = String(item.category || 'Outros').slice(0,80);
+    const author = String(item.author || '').slice(0,120);
+    const sourceUrl = /^https:\/\//i.test(String(item.source_url || '')) ? String(item.source_url) : '';
+    const imageUrl = /^https:\/\//i.test(String(item.image_url || '')) ? String(item.image_url) : '';
+    const hasPrice = item.price_cents !== null && item.price_cents !== undefined && Number.isFinite(Number(item.price_cents));
+    const price = hasPrice ? Math.max(0, Number(item.price_cents) / 100) : 0;
+    const priceLabel = hasPrice ? 'preço informado' : 'consulte o valor';
+    products.push({ id, name, category, price, priceLabel, draft: false });
+    state.quantities[id] = 1;
+    ensureCategoryButton(category);
+    const card = document.createElement('article');
+    card.className = 'product-card imported-product-card';
+    card.dataset.productId = id;
+    card.dataset.category = category;
+    card.dataset.name = name;
+    const photo = imageUrl
+      ? '<img class="product-main-photo" src="' + escapeHtml(imageUrl) + '" alt="' + escapeHtml(name) + '" loading="lazy">'
+      : '<div class="product-main-photo imported-placeholder" role="img" aria-label="Imagem ainda não disponível">Imagem não disponível</div>';
+    const source = sourceUrl
+      ? '<a class="imported-source-link" href="' + escapeHtml(sourceUrl) + '" target="_blank" rel="noopener noreferrer">Ver modelo original ↗</a>'
+      : '';
+    card.innerHTML = '<div class="product-photo-area"><span class="product-badge">SELECIONADO</span><div class="product-gallery">' + photo + '</div></div>' +
+      '<div class="product-info"><span class="product-category-label"><span class="category-mini-icon">✦</span> ' + escapeHtml(category.toLocaleUpperCase('pt-BR')) + '</span>' +
+      '<h3>' + escapeHtml(name) + '</h3><p class="product-description">Modelo selecionado pela Express’Arte. Consulte disponibilidade e prazo de produção.' +
+      (author ? ' Criador original: ' + escapeHtml(author) + '.' : '') + '</p>' +
+      '<div class="price-line"><span class="price">' + (hasPrice ? money(price) : 'Consulte') + '</span><span class="provisional-label">' + priceLabel + '</span></div>' +
+      '<div class="quantity-row"><span>Quantidade</span><div class="quantity-control"><button class="qty-minus" type="button" aria-label="Diminuir quantidade">−</button><output class="qty-value" aria-live="polite">1</output><button class="qty-plus" type="button" aria-label="Aumentar quantidade">+</button></div><span class="unit-label">un.</span></div>' +
+      '<button class="add-order-button" type="button"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg> Incluir no pedido</button>' +
+      '<p class="product-footnote">Produto selecionado para o catálogo. Preço e disponibilidade sujeitos à confirmação. ' + source + '</p></div>';
+    productGrid.append(card);
+    card.querySelector('.qty-minus').addEventListener('click', () => updateQuantity(card, state.quantities[id] - 1));
+    card.querySelector('.qty-plus').addEventListener('click', () => updateQuantity(card, state.quantities[id] + 1));
+    card.querySelector('.add-order-button').addEventListener('click', () => addProduct(id));
+  }
+  async function loadApprovedImports() {
+    const configured = String(config.catalogApiEndpoint || '').trim();
+    if (!configured) return;
+    try {
+      const base = configured.replace(/\/+$/, '');
+      const path = base.endsWith('/api') ? base + '/products' : base + '/api/products';
+      const endpoint = /^https?:\/\//i.test(path) ? path : new URL(path, location.origin).toString();
+      const response = await fetch(endpoint, { headers: { Accept: 'application/json' }, cache: 'no-store' });
+      if (!response.ok) throw new Error('API de produtos indisponível');
+      const data = await response.json();
+      (Array.isArray(data.products) ? data.products : []).forEach(addImportedProduct);
+      applyFilters();
+    } catch (error) {
+      console.warn('Não foi possível atualizar os produtos importados do catálogo.', error);
+    }
+  }
+
   function sendOrder() {
     const entries = Array.from(state.order.values());
     if (!entries.length) return;
@@ -172,4 +241,5 @@
   $('#whatsappNote').textContent = config.whatsappNumber ? 'O WhatsApp abrirá com os produtos e quantidades para você confirmar o pedido. Preços ainda provisórios.' : 'Falta configurar o número da loja em config.js.';
   renderOrder();
   applyFilters();
+  loadApprovedImports();
 })();
