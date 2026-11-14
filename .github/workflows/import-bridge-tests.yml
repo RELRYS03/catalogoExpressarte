@@ -26,5 +26,13 @@ jobs:
           node --check importador/sw.js
           node --check app.js
           node --check config.js
+          node --check scripts/build-pages-preview.mjs
+      - name: Gerar distribuição Cloudflare Pages
+        run: |
+          node scripts/build-pages-preview.mjs
+          test -f dist-preview/importador/manifest.webmanifest
+          test -f dist-preview/importador/sw.js
+          test -f dist-preview/index.html
+          test ! -e dist-preview/cloudflare
       - name: Testar API e contrato de compartilhamento Android
         run: node --test cloudflare/import-api/tests/bridge.test.mjs
