@@ -1,12 +1,12 @@
-const VOLATILE_TERMS = /\\b(pre[cç]o|valor|custa|quanto|estoque|dispon[ií]vel|prazo|promo[cç][aã]o|pedido|orçamento|custo|lucro|gramas|filamento|tempo|hoje|amanhã|frete)\\b/i;
+const VOLATILE_TERMS = /\b(pre[cç]o|valor|custa|quanto|estoque|dispon[ií]vel|prazo|promo[cç][aã]o|pedido|orçamento|custo|lucro|gramas|filamento|tempo|hoje|amanhã|frete)\b/i;
 
 export function normalizeQuestion(value) {
   return String(value || '')
     .normalize('NFD')
-    .replace(/[\\u0300-\\u036f]/g, '')
+    .replace(/[\u0300-\u036f]/g, '')
     .toLocaleLowerCase('pt-BR')
-    .replace(/[^a-z0-9\\s]/g, ' ')
-    .replace(/\\s+/g, ' ')
+    .replace(/[^a-z0-9\s]/g, ' ')
+    .replace(/\s+/g, ' ')
     .trim();
 }
 
@@ -58,8 +58,8 @@ function findMentionedProduct(text, products) {
 }
 
 function getQuantity(text) {
-  const match = text.match(/\\b(\\d{1,4})\\s*(?:unidades?|pecas?|pçs?|itens?)\\b/i) ||
-    text.match(/\\b(?:quero|preciso|comprar|pedido de)\\s+(\\d{1,4})\\b/i);
+  const match = text.match(/\b(\d{1,4})\s*(?:unidades?|pecas?|pçs?|itens?)\b/i) ||
+    text.match(/\b(?:quero|preciso|comprar|pedido de)\s+(\d{1,4})\b/i);
   if (!match) return null;
   const quantity = Number(match[1]);
   return Number.isInteger(quantity) && quantity > 0 && quantity <= 1000 ? quantity : null;
@@ -68,11 +68,11 @@ function getQuantity(text) {
 function getProductCommercialReply(message, product) {
   const text = normalizeQuestion(message);
   const quantity = getQuantity(text);
-  const asksDiscount = /\\b(desconto|descontos|negociar|negociacao|abatimento|promocao)\\b/.test(text);
-  const asksStock = /\\b(estoque|pronta entrega|disponivel|disponibilidade|tem para hoje)\\b/.test(text);
-  const asksCustomization = /\\b(personaliz|personalizar|nome|logo|cor|customiz)\\b/.test(text);
-  const asksDelivery = /\\b(prazo|quando recebo|entrega|frete|chega|receber)\\b/.test(text);
-  const asksPurchase = /\\b(comprar|compra|pedido|encomendar|quero)\\b/.test(text);
+  const asksDiscount = /\b(desconto|descontos|negociar|negociacao|abatimento|promocao)\b/.test(text);
+  const asksStock = /\b(estoque|pronta entrega|disponivel|disponibilidade|tem para hoje)\b/.test(text);
+  const asksCustomization = /\b(personaliz|personalizar|nome|logo|cor|customiz)\b/.test(text);
+  const asksDelivery = /\b(prazo|quando recebo|entrega|frete|chega|receber)\b/.test(text);
+  const asksPurchase = /\b(comprar|compra|pedido|encomendar|quero)\b/.test(text);
   const hasMultipleIntents = [asksDiscount, asksStock, asksCustomization, asksDelivery].filter(Boolean).length >= 2;
 
   if (!quantity && !hasMultipleIntents && !asksPurchase) return null;
@@ -96,14 +96,14 @@ function getProductCommercialReply(message, product) {
     lines.push('• Situação: o produto está em rascunho e ainda não está liberado para venda ou divulgação.');
   }
   lines.push('Posso encaminhar você ao WhatsApp comercial para a equipe confirmar as condições, mas nenhum pedido está confirmado por aqui.');
-  return lines.join('\\n');
+  return lines.join('\n');
 }
 
 export function getDeterministicReply(message, mode, knowledge) {
   const text = normalizeQuestion(message);
   const products = Array.isArray(knowledge?.products) ? knowledge.products : [];
 
-  if (mode === 'loja' && /\\b(lista|listar|quais|catalogo|produtos)\\b/.test(text)) {
+  if (mode === 'loja' && /\b(lista|listar|quais|catalogo|produtos)\b/.test(text)) {
     if (!products.length) return 'Ainda não há produtos cadastrados na base da Express’Arte.';
     const lines = products.map(product => {
       const status = product.published === true ? 'publicado' : 'rascunho — não anunciado';
@@ -114,15 +114,15 @@ export function getDeterministicReply(message, mode, knowledge) {
           : '';
       return '• ' + product.name + ' — ' + status + '. ' + price;
     });
-    return 'Produtos cadastrados na base (ainda sujeitos à aprovação):\\n' + lines.join('\\n');
+    return 'Produtos cadastrados na base (ainda sujeitos à aprovação):\n' + lines.join('\n');
   }
 
-  if (mode === 'loja' && /\\b(whatsapp|instagram|contato|telefone)\\b/.test(text)) {
+  if (mode === 'loja' && /\b(whatsapp|instagram|contato|telefone)\b/.test(text)) {
     const store = knowledge?.store || {};
     const parts = [];
-    if (store.whatsappNumber) parts.push('WhatsApp: https://wa.me/' + String(store.whatsappNumber).replace(/\\D/g, ''));
+    if (store.whatsappNumber) parts.push('WhatsApp: https://wa.me/' + String(store.whatsappNumber).replace(/\D/g, ''));
     if (store.instagramUrl) parts.push('Instagram: ' + store.instagramUrl);
-    return parts.length ? 'Canais cadastrados da Express’Arte:\\n' + parts.join('\\n') : 'Os canais de contato ainda não estão cadastrados na base.';
+    return parts.length ? 'Canais cadastrados da Express’Arte:\n' + parts.join('\n') : 'Os canais de contato ainda não estão cadastrados na base.';
   }
 
   if (mode === 'loja') {
