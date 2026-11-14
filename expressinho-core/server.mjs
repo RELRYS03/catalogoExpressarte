@@ -141,7 +141,7 @@ async function handleChat(req, res) {
     const toolResults = runKnowledgeTools({ message, mode, knowledge });
     const toolEvidence = formatToolEvidence(toolResults);
     const messages = [
-      { role: 'system', content: buildSystemPrompt(mode, knowledge) + (toolEvidence ? '\\n\\n' + toolEvidence : '') },
+      { role: 'system', content: buildSystemPrompt(mode, knowledge) + (toolEvidence ? '\n\n' + toolEvidence : '') },
       ...history,
       { role: 'user', content: message }
     ];
