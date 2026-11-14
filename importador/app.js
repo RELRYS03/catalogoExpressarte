@@ -49,7 +49,7 @@
     $('connectionStatus').style.color = ok ? '#17864c' : '';
     $('connectionStatus').querySelector('i').style.background = ok ? '#17864c' : '#c28b55';
   }
-  const apiBase = () => ($('apiBase').value.trim() || '/api').replace(/\/$/, '');
+  const apiBase = () => $('apiBase').value.trim().replace(/\/$/, '');
   const token = () => $('adminToken').value.trim() || sessionStorage.getItem('expressarte_admin_token') || '';
   function endpoint(path) {
     const base = apiBase();
@@ -57,7 +57,7 @@
   }
   async function checkHealth() {
     try {
-      const res = await fetch(endpoint('/health'), { headers: token() ? { Authorization: 'Bearer ' + token() } : {} });
+      const res = await fetch(endpoint('/api/health'), { headers: token() ? { Authorization: 'Bearer ' + token() } : {} });
       if (!res.ok) throw new Error();
       setConnectionStatus('API Express’Arte conectada', true);
     } catch { setConnectionStatus('API aguardando configuração'); }
@@ -89,7 +89,7 @@
     if (!token()) return say('Configure a chave administrativa na seção “Conexão segura” antes de buscar os dados.', 'error');
     $('previewButton').disabled = true; $('previewButton').textContent = 'Buscando…';
     try {
-      const res = await fetch(endpoint('/preview?url=' + encodeURIComponent(url)), { headers: { Authorization: 'Bearer ' + token() } });
+      const res = await fetch(endpoint('/api/preview?url=' + encodeURIComponent(url)), { headers: { Authorization: 'Bearer ' + token() } });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Não foi possível consultar a página.');
       if (data.title && !$('title').value.trim()) $('title').value = data.title;
@@ -130,7 +130,7 @@
       const imageUrl = $('previewCard').dataset.imageUrl || '';
       if (imageUrl) body.append('imageUrl', imageUrl);
       if (sharedImage) body.append('image', sharedImage, sharedImage.name || 'imagem-compartilhada');
-      const res = await fetch(endpoint('/imports'), { method: 'POST', headers: { Authorization: 'Bearer ' + token() }, body });
+      const res = await fetch(endpoint('/api/imports'), { method: 'POST', headers: { Authorization: 'Bearer ' + token() }, body });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Falha ao enviar cadastro.');
       $('draftStatus').textContent = 'Enviado · pendente';
@@ -157,7 +157,7 @@
     $('imageFile').value = ''; sharedImage = null; $('filePreview').hidden = true; $('previewCard').hidden = true;
     $('previewCard').dataset.imageUrl = ''; $('draftStatus').textContent = 'Rascunho local'; say('Formulário limpo.');
   });
-  $('apiBase').value = sessionStorage.getItem('expressarte_api_base') || '/api';
+  $('apiBase').value = sessionStorage.getItem('expressarte_api_base') || '';
   $('adminToken').value = sessionStorage.getItem('expressarte_admin_token') || '';
   $('adminToken').addEventListener('input', checkHealth);
   if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js').catch(() => setConnectionStatus('Instalação PWA indisponível'));
