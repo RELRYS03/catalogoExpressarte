@@ -165,7 +165,7 @@ test('importador aceita origem do Worker, /api e configuração compartilhada se
     const storage = { getItem: () => null };
     const context = {
       URL, URLSearchParams, console,
-      window: { EXPRESSARTE_CONFIG: { catalogApiEndpoint: configured } },
+      window: { EXPRESSARTE_CONFIG: { catalogApiEndpoint: configured }, addEventListener() {} },
       location: { origin: 'https://preview.example', search: '' },
       localStorage: storage, sessionStorage: storage, navigator: {},
       document: { getElementById(id) {

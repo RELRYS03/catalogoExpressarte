@@ -104,14 +104,18 @@
         </div>
         <p class="hint" id="coverStatus" role="status"></p>
       </fieldset>
-      <details class="advanced">
+      <details class="advanced" id="secureConnection">
         <summary>Conexão segura com o catálogo</summary>
         <label for="apiBase">Endereço da API Cloudflare</label>
         <input id="apiBase" type="url" inputmode="url" placeholder="https://seu-worker.workers.dev">
         <label for="adminToken">Chave administrativa</label>
         <input id="adminToken" type="password" autocomplete="off" placeholder="Cole a chave fornecida na configuração">
-        <button class="secondary-button full" type="button" id="saveConnection">Guardar nesta sessão</button>
-        <p class="hint">A chave fica somente na sessão atual do navegador, não é gravada no código do aplicativo. Nunca compartilhe essa chave.</p>
+        <label class="remember-session"><input id="rememberAdmin" type="checkbox"> Lembrar neste aparelho</label>
+        <div class="actions">
+          <button class="secondary-button" type="button" id="saveConnection">Entrar</button>
+          <button class="text-button" type="button" id="signOut" hidden>Sair</button>
+        </div>
+        <p class="hint" id="adminSessionStatus" role="status">Use a opção de lembrar em um aparelho de uso pessoal.</p>
       </details>
       <div class="actions">
         <button class="primary-button" id="sendButton" type="button">Enviar para Express'Arte</button>

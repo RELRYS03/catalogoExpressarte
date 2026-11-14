@@ -90,7 +90,7 @@
   async function analyzeCategory() {
     const file = sharedImage;
     if (!file) return;
-    if (!token()) return say('Informe a chave administrativa em “Conexão segura” para analisar a imagem.', 'error');
+    if (!token()) return promptSignIn();
     const title = $('title').value.trim();
     const button = $('analyzeCategory');
     button.disabled = true;
@@ -229,16 +229,78 @@
     $('connectionStatus').style.color = ok ? '#17864c' : '';
     $('connectionStatus').querySelector('i').style.background = ok ? '#17864c' : '#c28b55';
   }
-  const apiBase = () => $('apiBase').value.trim().replace(/\/$/, '');
-  const token = () => $('adminToken').value.trim() || sessionStorage.getItem('expressarte_admin_token') || '';
+  const adminKey = 'expressarte_admin_connection';
+  let adminRevision = 0;
   function endpoint(path) {
-    const base = apiBase().replace(/\/+$/, '').replace(/\/api$/, '');
+    const base = $('apiBase').value.trim().replace(/\/+$/, '').replace(/\/api$/, '');
     return new URL(base + path, location.origin).toString();
+  }
+  function savedAdmin(storage) {
+    try {
+      const credentials = JSON.parse(storage.getItem(adminKey) || 'null');
+      return credentials?.endpoint === endpoint('/api/imports') && typeof credentials.token === 'string'
+        ? credentials.token : '';
+    } catch { return ''; }
+  }
+  const token = () => savedAdmin(sessionStorage) || savedAdmin(localStorage);
+  function promptSignIn() {
+    $('secureConnection').open = true;
+    $('adminToken').focus();
+    say('Entre em Conexão segura para continuar.', 'error');
+  }
+  function updateAdminControls() {
+    $('signOut').hidden = !token();
+    $('rememberAdmin').checked = Boolean(savedAdmin(localStorage));
+    $('adminSessionStatus').textContent = $('rememberAdmin').checked
+      ? 'Sessão lembrada neste aparelho.'
+      : token() ? 'Sessão ativa até fechar o app.' : 'Use a opção de lembrar em um aparelho de uso pessoal.';
+  }
+  async function signIn() {
+    const value = $('adminToken').value.trim() || token();
+    if (!value) return promptSignIn();
+    const button = $('saveConnection');
+    const revision = ++adminRevision;
+    button.disabled = true;
+    try {
+      const target = endpoint('/api/imports');
+      const api = $('apiBase').value.trim();
+      const remember = $('rememberAdmin').checked;
+      if (!/^https:\/\//i.test(target)) throw new Error('Informe um endereço HTTPS para a API.');
+      const response = await fetch(target, { headers: { Authorization: 'Bearer ' + value }, cache: 'no-store', redirect: 'error' });
+      if (response.status === 401) throw new Error('Confira a chave administrativa.');
+      const data = await response.json().catch(() => null);
+      if (!response.ok || !Array.isArray(data?.imports)) throw new Error('Não foi possível conectar ao catálogo.');
+      if (revision !== adminRevision) return;
+      if (target !== endpoint('/api/imports')) throw new Error('O endereço mudou. Entre novamente.');
+      const credentials = JSON.stringify({ endpoint: target, token: value });
+      const storage = remember ? localStorage : sessionStorage;
+      storage.setItem(adminKey, credentials);
+      (remember ? sessionStorage : localStorage).removeItem(adminKey);
+      sessionStorage.removeItem('expressarte_admin_token');
+      localStorage.setItem('expressarte_api_base', api);
+      $('adminToken').value = '';
+      updateAdminControls();
+      say(remember ? 'Sessão lembrada neste aparelho.' : 'Sessão iniciada.', 'success');
+      await loadQueue(data);
+    } catch (error) {
+      say(error.message || 'Não foi possível entrar.', 'error');
+    } finally {
+      button.disabled = false;
+    }
+  }
+  function signOut() {
+    adminRevision++;
+    localStorage.removeItem(adminKey);
+    sessionStorage.removeItem(adminKey);
+    sessionStorage.removeItem('expressarte_admin_token');
+    $('adminToken').value = '';
+    updateAdminControls();
+    loadQueue();
+    say('Você saiu do Importador.');
   }
   async function checkHealth() {
     try {
       const res = await fetch(endpoint('/api/health'), {
-        headers: token() ? { Authorization: 'Bearer ' + token() } : {},
         cache: 'no-store'
       });
       const data = await res.json().catch(() => null);
@@ -275,7 +337,7 @@
     const url = cleanUrl($('sourceUrl').value);
     if (!url) return say('Informe um link HTTPS válido.', 'error');
     $('sourceUrl').value = url;
-    if (!token()) return say('Configure a chave administrativa na seção “Conexão segura” antes de buscar os dados.', 'error');
+    if (!token()) return promptSignIn();
     $('previewButton').disabled = true; $('previewButton').textContent = 'Buscando…';
     try {
       const res = await fetch(endpoint('/api/preview?url=' + encodeURIComponent(url)), { headers: { Authorization: 'Bearer ' + token() } });
@@ -367,7 +429,7 @@
     if (!sourceUrl) return say('Informe o link original do modelo.', 'error');
     if (!title) return say('Informe o nome do modelo.', 'error');
     if (Number.isNaN(priceCents)) return say('Confira o preço informado.', 'error');
-    if (!token()) return say('Configure a chave administrativa na seção “Conexão segura”.', 'error');
+    if (!token()) return promptSignIn();
     const button = $('sendButton'); button.disabled = true; button.textContent = 'Enviando…';
     try {
       const body = new FormData();
@@ -425,17 +487,27 @@
       button.disabled = false;
     }
   }
-  async function loadQueue() {
+  async function loadQueue(loadedData) {
     const list = $('queueList');
-    if (!token()) {
-      list.innerHTML = '<div class="queue-empty">Abra “Conexão segura” e informe a chave administrativa para consultar a fila.</div>';
+    const credential = token();
+    if (!credential) {
+      list.innerHTML = '<div class="queue-empty">Entre em “Conexão segura” para consultar a fila.</div>';
       return;
     }
     list.innerHTML = '<div class="queue-empty">Carregando importações…</div>';
     try {
-      const res = await fetch(endpoint('/api/imports'), { headers: { Authorization: 'Bearer ' + token() }, cache: 'no-store' });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Falha ao consultar a fila.');
+      let data = loadedData;
+      if (!data) {
+        const res = await fetch(endpoint('/api/imports'), { headers: { Authorization: 'Bearer ' + credential }, cache: 'no-store' });
+        data = await res.json();
+        if (token() !== credential) return;
+        if (res.status === 401) {
+          signOut();
+          promptSignIn();
+          return;
+        }
+        if (!res.ok) throw new Error(data.error || 'Falha ao consultar a fila.');
+      }
       const items = Array.isArray(data.imports) ? data.imports : [];
       if (!items.length) {
         list.innerHTML = '<div class="queue-empty">Nenhum modelo recebido ainda. Compartilhe um link pelo Bambu Handy para começar.</div>';
@@ -468,7 +540,7 @@
       list.querySelectorAll('[data-queue-action]').forEach(button => button.addEventListener('click', () => updateQueueItem(button)));
       list.querySelectorAll('[data-copy-product]').forEach(button => button.addEventListener('click', () => copyProductLink(button)));
     } catch (error) {
-      list.innerHTML = '<div class="queue-empty">' + escapeHtml(error.message || 'Não foi possível carregar a fila.') + '</div>';
+      if (token() === credential) list.innerHTML = '<div class="queue-empty">' + escapeHtml(error.message || 'Não foi possível carregar a fila.') + '</div>';
     }
   }
   $('imageFile').addEventListener('change', event => selectImage(event.target.files[0] || null));
@@ -483,17 +555,18 @@
   $('applyCover').addEventListener('click', applyCover);
   ['coverZoom', 'coverX', 'coverY'].forEach(id => $(id).addEventListener('input', updateCoverPreview));
   $('previewButton').addEventListener('click', fetchPreview);
-  $('refreshQueue').addEventListener('click', loadQueue);
+  $('refreshQueue').addEventListener('click', () => loadQueue());
   $('sendButton').addEventListener('click', sendImport);
   restoreCalculatorRates();
   calculatorFields.forEach(id => $(id).addEventListener('input', updatePriceCalculator));
   $('useCalculatedPrice').addEventListener('click', useCalculatedPrice);
-  $('saveConnection').addEventListener('click', () => {
-    const value = $('adminToken').value.trim();
-    if (value) sessionStorage.setItem('expressarte_admin_token', value);
-    const api = $('apiBase').value.trim();
-    if (api) localStorage.setItem('expressarte_api_base', api);
-    say('Configuração guardada somente nesta sessão.', 'success'); checkHealth(); loadQueue();
+  $('saveConnection').addEventListener('click', signIn);
+  $('signOut').addEventListener('click', signOut);
+  $('apiBase').addEventListener('change', () => { updateAdminControls(); checkHealth(); loadQueue(); });
+  window.addEventListener('storage', event => {
+    if (event.key !== adminKey && event.key !== null) return;
+    updateAdminControls();
+    loadQueue();
   });
   $('clearButton').addEventListener('click', () => {
     categoryEdited = false;
@@ -507,8 +580,8 @@
     $('previewCard').dataset.imageUrl = ''; $('draftStatus').textContent = 'Rascunho local'; say('Formulário limpo.');
   });
   $('apiBase').value = localStorage.getItem('expressarte_api_base') || window.EXPRESSARTE_CONFIG?.catalogApiEndpoint || '';
-  $('adminToken').value = sessionStorage.getItem('expressarte_admin_token') || '';
-  $('adminToken').addEventListener('input', checkHealth);
+  $('adminToken').value = token() ? '' : sessionStorage.getItem('expressarte_admin_token') || '';
+  updateAdminControls();
   if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js').catch(() => setConnectionStatus('Instalação PWA indisponível'));
   loadShared().then(() => { checkHealth(); if (token()) loadQueue(); });
   if (new URLSearchParams(location.search).has('compartilhado')) history.replaceState({}, '', location.pathname);
