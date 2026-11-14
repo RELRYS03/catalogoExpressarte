@@ -8,6 +8,45 @@ const HOST = '127.0.0.1';
 const PORT = Number(process.env.EXPRESSINHO_PORT || 8767);
 const OLLAMA_URL = String(process.env.OLLAMA_URL || 'http://127.0.0.1:11434').replace(/\/+$/, '');
 const MAX_BODY_BYTES = 20 * 1024;
+const CACHE_TTL_MS = Math.max(0, Number(process.env.EXPRESSINHO_CACHE_TTL_MS || 300000));
+const CACHE_MAX_ENTRIES = Math.max(0, Number(process.env.EXPRESSINHO_CACHE_MAX_ENTRIES || 100));
+const responseCache = new Map();
+const VOLATILE_QUERY = /\\b(pre[cç]o|valor|custa|quanto|estoque|dispon[ií]vel|prazo|entrega|promo[cç][aã]o|desconto|pedido|hoje|amanh[ãa]|agora)\\b/i;
+
+function cacheKey(mode, model, message, history) {
+  // Cache exato apenas para perguntas sem histórico: evita reaproveitar contexto de outra conversa.
+  if (!CACHE_TTL_MS || !CACHE_MAX_ENTRIES || history.length || VOLATILE_QUERY.test(message)) return null;
+  return [mode, model, message.normalize('NFKC').toLocaleLowerCase('pt-BR').replace(/\\s+/g, ' ').trim()].join('::');
+}
+
+function readCachedReply(key) {
+  if (!key) return null;
+  const entry = responseCache.get(key);
+  if (!entry) return null;
+  if (entry.expiresAt <= Date.now()) {
+    responseCache.delete(key);
+    return null;
+  }
+  entry.lastUsedAt = Date.now();
+  return entry.reply;
+}
+
+function saveCachedReply(key, reply) {
+  if (!key || !reply) return;
+  responseCache.set(key, { reply, expiresAt: Date.now() + CACHE_TTL_MS, lastUsedAt: Date.now() });
+  while (responseCache.size > CACHE_MAX_ENTRIES) {
+    const oldestKey = responseCache.keys().next().value;
+    responseCache.delete(oldestKey);
+  }
+}
+
+function cacheStats() {
+  const now = Date.now();
+  for (const [key, entry] of responseCache) {
+    if (entry.expiresAt <= now) responseCache.delete(key);
+  }
+  return { entries: responseCache.size, ttlMs: CACHE_TTL_MS, maxEntries: CACHE_MAX_ENTRIES };
+}
 const PUBLIC_FILES = new Set(['index.html', 'styles.css', 'expressinho.css', 'app.js', 'expressinho.js', 'config.js']);
 const IMAGE_EXTENSIONS = new Set(['.png', '.jpg', '.jpeg', '.webp', '.gif', '.svg', '.ico']);
 const MIME = {
@@ -134,6 +173,12 @@ async function handleChat(req, res) {
       history.pop();
     }
 
+    const key = cacheKey(mode, model, message, history);
+    const cachedReply = readCachedReply(key);
+    if (cachedReply) {
+      return sendJson(res, 200, { reply: cachedReply, mode, model, provider: 'ollama', cached: true });
+    }
+
     const response = await fetchWithTimeout(OLLAMA_URL + '/api/chat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -159,7 +204,8 @@ async function handleChat(req, res) {
       : '';
     if (!reply) throw new Error('O modelo não devolveu uma resposta de texto.');
 
-    sendJson(res, 200, { reply: reply, mode: mode, model: model });
+    saveCachedReply(key, reply);
+    sendJson(res, 200, { reply, mode, model, provider: 'ollama', cached: false });
   } catch (error) {
     sendJson(res, 503, {
       error: error.message || 'Não foi possível conectar ao Ollama.',
@@ -234,7 +280,7 @@ const server = http.createServer(async (req, res) => {
     if (req.method !== 'GET') return sendJson(res, 405, { error: 'Use GET.' });
     try {
       const model = await getInstalledModel();
-      return sendJson(res, 200, { ok: true, service: 'Expressinho IA local', model: model });
+      return sendJson(res, 200, { ok: true, service: 'Expressinho IA local', provider: 'ollama', model, cache: cacheStats() });
     } catch (error) {
       return sendJson(res, 503, { ok: false, error: error.message || 'Ollama indisponível.' });
     }
