@@ -6,6 +6,18 @@
   let originalImage = null;
   let coverSource = null;
   let objectUrl = null;
+  let imageSuggestion = null;
+  let categoryEdited = false;
+  const categoryRules = [
+    ['Chaveiros', /\b(chaveiros?|key[ -]?(chains?|rings?|fobs?))\b/],
+    ['Religiosos', /\b(rosarios?|rosar(y|ies)|tercos?|crucifixos?|crucifix(es)?|presepios?|nativity|nossa senhora|our lady|virgem maria|virgin mary|imagem sacra|sagrado coracao|sao jose|sao miguel|jesus|saint statue)\b/],
+    ['Academia', /\b(anilhas?|halter(es)?|dumbbells?|kettlebells?|weight plates?)\b/],
+    ['Canecas', /\b(canecas?|mugs?)\b/],
+    ['Suportes', /\b(suportes?|stands?|mounts?)\b/],
+    ['Brinquedos', /\b(brinquedos?|toys?|fidget|puzzles?|quebra cabeca)\b/],
+    ['Colecionáveis', /\b(colecionave(is|l)|collectibles?|action figures?)\b/],
+    ['Decoração', /\b(decoracao|decor|enfeites?|ornaments?)\b/]
+  ];
   const say = (message, type = '') => { $('feedback').textContent = message; $('feedback').className = 'feedback ' + type; };
   const cleanUrl = value => {
     try {
@@ -20,6 +32,90 @@
     return match ? cleanUrl(match[0].replace(/[),.;]+$/, '')) : '';
   }
   function hostOf(url) { try { return new URL(url).hostname.replace(/^www\./,''); } catch { return ''; } }
+  function suggestFromText() {
+    const link = cleanUrl($('sourceUrl').value);
+    const slug = link ? new URL(link).pathname : '';
+    const title = $('title').value.trim();
+    for (const input of [title, slug]) {
+      let words = input;
+      try { words = decodeURIComponent(input); } catch { /* Use the original text. */ }
+      words = words.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[-_]/g, ' ');
+      const matches = categoryRules.filter(([, rule]) => rule.test(words)).map(([category]) => category);
+      const specific = matches.filter(category => !['Suportes', 'Brinquedos', 'Decoração'].includes(category));
+      if (specific.length === 1) return specific[0];
+      if (matches.length) return matches.length === 1 ? matches[0] : '';
+    }
+    return '';
+  }
+  function updateCategoryAdvice() {
+    const field = $('category');
+    const advice = $('categoryAdvice');
+    const apply = $('applyCategory');
+    const title = $('title').value.trim();
+    const visual = imageSuggestion?.file === sharedImage && imageSuggestion.title === title ? imageSuggestion : null;
+    const suggestion = visual?.category || suggestFromText();
+    if (!categoryEdited) field.value = suggestion || '';
+    const conflict = suggestion && field.value && field.value !== suggestion;
+    advice.textContent = conflict
+      ? 'Expressinho sugere ' + suggestion + ' ' + (visual?.category ? 'pela imagem' : 'pelo título ou link') + '. Você escolheu ' + field.value + '.'
+      : suggestion
+        ? 'Expressinho sugere ' + suggestion + ' ' + (visual?.category ? 'pela imagem.' : 'pelo título ou link.')
+        : visual ? 'O Expressinho não identificou uma categoria pela imagem. Escolha uma categoria para o modelo.' : '';
+    apply.textContent = 'Usar ' + (suggestion || '');
+    apply.hidden = !suggestion || field.value === suggestion;
+    advice.hidden = !advice.textContent;
+    $('analyzeCategory').hidden = !sharedImage;
+  }
+  async function categoryImage(file) {
+    const bitmap = await createImageBitmap(file);
+    try {
+      const canvas = document.createElement('canvas');
+      for (const limit of [480, 320, 240, 160]) {
+        const scale = Math.min(1, limit / Math.max(bitmap.width, bitmap.height));
+        canvas.width = Math.max(1, Math.round(bitmap.width * scale));
+        canvas.height = Math.max(1, Math.round(bitmap.height * scale));
+        if (Math.min(canvas.width, canvas.height) < 10) break;
+        const context = canvas.getContext('2d');
+        context.fillStyle = '#fff';
+        context.fillRect(0, 0, canvas.width, canvas.height);
+        context.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+        const image = canvas.toDataURL('image/jpeg', 0.65);
+        if (image.length <= 18000) return image;
+      }
+    } finally {
+      bitmap.close();
+    }
+    throw new Error('Não foi possível preparar a imagem. Tente ajustar a capa primeiro.');
+  }
+  async function analyzeCategory() {
+    const file = sharedImage;
+    if (!file) return;
+    if (!token()) return say('Informe a chave administrativa em “Conexão segura” para analisar a imagem.', 'error');
+    const title = $('title').value.trim();
+    const button = $('analyzeCategory');
+    button.disabled = true;
+    button.textContent = 'Analisando…';
+    try {
+      const image = await categoryImage(file);
+      const res = await fetch(endpoint('/api/category-suggestion'), {
+        method: 'POST',
+        headers: { Authorization: 'Bearer ' + token(), 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title, image })
+      });
+      const result = await res.json();
+      if (!res.ok) throw new Error(result.error || 'Falha na análise');
+      if (sharedImage !== file || $('title').value.trim() !== title) return;
+      const options = Array.from($('category').options);
+      const category = options.some(option => option.value === result.category) ? result.category : null;
+      imageSuggestion = { file, title, category };
+      updateCategoryAdvice();
+    } catch {
+      say('A análise da imagem falhou. Confira a conexão ou escolha a categoria manualmente.', 'error');
+    } finally {
+      button.disabled = false;
+      button.textContent = 'Analisar imagem';
+    }
+  }
   function parseShared(data) {
     const url = cleanUrl(data.url) || findUrl(data.text);
     if (url) $('sourceUrl').value = url;
@@ -29,6 +125,7 @@
       const withoutUrl = String(data.text).replace(/https:\/\/[^\s<>"']+/ig,'').trim();
       if (withoutUrl) $('title').value = withoutUrl.slice(0,180);
     }
+    updateCategoryAdvice();
     if (data.images && data.images.length) selectImage(data.images[0]);
     if (url) {
       $('shareNote').textContent = 'Link recebido do compartilhamento. Confira o endereço e complete os dados.';
@@ -45,6 +142,7 @@
     renderSelectedImage();
   }
   function renderSelectedImage() {
+    updateCategoryAdvice();
     if (objectUrl) URL.revokeObjectURL(objectUrl);
     objectUrl = sharedImage ? URL.createObjectURL(sharedImage) : null;
     $('filePreview').hidden = $('editCover').hidden = !sharedImage;
@@ -184,6 +282,7 @@
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Não foi possível consultar a página.');
       if (data.title && !$('title').value.trim()) $('title').value = data.title;
+      updateCategoryAdvice();
       if (data.author && !$('author').value.trim()) $('author').value = data.author;
       if (data.imageUrl) {
         $('coverPreview').src = data.imageUrl;
@@ -298,6 +397,11 @@
     }
   }
   $('imageFile').addEventListener('change', event => selectImage(event.target.files[0] || null));
+  $('title').addEventListener('input', updateCategoryAdvice);
+  $('sourceUrl').addEventListener('input', updateCategoryAdvice);
+  $('category').addEventListener('change', () => { categoryEdited = Boolean($('category').value); updateCategoryAdvice(); });
+  $('applyCategory').addEventListener('click', () => { categoryEdited = false; updateCategoryAdvice(); });
+  $('analyzeCategory').addEventListener('click', analyzeCategory);
   $('removeImage').addEventListener('click', () => { $('imageFile').value = ''; selectImage(null); });
   $('editCover').addEventListener('click', () => coverSource ? closeCover() : openCover());
   $('cancelCover').addEventListener('click', () => { closeCover(); $('editCover').focus(); });
@@ -314,7 +418,9 @@
     say('Configuração guardada somente nesta sessão.', 'success'); checkHealth(); loadQueue();
   });
   $('clearButton').addEventListener('click', () => {
-    fields.forEach(id => { if (id === 'category') $(id).value = 'Outros'; else $(id).value = ''; });
+    categoryEdited = false;
+    imageSuggestion = null;
+    fields.forEach(id => { $(id).value = ''; });
     $('imageFile').value = ''; selectImage(null); $('previewCard').hidden = true;
     $('previewCard').dataset.imageUrl = ''; $('draftStatus').textContent = 'Rascunho local'; say('Formulário limpo.');
   });

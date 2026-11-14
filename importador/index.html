@@ -50,8 +50,15 @@
       <div class="two-columns">
         <div><label for="price">Preço de venda sugerido (R$)</label><input id="price" type="text" inputmode="decimal" placeholder="Ex.: 29,90"></div>
         <div><label for="category">Categoria</label><select id="category">
-          <option value="Outros">Escolher categoria</option><option>Academia</option><option>Brinquedos</option><option>Canecas</option><option>Chaveiros</option><option>Decoração</option><option>Presentes</option><option>Religiosos</option><option>Suportes</option><option>Colecionáveis</option>
+          <option value="">Escolher categoria</option><option>Academia</option><option>Brinquedos</option><option>Canecas</option><option>Chaveiros</option><option>Decoração</option><option>Presentes</option><option>Religiosos</option><option>Suportes</option><option>Colecionáveis</option><option>Outros</option>
         </select></div>
+      </div>
+      <div class="category-assistance">
+        <p id="categoryAdvice" role="status" hidden></p>
+        <div class="category-actions">
+          <button class="secondary-button" id="applyCategory" type="button" hidden></button>
+          <button class="secondary-button" id="analyzeCategory" type="button" hidden>Analisar imagem</button>
+        </div>
       </div>
       <label for="imageFile">Imagem de capa (opcional)</label>
       <input id="imageFile" type="file" accept="image/*">

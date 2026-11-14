@@ -90,6 +90,24 @@ test('duplicidade, valores inválidos e política CORS', async () => {
   assert.equal(denied.status, 403);
 });
 
+test('análise visual exige autenticação e só devolve categorias do catálogo', async () => {
+  const env = setup();
+  let sentImage;
+  let answer = 'Chaveiros';
+  env.AI = { async run(_model, input) {
+    sentImage = input.messages[1].content[1].image_url.url;
+    return { choices: [{ message: { content: answer } }] };
+  } };
+  const route = '/api/category-suggestion';
+  const body = { title: 'Brinquedo', image: 'data:image/jpeg;base64,AAAA' };
+  assert.equal((await send(env, 'POST', route, body)).status, 401);
+  assert.equal((await send(env, 'POST', route, { ...body, image: 'https://example.com/image.jpg' }, true)).status, 400);
+  assert.deepEqual((await send(env, 'POST', route, body, true)).body, { category: 'Chaveiros' });
+  assert.equal(sentImage, body.image);
+  answer = 'Categoria desconhecida';
+  assert.deepEqual((await send(env, 'POST', route, body, true)).body, { category: null });
+});
+
 test('PWA recebe link e arquivo de imagem via Web Share Target e API grava imagem em R2', async () => {
   const env = setup();
   const form = new FormData();

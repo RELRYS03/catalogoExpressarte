@@ -43,3 +43,8 @@ label{display:block;font-size:12px;font-weight:800;color:var(--brown2);margin:15
 .cover-editor input[type="range"] { display: block; min-height: 44px; padding: 0; border: 0; accent-color: var(--brown); }
 .cover-editor input[type="range"]:focus-visible { outline: 2px solid var(--brown); outline-offset: 2px; }
 .cover-editor button:disabled, #editCover:disabled { opacity: .6; cursor: wait; }
+
+#categoryAdvice { margin: 4px 0 8px; color: var(--brown2); font-size: 14px; line-height: 1.45; }
+.category-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.category-actions button { min-height: 44px; }
+.category-actions button:disabled { opacity: .6; cursor: wait; }
