@@ -59,10 +59,19 @@
   }
   async function checkHealth() {
     try {
-      const res = await fetch(endpoint('/api/health'), { headers: token() ? { Authorization: 'Bearer ' + token() } : {} });
-      if (!res.ok) throw new Error();
-      setConnectionStatus('API Express’Arte conectada', true);
-    } catch { setConnectionStatus('API aguardando configuração'); }
+      const res = await fetch(endpoint('/api/health'), {
+        headers: token() ? { Authorization: 'Bearer ' + token() } : {},
+        cache: 'no-store'
+      });
+      const data = await res.json().catch(() => null);
+      // Do not treat a Pages SPA fallback (HTML with HTTP 200) as a healthy API.
+      if (!res.ok || !data || data.service !== 'expressarte-import' || data.ok !== true || data.databaseConfigured !== true) {
+        throw new Error('API ou banco D1 ainda não configurado');
+      }
+      setConnectionStatus(data.imageStorageConfigured ? 'API e imagens conectadas' : 'API conectada · R2 pendente', true);
+    } catch {
+      setConnectionStatus('API aguardando configuração');
+    }
   }
   async function loadShared() {
     if (!('indexedDB' in window)) return;
