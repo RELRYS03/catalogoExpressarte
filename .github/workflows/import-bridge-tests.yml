@@ -1,0 +1,21 @@
+name: Testar ponte de importação
+on:
+  push:
+    branches: [feat/cloudflare-catalog-import-bridge]
+    paths:
+      - 'cloudflare/import-api/**'
+      - '.github/workflows/import-bridge-tests.yml'
+  pull_request:
+    paths:
+      - 'cloudflare/import-api/**'
+      - '.github/workflows/import-bridge-tests.yml'
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Testar API da ponte com extensão simulada
+        run: node --test cloudflare/import-api/tests/bridge.test.mjs
