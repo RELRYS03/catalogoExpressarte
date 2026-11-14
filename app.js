@@ -111,7 +111,7 @@
   }
   function ensureCategoryButton(category) {
     const strip = $('#categoryStrip');
-    if (!strip || $('.category-item').some(button => button.dataset.category === category)) return;
+    if (!strip || $$('.category-item').some(button => button.dataset.category === category)) return;
     const button = document.createElement('button');
     button.className = 'category-item';
     button.type = 'button';
