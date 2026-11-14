@@ -24,5 +24,7 @@ jobs:
           node --check cloudflare/import-api/src/index.js
           node --check importador/app.js
           node --check importador/sw.js
+          node --check app.js
+          node --check config.js
       - name: Testar API e contrato de compartilhamento Android
         run: node --test cloudflare/import-api/tests/bridge.test.mjs
