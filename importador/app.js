@@ -149,15 +149,7 @@
     button.disabled = true;
     feedback.textContent = 'Criando categoria…';
     try {
-      const response = await fetch(endpoint('/api/categories'), {
-        method: 'POST',
-        headers: { Authorization: 'Bearer ' + token(), 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: $('categoryName').value })
-      });
-      const result = await response.json();
-      if (!response.ok || typeof result.name !== 'string') throw new Error(result.error || 'Não foi possível criar a categoria.');
-      addCategory(result.name);
-      $('category').value = result.name;
+      $('category').value = await createCategoryByName($('categoryName').value);
       categoryEdited = true;
       imageSuggestion = null;
       updateCategoryAdvice();
@@ -169,6 +161,17 @@
     } finally {
       button.disabled = false;
     }
+  }
+  async function createCategoryByName(name) {
+    const response = await fetch(endpoint('/api/categories'), {
+      method: 'POST',
+      headers: { Authorization: 'Bearer ' + token(), 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name })
+    });
+    const result = await response.json();
+    if (!response.ok || typeof result.name !== 'string') throw new Error(result.error || 'Não foi possível criar a categoria.');
+    addCategory(result.name);
+    return result.name;
   }
   function parseShared(data) {
     const url = cleanUrl(data.url) || findUrl(data.text);
@@ -633,6 +636,8 @@
     const input = form.elements.namedItem('price');
     const photo = form.elements.namedItem('photo');
     const rights = form.elements.namedItem('photoRights');
+    const category = form.elements.namedItem('category');
+    const newCategory = form.elements.namedItem('newCategory');
     const card = form.closest('.queue-card');
     const button = form.querySelector('button');
     const result = form.querySelector('[role="status"]');
@@ -647,12 +652,18 @@
       return;
     }
     if (!token()) return promptSignIn();
-    const fields = [button, input, photo, rights];
+    const fields = [button, input, photo, rights, category, newCategory].filter(Boolean);
     fields.forEach(field => { field.disabled = true; });
     result.textContent = 'Salvando…';
     try {
       const body = new FormData();
       body.append('priceCents', price === null ? '' : String(price));
+      if (category && category.value !== category.dataset.saved) {
+        const name = category.value || await createCategoryByName(newCategory.value);
+        if (!Array.from(category.options).some(option => option.value === name)) category.add(new Option(name, name));
+        category.value = name;
+        body.append('category', name);
+      }
       if (file) {
         body.append('image', file);
         body.append('imageRights', 'yes');
@@ -664,6 +675,12 @@
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || 'Não foi possível salvar o produto.');
+      if (category && data.category) {
+        category.dataset.saved = data.category;
+        form.querySelector('.edit-category-name').hidden = true;
+        newCategory.required = false;
+        card.querySelector('.queue-category').textContent = data.category;
+      }
       input.value = data.priceCents === null ? '' : (data.priceCents / 100).toFixed(2).replace('.', ',');
       form.parentElement.querySelector('summary').textContent = 'Editar produto · ' +
         (data.priceCents === null ? 'Sob consulta' : formatMoney.format(data.priceCents / 100));
@@ -681,6 +698,70 @@
       result.textContent = error.message || 'Não foi possível salvar o produto.';
     } finally {
       fields.forEach(field => { field.disabled = false; });
+    }
+  }
+  function renderPromotionForms(items, promotions) {
+    return ['day', 'week'].map(slot => {
+      const current = promotions.find(item => item.slot === slot);
+      const active = current?.expires_at > Date.now() && items.some(item => item.id === current.product_id);
+      const selected = current && items.some(item => item.id === current.product_id) ? current.product_id : '';
+      const options = items.map(item => '<option value="' + escapeHtml(item.id) + '"' +
+        (selected === item.id ? ' selected' : '') + '>' + escapeHtml(item.title) + '</option>').join('');
+      return '<details class="promotion-editor"><summary>Promoção ' + (slot === 'day' ? 'do dia' : 'da semana') +
+        '</summary><form data-promotion="' + slot + '"><label>Produto<select name="productId"><option value="">Sem promoção</option>' + options +
+        '</select></label><label>Preço promocional (R$)<input name="promotionPrice" inputmode="decimal" maxlength="12" value="' +
+        (current ? (current.price_cents / 100).toFixed(2).replace('.', ',') : '') +
+        '"></label><label>Foto da promoção (opcional)<input name="promotionPhoto" type="file" accept="image/jpeg,image/png,image/webp,image/avif"></label>' +
+        '<label class="edit-photo-rights"><input name="promotionRights" type="checkbox"> Tenho autorização para usar esta foto</label>' +
+        '<button class="secondary-button" type="submit">Salvar promoção</button><p class="hint" role="status">' +
+        (active ? 'Ativa até ' + escapeHtml(formatPromotionDate(current.expires_at)) : 'Nenhuma promoção ativa. Duração: ' + (slot === 'day' ? '24 horas.' : '7 dias.')) +
+        '</p></form></details>';
+    }).join('');
+  }
+  function formatPromotionDate(timestamp) {
+    return new Date(timestamp).toLocaleString('pt-BR', {dateStyle:'short', timeStyle:'short'});
+  }
+  async function savePromotion(event) {
+    event.preventDefault();
+    if (!token()) return promptSignIn();
+    const form = event.currentTarget;
+    const fields = form.elements;
+    const id = fields.namedItem('productId').value;
+    const price = parsePrice(fields.namedItem('promotionPrice').value);
+    const photo = fields.namedItem('promotionPhoto');
+    const file = photo.files[0];
+    const rights = fields.namedItem('promotionRights');
+    const status = form.querySelector('[role="status"]');
+    if (id && (!Number.isSafeInteger(price) || price <= 0)) {
+      status.textContent = 'Informe um preço promocional válido.';
+      return;
+    }
+    if (id && file && !rights.checked) {
+      status.textContent = 'Confirme a autorização de uso da foto.';
+      return;
+    }
+    Array.from(fields).forEach(field => { field.disabled = true; });
+    status.textContent = 'Salvando…';
+    try {
+      const body = new FormData();
+      body.set('productId', id);
+      if (id) {
+        body.set('priceCents', String(price));
+        if (file) { body.set('image', file); body.set('imageRights', 'yes'); }
+      }
+      const response = await fetch(endpoint('/api/admin/promotions/' + form.dataset.promotion), {
+        method: 'PATCH', headers: { Authorization: 'Bearer ' + token() }, body
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Não foi possível salvar a promoção.');
+      status.textContent = data.promotion ? 'Promoção ativa até ' + formatPromotionDate(data.promotion.expires_at) + '.' : 'Promoção removida da vitrine.';
+      if (!data.promotion) fields.namedItem('promotionPrice').value = '';
+      photo.value = '';
+      rights.checked = false;
+    } catch (error) {
+      status.textContent = error.message;
+    } finally {
+      Array.from(fields).forEach(field => { field.disabled = false; });
     }
   }
   async function loadQueue(loadedData) {
@@ -712,6 +793,9 @@
           image_url: edit?.image_url || new URL('../' + product.cover, location.href).href };
       });
       const imports = Array.isArray(data.imports) ? data.imports : [];
+      await loadCategories();
+      if (token() !== credential) return;
+      const categoryNames = Array.from($('category').options, option => option.value).filter(Boolean);
       const statusLabel = { pending: 'AGUARDANDO REVISÃO', approved: 'APROVADO', rejected: 'RECUSADO' };
       const renderCard = item => {
         const image = /^https:\/\//i.test(String(item.image_url || ''))
@@ -722,6 +806,12 @@
           : '';
         const status = statusLabel[item.status] || 'STATUS DESCONHECIDO';
         const price = Number.isSafeInteger(item.price_cents) ? (item.price_cents / 100).toFixed(2).replace('.', ',') : '';
+        const currentCategory = item.category || 'Outros';
+        const categoryField = item.builtIn ? '' :
+          '<label>Categoria<select name="category" data-saved="' + escapeHtml(currentCategory) + '">' +
+          [...new Set([...categoryNames, currentCategory])].map(name => '<option' + (name === currentCategory ? ' selected' : '') + '>' + escapeHtml(name) + '</option>').join('') +
+          '<option value="">Criar nova categoria…</option></select></label>' +
+          '<label class="edit-category-name" hidden>Nome da nova categoria<input name="newCategory" minlength="2" maxlength="48"></label>';
         const publicUrl = item.status === 'approved' && item.commercial_use_allowed && item.image_use_allowed && /^[0-9a-f-]{36}$/i.test(item.id)
           ? new URL('../#imported-' + item.id, location.href).href : '';
         const share = publicUrl
@@ -735,22 +825,30 @@
           '<div class="queue-actions"><button class="queue-approve" type="button" data-queue-action="approved">Aprovar</button><button class="queue-reject" type="button" data-queue-action="rejected">Recusar</button></div>';
         return '<article class="queue-card" data-built-in="' + Boolean(item.builtIn) + '" data-id="' + escapeHtml(item.id) + '">' + image +
           '<div class="queue-content"><strong>' + escapeHtml(item.title) + '</strong>' +
-          '<div class="queue-meta">' + escapeHtml(item.category || 'Outros') + (item.author ? ' · ' + escapeHtml(item.author) : '') + '</div>' +
+          '<div class="queue-meta"><span class="queue-category">' + escapeHtml(currentCategory) + '</span>' + (item.author ? ' · ' + escapeHtml(item.author) : '') + '</div>' +
           (item.builtIn ? '' : '<span class="queue-status">' + status + '</span><br>' + source) + '</div>' + review +
           '<details class="queue-price"><summary>Editar produto · ' + (price ? escapeHtml(formatMoney.format(item.price_cents / 100)) : 'Sob consulta') + '</summary>' +
-          '<form><label>Preço de venda (R$)<input name="price" inputmode="decimal" maxlength="12" value="' + escapeHtml(price) +
+          '<form>' + categoryField + '<label>Preço de venda (R$)<input name="price" inputmode="decimal" maxlength="12" value="' + escapeHtml(price) +
           '" placeholder="Sob consulta"></label><label>Nova foto principal<input type="file" name="photo" accept="image/jpeg,image/png,image/webp,image/avif"></label>' +
           '<p class="edit-photo-name"></p><label class="edit-photo-rights"><input type="checkbox" name="photoRights"> Tenho autorização para usar esta foto</label>' +
           '<button class="secondary-button" type="submit">Salvar alterações</button><p role="status"></p></form></details>' +
           share + '</article>';
       };
-      list.innerHTML = (originals.length ? '<h3 class="queue-group-title">Produtos do catálogo</h3>' + originals.map(renderCard).join('') : '') +
+      const publicItems = [...originals, ...imports.filter(item => item.status === 'approved' && item.commercial_use_allowed && item.image_use_allowed)];
+      list.innerHTML = '<h3 class="queue-group-title">Promoções</h3>' + renderPromotionForms(publicItems, data.promotions || []) +
+        (originals.length ? '<h3 class="queue-group-title">Produtos do catálogo</h3>' + originals.map(renderCard).join('') : '') +
         '<h3 class="queue-group-title">Modelos importados</h3>' +
         (imports.length ? imports.map(renderCard).join('') : '<div class="queue-empty">Nenhum modelo importado ainda.</div>');
       list.querySelectorAll('[data-queue-action]').forEach(button => button.addEventListener('click', () => updateQueueItem(button)));
       list.querySelectorAll('[data-copy-product]').forEach(button => button.addEventListener('click', () => copyProductLink(button)));
+      list.querySelectorAll('[data-promotion]').forEach(form => form.addEventListener('submit', savePromotion));
       list.querySelectorAll('.queue-price form').forEach(form => {
         form.addEventListener('submit', saveProductEdit);
+        form.elements.namedItem('category')?.addEventListener('change', event => {
+          const creating = !event.target.value;
+          form.querySelector('.edit-category-name').hidden = !creating;
+          form.elements.namedItem('newCategory').required = creating;
+        });
         form.elements.namedItem('photo').addEventListener('change', event => {
           form.elements.namedItem('photoRights').checked = false;
           form.querySelector('.edit-photo-name').textContent = event.target.files[0]?.name || '';

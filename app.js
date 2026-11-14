@@ -83,12 +83,13 @@
     const product = getProduct(id);
     if (!product) return;
     const quantity = state.quantities[id] || 1;
-    const previous = state.order.get(id);
-    const price = priceOverride ?? previous?.price ?? product.price;
-    const priceLabel = priceLabelOverride ?? previous?.priceLabel ?? product.priceLabel;
-    state.order.set(id, { id, quantity: (previous?.quantity || 0) + quantity, price, priceLabel });
+    const price = priceOverride ?? product.price;
+    const priceLabel = priceLabelOverride ?? product.priceLabel;
+    const key = priceOverride === null ? id : id + ':' + priceLabel + ':' + price;
+    const previous = state.order.get(key);
+    state.order.set(key, { id, key, quantity: (previous?.quantity || 0) + quantity, price, priceLabel });
     renderOrder();
-    notify(`${product.name} incluído no pedido (${quantity} un.).${priceOverride !== null ? ` Oferta de teste: ${money(priceOverride)} cada.` : ''}`);
+    notify(`${product.name} incluído no pedido (${quantity} un.).`);
   }
     function renderOrder() {
     const entries = Array.from(state.order.values());
@@ -107,7 +108,7 @@
     }
     orderItems.innerHTML = entries.map(entry => {
       const product = getProduct(entry.id);
-      return `<div class="order-item"><div><div class="order-item-name">${escapeHtml(product.name)}</div><div class="order-item-detail">${entry.quantity} × ${money(entry.price ?? product.price)} · ${entry.priceLabel || product.priceLabel || 'preço provisório'}</div></div><div class="order-item-total">${money(entry.quantity * (entry.price ?? product.price))}</div><button class="remove-item" type="button" data-remove="${entry.id}" aria-label="Remover ${escapeHtml(product.name)}">×</button></div>`;
+      return `<div class="order-item"><div><div class="order-item-name">${escapeHtml(product.name)}</div><div class="order-item-detail">${entry.quantity} × ${money(entry.price ?? product.price)} · ${escapeHtml(entry.priceLabel || product.priceLabel || 'preço provisório')}</div></div><div class="order-item-total">${money(entry.quantity * (entry.price ?? product.price))}</div><button class="remove-item" type="button" data-remove="${escapeHtml(entry.key)}" aria-label="Remover ${escapeHtml(product.name)}">×</button></div>`;
     }).join('');
     $$('[data-remove]').forEach(button => button.addEventListener('click', () => {
       state.order.delete(button.dataset.remove);
@@ -143,7 +144,7 @@
     const hasPrice = item.price_cents !== null && item.price_cents !== undefined && Number.isFinite(Number(item.price_cents));
     const price = hasPrice ? Math.max(0, Number(item.price_cents) / 100) : 0;
     const priceLabel = hasPrice ? 'preço informado' : 'consulte o valor';
-    products.push({ id, name, category, price, priceLabel, draft: false });
+    products.push({ id, name, category, price, priceLabel, cover: imageUrl, draft: false });
     state.quantities[id] = 1;
     ensureCategoryButton(category);
     const card = document.createElement('article');
@@ -226,12 +227,6 @@
         if (Number.isSafeInteger(edit.price_cents)) {
           product.price = edit.price_cents / 100;
           card.querySelector('.price').textContent = money(product.price);
-          const previous = $$('[data-weekly-deal]').find(deal => deal.dataset.weeklyDeal === edit.id)?.querySelector('del');
-          if (previous) {
-            const offerPrice = Number(previous.closest('[data-weekly-deal]').querySelector('[data-promo-price]').dataset.promoPrice);
-            previous.hidden = product.price <= offerPrice;
-            previous.textContent = money(product.price);
-          }
         }
         if (/^https:\/\//i.test(edit.image_url || '')) {
           const main = card.querySelector('.product-main-photo');
@@ -245,16 +240,48 @@
             main.src = edit.image_url;
             main.alt = product.name;
           }
-          const promo = $$('[data-weekly-deal]').find(deal => deal.dataset.weeklyDeal === edit.id)?.querySelector('.weekly-deal-photo img');
-          if (promo) { promo.src = edit.image_url; promo.alt = product.name; }
+          product.cover = edit.image_url;
         }
       }
       (Array.isArray(data.products) ? data.products : []).forEach(addImportedProduct);
+      renderPromotions(data.promotions || []);
       applyFilters();
     } catch (error) {
       console.warn('Não foi possível atualizar os produtos importados do catálogo.', error);
     }
     await revealLinkedProduct();
+  }
+  function renderPromotions(promotions) {
+    const grid = $('#promotionGrid');
+    grid.replaceChildren();
+    for (const offer of promotions) {
+      const product = getProduct(offer.product_id) || getProduct('imported-' + offer.product_id);
+      if (!product || offer.expires_at <= Date.now()) continue;
+      const price = offer.price_cents / 100;
+      if (product.price > 0 && price >= product.price) continue;
+      const label = offer.slot === 'day' ? 'Promoção do dia' : 'Promoção da semana';
+      const cover = /^https:\/\//i.test(offer.image_url || '') ? offer.image_url : product.cover;
+      const card = document.createElement('article');
+      card.className = 'weekly-deal-card';
+      card.innerHTML = '<div class="weekly-deal-photo">' +
+        (cover ? '<img src="' + escapeHtml(cover) + '" alt="' + escapeHtml(product.name) + '" loading="lazy">' : '') +
+        '<span class="weekly-deal-tag">' + label + '</span></div>' +
+        '<div class="weekly-deal-content"><h3>' + escapeHtml(product.name) + '</h3><div class="weekly-deal-price">' +
+        (product.price > price ? '<del aria-label="Preço normal">' + money(product.price) + '</del>' : '') +
+        '<div><span>Preço promocional</span><strong>' + money(price) + '</strong></div></div>' +
+        '<button class="weekly-deal-button" type="button">Aproveitar oferta</button></div>';
+      card.querySelector('button').addEventListener('click', () => {
+        if (offer.expires_at <= Date.now()) {
+          renderPromotions(promotions);
+          notify('Esta promoção terminou.');
+          return;
+        }
+        addProduct(product.id, price, label);
+        goToOrder();
+      });
+      grid.append(card);
+    }
+    $('#destaques').hidden = !grid.childElementCount;
   }
 
   function sendOrder() {
@@ -268,7 +295,8 @@
     }
     const lines = entries.map(entry => {
       const product = getProduct(entry.id);
-      return `• ${product.name} — ${entry.quantity} ${entry.quantity === 1 ? 'unidade' : 'unidades'}`;
+      const offer = entry.key === entry.id ? '' : ` (${entry.priceLabel}: ${money(entry.price)} por unidade)`;
+      return `• ${product.name} — ${entry.quantity} ${entry.quantity === 1 ? 'unidade' : 'unidades'}${offer}`;
     });
     const message = `Olá! Gostaria de pedir:\n\n${lines.join('\n')}\n\nPode confirmar a disponibilidade e o valor final, por favor?`;
     window.open(`https://wa.me/${number}?text=${encodeURIComponent(message)}`, '_blank', 'noopener,noreferrer');
@@ -287,16 +315,6 @@
       });
     }));
   });
-  $$('[data-promo-add]').forEach(button => button.addEventListener('click', () => {
-    const id = button.dataset.promoAdd;
-    const price = Number(button.dataset.promoPrice);
-    if (!getProduct(id) || !Number.isFinite(price) || price < 0) {
-      notify('Esta promoção não está disponível.');
-      return;
-    }
-    addProduct(id, price, 'promoção da semana (teste)');
-    goToOrder();
-  }));
   $$('.category-item').forEach(button => button.addEventListener('click', () => browseCategory(button.dataset.category)));
   $('#searchInput').addEventListener('input', event => {
     state.search = event.target.value.trim().toLocaleLowerCase('pt-BR');

@@ -82,3 +82,10 @@ label{display:block;font-size:12px;font-weight:800;color:var(--brown2);margin:15
 .queue-price .edit-photo-rights { display: flex; align-items: center; gap: 8px; }
 .queue-price .edit-photo-rights input { width: 18px; min-height: 18px; margin: 0; accent-color: var(--brown); }
 .edit-photo-name:empty { display: none; }
+.promotion-editor { padding: 0 12px 10px; border: 1px solid var(--line); border-radius: 12px; }
+.promotion-editor summary { padding: 12px 0 2px; min-height: 44px; font-weight: 800; color: var(--brown2); cursor: pointer; }
+.promotion-editor form { display: grid; gap: 8px; }
+.promotion-editor form label { margin: 0; }
+.promotion-editor .edit-photo-rights { display: flex; align-items: center; gap: 8px; }
+.promotion-editor .edit-photo-rights input { width: 18px; min-height: 18px; margin: 0; accent-color: var(--brown); }
+.promotion-editor button { min-height: 44px; justify-self: start; }

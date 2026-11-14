@@ -12,6 +12,7 @@ test('login privado cria uma conta, limita tentativas e revoga sessões', async 
     db.exec(await readFile(new URL('../admin-auth.sql', import.meta.url), 'utf8'));
     db.exec(await readFile(new URL('../product-overrides.sql', import.meta.url), 'utf8'));
     db.exec(await readFile(new URL('../catalog-categories.sql', import.meta.url), 'utf8'));
+    db.exec(await readFile(new URL('../catalog-promotions.sql', import.meta.url), 'utf8'));
     const env = { ADMIN_TOKEN: token, DB: {
       prepare(sql) {
         const bind = (...args) => {
@@ -42,6 +43,21 @@ test('login privado cria uma conta, limita tentativas e revoga sessões', async 
     const headers = { Authorization: 'Bearer ' + login.body.token };
     const call = (path, method = 'GET') => worker.fetch(new Request(base + path, { headers, method }), env);
     assert.equal((await call('/api/imports')).status, 200);
+    const promotionUrl = '/api/admin/promotions/day';
+    const promotion = new FormData();
+    promotion.set('productId', 'academia-001');
+    promotion.set('priceCents', '2000');
+    const editPromotion = (body, authenticated = true) => worker.fetch(new Request(base + promotionUrl, {
+      method: 'PATCH', headers: authenticated ? headers : {}, body
+    }), env);
+    assert.equal((await editPromotion(promotion, false)).status, 401);
+    const firstOffer = await (await editPromotion(promotion)).json();
+    assert.equal(firstOffer.promotion.product_id, 'academia-001');
+    assert.ok(firstOffer.promotion.expires_at > Date.now() + 23 * 3600000);
+    promotion.set('priceCents', '1900');
+    assert.equal((await (await editPromotion(promotion)).json()).promotion.expires_at, firstOffer.promotion.expires_at);
+    promotion.set('productId', '');
+    assert.deepEqual(await (await editPromotion(promotion)).json(), { promotion: null });
     assert.equal((await call('/api/admin/logout', 'POST')).status, 200);
     assert.equal((await call('/api/imports')).status, 401);
     for (let i = 0; i < 8; i++) {
@@ -85,6 +101,7 @@ function setup() {
         async all() {
           if (sql.includes('FROM catalog_product_overrides')) return { results: [] };
           if (sql.includes('FROM catalog_categories')) return { results: [] };
+          if (sql.includes('FROM catalog_promotions')) return { results: [] };
           if (sql.includes("status='approved'")) {
             return { results: [...saved.values()].filter(x => x.status === 'approved' && x.commercial_use_allowed && x.image_use_allowed && (!values.length || x.id === values[0])).map(({ id, title, author, image_url, category, price_cents, source_url, license_name }) => ({ id, title, author, image_url, category, price_cents, source_url, license_name })) };
           }

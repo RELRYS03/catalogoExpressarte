@@ -78,6 +78,20 @@ async function limitedText(response, maxBytes = 2_000_000) {
 function imageExtension(type) {
   return ({'image/jpeg':'jpg','image/png':'png','image/webp':'webp','image/avif':'avif'})[type] || null;
 }
+const builtInIds = ['academia-001', 'religioso-001'];
+const importId = /^[0-9a-f-]{36}$/;
+async function uploadEditPhoto(form, env, prefix) {
+  const file = form.get('image');
+  if (file === null) return {};
+  if (!(file instanceof File) || !file.size || file.size > 5 * 1024 * 1024) return { error: 'Escolha uma foto de até 5 MB.', status: 400 };
+  const ext = imageExtension(file.type);
+  if (!ext) return { error: 'Use uma foto JPG, PNG, WEBP ou AVIF.', status: 415 };
+  if (form.get('imageRights') !== 'yes') return { error: 'Confirme que você tem autorização para usar a foto.', status: 400 };
+  if (!env.IMAGES || !env.PUBLIC_ASSETS_URL) return { error: 'Armazenamento de fotos indisponível.', status: 503 };
+  const key = prefix + '/' + crypto.randomUUID() + '.' + ext;
+  await env.IMAGES.put(key, file.stream(), { httpMetadata: { contentType: file.type, cacheControl: 'public, max-age=31536000, immutable' } });
+  return { key, image: env.PUBLIC_ASSETS_URL.replace(/\/$/, '') + '/' + key };
+}
 async function saveProductEdit(request, env, id, builtIn, cors) {
   const form = await request.formData();
   const rawPrice = form.get('priceCents');
@@ -85,24 +99,18 @@ async function saveProductEdit(request, env, id, builtIn, cors) {
   if (price === null ? builtIn : !Number.isSafeInteger(price) || price > 100000000) {
     return json({ error: 'Informe um preço válido.' }, 400, cors);
   }
-  const file = form.get('image');
-  let key, image = '';
-  if (file !== null) {
-    if (!(file instanceof File) || !file.size || file.size > 5 * 1024 * 1024) return json({ error: 'Escolha uma foto de até 5 MB.' }, 400, cors);
-    const ext = imageExtension(file.type);
-    if (!ext) return json({ error: 'Use uma foto JPG, PNG, WEBP ou AVIF.' }, 415, cors);
-    if (form.get('imageRights') !== 'yes') return json({ error: 'Confirme que você tem autorização para usar a foto.' }, 400, cors);
-    if (!env.IMAGES || !env.PUBLIC_ASSETS_URL) return json({ error: 'Armazenamento de fotos indisponível.' }, 503, cors);
-    key = 'catalog-imports/' + id + '/' + crypto.randomUUID() + '.' + ext;
-    await env.IMAGES.put(key, file.stream(), { httpMetadata: { contentType: file.type, cacheControl: 'public, max-age=31536000, immutable' } });
-    image = env.PUBLIC_ASSETS_URL.replace(/\/$/, '') + '/' + key;
-  }
+  const requested = form.get('category');
+  const category = requested === null ? null : await registeredCategory(env, requested);
+  if (requested !== null && !category) return json({ error: 'Escolha ou crie uma categoria válida.' }, 400, cors);
+  if (builtIn && category) return json({ error: 'A categoria dos produtos originais é fixa.' }, 400, cors);
+  const { key, image = '', error, status } = await uploadEditPhoto(form, env, 'catalog-imports/' + id);
+  if (error) return json({ error }, status, cors);
   const sql = builtIn
     ? "INSERT INTO catalog_product_overrides (price_cents,image_url,id) VALUES (?,?,?) ON CONFLICT(id) DO UPDATE SET price_cents=excluded.price_cents,image_url=COALESCE(NULLIF(excluded.image_url,''),image_url) RETURNING price_cents,image_url"
-    : "UPDATE catalog_imports SET price_cents=?,image_url=COALESCE(NULLIF(?,''),image_url),updated_at=CURRENT_TIMESTAMP WHERE id=? RETURNING price_cents,image_url";
+    : "UPDATE catalog_imports SET price_cents=?,image_url=COALESCE(NULLIF(?,''),image_url),category=COALESCE(?,category),updated_at=CURRENT_TIMESTAMP WHERE id=? RETURNING price_cents,image_url,category";
   let saved;
   try {
-    saved = await env.DB.prepare(sql).bind(price, image, id).first();
+    saved = await env.DB.prepare(sql).bind(...(builtIn ? [price, image, id] : [price, image, category, id])).first();
   } catch (error) {
     if (key) await env.IMAGES.delete(key);
     throw error;
@@ -111,7 +119,42 @@ async function saveProductEdit(request, env, id, builtIn, cors) {
     if (key) await env.IMAGES.delete(key);
     return json({ error: 'Cadastro não encontrado.' }, 404, cors);
   }
-  return json({ priceCents: saved.price_cents, imageUrl: saved.image_url }, 200, cors);
+  return json({ priceCents: saved.price_cents, imageUrl: saved.image_url, category: saved.category }, 200, cors);
+}
+async function savePromotion(request, env, slot, cors) {
+  const form = await request.formData();
+  const id = form.get('productId');
+  if (id === '') {
+    await env.DB.prepare('DELETE FROM catalog_promotions WHERE slot=?').bind(slot).run();
+    return json({ promotion: null }, 200, cors);
+  }
+  const rawPrice = form.get('priceCents');
+  const price = typeof rawPrice === 'string' && /^\d+$/.test(rawPrice) ? Number(rawPrice) : NaN;
+  if (!Number.isSafeInteger(price) || price <= 0 || price > 100000000) return json({ error: 'Informe um preço promocional válido.' }, 400, cors);
+  const priceRow = builtInIds.includes(id)
+    ? await env.DB.prepare('SELECT price_cents FROM catalog_product_overrides WHERE id=?').bind(id).first()
+    : typeof id === 'string' && importId.test(id)
+      ? await env.DB.prepare("SELECT price_cents FROM catalog_imports WHERE id=? AND status='approved' AND commercial_use_allowed=1 AND image_use_allowed=1").bind(id).first()
+      : null;
+  if (!builtInIds.includes(id) && !priceRow) return json({ error: 'Escolha um produto publicado.' }, 400, cors);
+  const regular = priceRow?.price_cents ?? (id === 'academia-001' ? 3490 : id === 'religioso-001' ? 3000 : null);
+  if (regular !== null && price >= regular) return json({ error: 'O preço da promoção precisa ser menor que o preço normal.' }, 400, cors);
+  const { key, image = '', error, status } = await uploadEditPhoto(form, env, 'catalog-promotions/' + slot);
+  if (error) return json({ error }, status, cors);
+  const now = Date.now();
+  try {
+    const promotion = await env.DB.prepare(`INSERT INTO catalog_promotions (slot,product_id,price_cents,image_url,expires_at)
+      VALUES (?,?,?,?,?) ON CONFLICT(slot) DO UPDATE SET
+      image_url=CASE WHEN excluded.image_url<>'' THEN excluded.image_url WHEN product_id=excluded.product_id THEN image_url ELSE '' END,
+      expires_at=CASE WHEN product_id=excluded.product_id AND expires_at>? THEN expires_at ELSE excluded.expires_at END,
+      product_id=excluded.product_id,price_cents=excluded.price_cents
+      RETURNING slot,product_id,price_cents,image_url,expires_at`)
+      .bind(slot, id, price, image, now + (slot === 'day' ? 1 : 7) * 86400000, now).first();
+    return json({ promotion }, 200, cors);
+  } catch (err) {
+    if (key) await env.IMAGES.delete(key);
+    throw err;
+  }
 }
 async function fetchMakerWorldMetadata(sourceUrl, host) {
   if (host !== 'makerworld.com' && host !== 'www.makerworld.com') return null;
@@ -153,6 +196,12 @@ function categoryName(value) {
 async function customCategories(env) {
   const { results } = await env.DB.prepare('SELECT name FROM catalog_categories ORDER BY name COLLATE NOCASE').all();
   return results.map(row => row.name);
+}
+async function registeredCategory(env, value) {
+  const name = categoryName(value);
+  if (!name) return null;
+  const key = categoryKey(name);
+  return [...catalogCategories, ...await customCategories(env)].find(category => categoryKey(category) === key) || null;
 }
 
 async function suggestImageCategory(request, env, cors) {
@@ -249,7 +298,10 @@ export default {
         const { results } = await query.all();
         if (id !== null) return json({ products: results }, 200, cors);
         const overrides = await env.DB.prepare('SELECT id,price_cents,image_url FROM catalog_product_overrides').all();
-        return json({ products: results, overrides: overrides.results, categories: await customCategories(env) }, 200, cors);
+        const { results: promotions } = await env.DB.prepare(`SELECT p.* FROM catalog_promotions p WHERE p.expires_at>?
+          AND (p.product_id IN ('academia-001','religioso-001') OR EXISTS (SELECT 1 FROM catalog_imports i
+          WHERE i.id=p.product_id AND i.status='approved' AND i.commercial_use_allowed=1 AND i.image_use_allowed=1))`).bind(Date.now()).all();
+        return json({ products: results, overrides: overrides.results, categories: await customCategories(env), promotions }, 200, cors);
       }
       if (path === '/api/preview' && request.method === 'GET') {
         if (!await authorized(request, env)) return json({ error: 'Não autorizado' }, 401, cors);
@@ -282,7 +334,8 @@ export default {
         if (request.method === 'GET') {
           const { results } = await env.DB.prepare('SELECT * FROM catalog_imports ORDER BY created_at DESC LIMIT 200').all();
           const overrides = await env.DB.prepare('SELECT id,price_cents,image_url FROM catalog_product_overrides').all();
-          return json({ imports: results, overrides: overrides.results }, 200, cors);
+          const { results: promotions } = await env.DB.prepare('SELECT * FROM catalog_promotions').all();
+          return json({ imports: results, overrides: overrides.results, promotions }, 200, cors);
         }
         const contentType = request.headers.get('Content-Type') || '';
         let body, imageFile = null;
@@ -322,13 +375,13 @@ export default {
         }
         return json({ id, status: 'pending', imageStored: Boolean(uploadedKey) }, 201, cors);
       }
-      const productEdit = path.match(/^\/api\/admin\/products\/(academia-001|religioso-001|[0-9a-f-]{36})$/);
-      if (productEdit && request.method === 'PATCH') {
+      const edit = path.match(/^\/api\/admin\/(products\/(academia-001|religioso-001|[0-9a-f-]{36})|promotions\/(day|week))$/);
+      if (edit && request.method === 'PATCH') {
         if (!await authorized(request, env)) return json({ error: 'Não autorizado' }, 401, cors);
         if (!request.headers.get('Content-Type')?.startsWith('multipart/form-data')) return json({ error: 'Formato inválido.' }, 400, cors);
         if (Number(request.headers.get('Content-Length')) > 5 * 1024 * 1024 + 8192) return json({ error: 'Escolha uma foto de até 5 MB.' }, 413, cors);
-        const id = productEdit[1];
-        return await saveProductEdit(request, env, id, id.length !== 36, cors);
+        if (edit[3]) return await savePromotion(request, env, edit[3], cors);
+        return await saveProductEdit(request, env, edit[2], builtInIds.includes(edit[2]), cors);
       }
       const match = path.match(/^\/api\/imports\/([0-9a-f-]{36})$/i);
       if (match && request.method === 'PATCH') {
