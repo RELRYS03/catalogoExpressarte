@@ -6,12 +6,6 @@ test('provedor online fica desativado por padrão', () => {
   assert.equal(getCompatibleProviderConfig({}), null);
 });
 test('provedor exige habilitação, HTTPS, chave e modelo', () => {
-  assert.equal(getCompatibleProviderConfig({
-    EXPRESSINHO_ONLINE_ENABLED: 'true',
-    EXPRESSINHO_API_BASE_URL: 'http://api.example.com/v1',
-    EXPRESSINHO_API_KEY: 'secret',
-    EXPRESSINHO_API_MODEL: 'model'
-  }), null);
   assert.throws(() => getCompatibleProviderConfig({
     EXPRESSINHO_ONLINE_ENABLED: 'true',
     EXPRESSINHO_API_BASE_URL: 'http://api.example.com/v1',
