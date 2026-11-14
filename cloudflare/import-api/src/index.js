@@ -64,7 +64,10 @@ async function limitedText(response, maxBytes = 2_000_000) {
     if (total > maxBytes) { await reader.cancel(); throw new Error('Página muito grande para pré-visualização'); }
     chunks.push(value);
   }
-  const joined = new Uint8Array(total);\n  let offset = 0;\n  for (const chunk of chunks) { joined.set(chunk, offset); offset += chunk.byteLength; }\n  return new TextDecoder().decode(joined);
+  const joined = new Uint8Array(total);
+  let offset = 0;
+  for (const chunk of chunks) { joined.set(chunk, offset); offset += chunk.byteLength; }
+  return new TextDecoder().decode(joined);
 }
 function imageExtension(type) {
   return ({'image/jpeg':'jpg','image/png':'png','image/webp':'webp','image/avif':'avif'})[type] || null;
