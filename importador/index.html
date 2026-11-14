@@ -60,6 +60,29 @@
           <button class="secondary-button" id="analyzeCategory" type="button" hidden>Analisar imagem</button>
         </div>
       </div>
+      <details class="price-calculator" id="priceCalculator">
+        <summary>Calcular custo e preço</summary>
+        <p class="calculator-hint">Use o peso e o tempo do fatiador por peça. Se fatiou um lote, divida os totais pela quantidade de peças.</p>
+        <div class="calculator-fields">
+          <div><label for="calcWeight">Filamento por peça (g)</label><input id="calcWeight" inputmode="decimal" maxlength="12" placeholder="Ex. 35"></div>
+          <div><label for="calcFilament">Preço do filamento (R$/kg)</label><input id="calcFilament" inputmode="decimal" maxlength="12" placeholder="Ex. 90,00"></div>
+          <div><label for="calcHours">Tempo por peça (horas)</label><input id="calcHours" inputmode="numeric" maxlength="6" placeholder="Ex. 1"></div>
+          <div><label for="calcMinutes">Minutos adicionais</label><input id="calcMinutes" inputmode="numeric" maxlength="2" placeholder="Ex. 30"></div>
+          <div><label for="calcMachine">Custo da impressora (R$/h)</label><input id="calcMachine" inputmode="decimal" maxlength="12" aria-describedby="calcCostHint"></div>
+          <div><label for="calcExtras">Extras por peça (R$)</label><input id="calcExtras" inputmode="decimal" maxlength="12" aria-describedby="calcCostHint"></div>
+          <div><label for="calcMargin">Margem sobre a venda (%)</label><input id="calcMargin" inputmode="decimal" maxlength="6" aria-describedby="calcMarginHint"></div>
+        </div>
+        <p class="calculator-hint" id="calcCostHint">Inclua energia e desgaste no custo por hora. Some embalagem e acabamento nos extras. Campos opcionais vazios valem zero.</p>
+        <p class="calculator-hint" id="calcMarginHint">A margem é a parte do preço que sobra após os custos informados.</p>
+        <div id="calcResult" class="calculator-result" role="status">
+          <p id="calcMessage">Informe o peso e o preço do filamento para começar.</p>
+          <dl id="calcTotals" hidden>
+            <div><dt>Custo estimado</dt><dd id="calcCost"></dd></div>
+            <div><dt>Preço sugerido</dt><dd id="calcPrice"></dd></div>
+          </dl>
+        </div>
+        <button type="button" class="secondary-button" id="useCalculatedPrice" disabled>Usar preço sugerido</button>
+      </details>
       <label for="imageFile">Imagem de capa (opcional)</label>
       <input id="imageFile" type="file" accept="image/*">
       <p class="hint">Selecione uma foto ou um print salvo no celular, ou compartilhe uma imagem com o importador.</p>

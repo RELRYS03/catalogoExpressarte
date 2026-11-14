@@ -304,6 +304,62 @@
     const n = Number(normalized);
     return Number.isFinite(n) && n >= 0 ? Math.round(n * 100) : NaN;
   }
+  const calculatorFields = ['calcWeight', 'calcFilament', 'calcHours', 'calcMinutes', 'calcMachine', 'calcExtras', 'calcMargin'];
+  const calculatorRates = ['calcFilament', 'calcMachine', 'calcMargin'];
+  const calculatorStorageKey = 'expressarte_calculator_rates';
+  const formatMoney = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
+
+  function readCalculatorNumber(id) {
+    const text = $(id).value.trim();
+    if (!text) return null;
+    if (!/^\d+(?:[,.]\d+)?$/.test(text)) return NaN;
+    return Number(text.replace(',', '.'));
+  }
+  function estimatePrice() {
+    const [grams, filament, hours, minutes, machine, extras, margin] = calculatorFields.map(readCalculatorNumber);
+    if ([grams, filament, hours, minutes, machine, extras, margin].some(Number.isNaN)) {
+      return { message: 'Use números positivos ou zero. Para decimais, use vírgula ou ponto.' };
+    }
+    if (grams === null || filament === null) return { message: 'Informe o peso e o preço do filamento para começar.' };
+    if (!Number.isInteger(hours ?? 0) || !Number.isInteger(minutes ?? 0) || minutes >= 60) {
+      return { message: 'Use horas inteiras e minutos de 0 a 59.' };
+    }
+    const time = (hours ?? 0) + (minutes ?? 0) / 60;
+    if (machine > 0 && time === 0) return { message: 'Informe o tempo de impressão para incluir o custo da impressora.' };
+    if (margin >= 100) return { message: 'Informe uma margem menor que 100%.' };
+    const cost = (grams / 1000) * filament + time * (machine ?? 0) + (extras ?? 0);
+    const priceCents = Math.round((cost / (1 - (margin ?? 0) / 100)) * 100);
+    if (!Number.isSafeInteger(priceCents) || priceCents > 100000000) return { message: 'Confira os valores. O preço ultrapassou o limite do catálogo.' };
+    return { cost, priceCents };
+  }
+  function updatePriceCalculator() {
+    const { message, cost, priceCents } = estimatePrice();
+    $('calcMessage').textContent = message || '';
+    $('calcMessage').hidden = !message;
+    $('calcTotals').hidden = Boolean(message);
+    $('useCalculatedPrice').disabled = Boolean(message);
+    if (message) return;
+    $('calcCost').textContent = formatMoney.format(cost);
+    $('calcPrice').textContent = formatMoney.format(priceCents / 100);
+  }
+  function restoreCalculatorRates() {
+    try {
+      const saved = JSON.parse(localStorage.getItem(calculatorStorageKey) || '{}');
+      for (const id of calculatorRates) if (typeof saved?.[id] === 'string') $(id).value = saved[id];
+    } catch { /* Storage is optional. */ }
+  }
+  function useCalculatedPrice() {
+    const { priceCents } = estimatePrice();
+    if (priceCents === undefined) return;
+    $('price').value = (priceCents / 100).toFixed(2).replace('.', ',');
+    try {
+      const rates = calculatorRates.map(id => [id, $(id).value.trim()]);
+      localStorage.setItem(calculatorStorageKey, JSON.stringify(Object.fromEntries(rates)));
+    } catch { /* The price is still available in the form. */ }
+    $('priceCalculator').open = false;
+    $('price').focus();
+    say('Preço sugerido preenchido. Você pode ajustá-lo antes de enviar.', 'success');
+  }
   async function sendImport() {
     const sourceUrl = cleanUrl($('sourceUrl').value);
     const title = $('title').value.trim();
@@ -429,6 +485,9 @@
   $('previewButton').addEventListener('click', fetchPreview);
   $('refreshQueue').addEventListener('click', loadQueue);
   $('sendButton').addEventListener('click', sendImport);
+  restoreCalculatorRates();
+  calculatorFields.forEach(id => $(id).addEventListener('input', updatePriceCalculator));
+  $('useCalculatedPrice').addEventListener('click', useCalculatedPrice);
   $('saveConnection').addEventListener('click', () => {
     const value = $('adminToken').value.trim();
     if (value) sessionStorage.setItem('expressarte_admin_token', value);
@@ -440,6 +499,10 @@
     categoryEdited = false;
     imageSuggestion = null;
     fields.forEach(id => { $(id).value = ''; });
+    calculatorFields.forEach(id => { $(id).value = ''; });
+    restoreCalculatorRates();
+    updatePriceCalculator();
+    $('priceCalculator').open = false;
     $('imageFile').value = ''; selectImage(null); $('previewCard').hidden = true;
     $('previewCard').dataset.imageUrl = ''; $('draftStatus').textContent = 'Rascunho local'; say('Formulário limpo.');
   });

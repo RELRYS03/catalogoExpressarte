@@ -52,3 +52,16 @@ label{display:block;font-size:12px;font-weight:800;color:var(--brown2);margin:15
 .queue-share .secondary-button { display: grid; place-items: center; min-height: 44px; padding-inline: 6px; font-size: 12px; }
 .queue-link-status { grid-column: 1 / -1; margin: 0; color: var(--brown2); font-size: 12px; }
 .queue-link-status:empty { margin-top: -8px; }
+
+.price-calculator { margin: 14px 0 20px; border-block: 1px solid var(--line); }
+.price-calculator summary { min-height: 44px; padding: 12px 4px; color: var(--brown2); font-weight: 800; cursor: pointer; }
+.price-calculator[open] { padding-bottom: 14px; }
+.calculator-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 12px; }
+.calculator-hint, #calcMessage { margin: 8px 0; color: var(--brown2); font-size: 13px; line-height: 1.45; }
+.calculator-result dl { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin: 14px 0 10px; padding: 12px; border-radius: 12px; background: var(--cream2); color: var(--brown); }
+.calculator-result dt { font-size: 13px; }
+.calculator-result dd { margin: 4px 0 0; font-size: 18px; font-weight: 800; overflow-wrap: anywhere; }
+#useCalculatedPrice { min-height: 44px; }
+#useCalculatedPrice:disabled { opacity: .55; cursor: not-allowed; }
+.price-calculator summary:focus-visible { outline: 2px solid var(--brown); outline-offset: 2px; }
+@media (max-width: 360px) { .calculator-fields { grid-template-columns: 1fr; } }
