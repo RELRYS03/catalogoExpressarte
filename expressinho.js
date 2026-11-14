@@ -9,6 +9,7 @@
   const heroTrigger = $('#expressinhoHeroOpen');
   const floatingTrigger = $('#expressinhoFloatingOpen');
   const closeButton = $('#expressinhoClose');
+  const newChatButton = $('#expressinhoNewChat');
   const form = $('#expressinhoForm');
   const input = $('#expressinhoInput');
   const messages = $('#expressinhoMessages');
@@ -21,7 +22,39 @@
 
   let mode = 'loja';
   let activeTrigger = heroTrigger;
-  let history = [];
+  const HISTORY_KEY = 'expressarte.expressinho.history.v1';
+  const HISTORY_LIMIT = 12;
+  let history = loadHistory();
+
+  function loadHistory() {
+    try {
+      const saved = JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]');
+      if (!Array.isArray(saved)) return [];
+      return saved.filter(item => item && ['user', 'assistant'].includes(item.role) &&
+        typeof item.content === 'string' && item.content.trim())
+        .slice(-HISTORY_LIMIT).map(item => ({ role: item.role, content: item.content.slice(0, 1200) }));
+    } catch { return []; }
+  }
+
+  function saveHistory() {
+    try { localStorage.setItem(HISTORY_KEY, JSON.stringify(history.slice(-HISTORY_LIMIT))); }
+    catch { /* O assistente continua funcionando sem armazenamento local. */ }
+  }
+
+  function renderSavedHistory() {
+    if (!history.length) return;
+    messages.replaceChildren();
+    history.forEach(item => addMessage(item.content, item.role));
+    addMessage('Contexto anterior recuperado deste navegador.', 'assistant', 'pending');
+  }
+
+  function startNewConversation() {
+    history = [];
+    try { localStorage.removeItem(HISTORY_KEY); } catch { /* armazenamento indisponível */ }
+    messages.replaceChildren();
+    addMessage('Oi! Sou o Expressinho. Vamos começar uma nova conversa. Como posso ajudar?', 'assistant');
+    input.focus();
+  }
 
   const status = $('#expressinhoStatus');
   if (status && endpoint) status.textContent = 'Serviço de IA configurado';
@@ -69,7 +102,7 @@
   function localAnswer(message, selectedMode) {
     const text = message.toLocaleLowerCase('pt-BR');
     if (/\b(aprender|memorizar|guardar|ensinar|corrigir|lembrar|memória|memoria)\b/.test(text)) {
-      return 'Nesta primeira versão, eu ainda não salvo novas informações como memória permanente. Posso usar esta conversa enquanto o painel estiver aberto, mas uma correção só vira conhecimento duradouro quando a equipe a aprovar e cadastrar na base. Isso evita guardar informação errada.';
+      return 'Nesta primeira versão, eu ainda não salvo novas informações como memória permanente. Posso usar esta conversa enquanto o painel estiver aberto, mas o histórico da conversa fica salvo apenas neste navegador; uma correção só vira conhecimento duradouro quando a equipe a aprovar e cadastrar na base. Isso evita guardar informação errada.';
     }
 
     if (selectedMode === 'loja') {
@@ -135,15 +168,19 @@
     pending.remove();
     addMessage(answer, 'assistant');
     history.push({ role: 'assistant', content: answer });
-    history = history.slice(-12);
+    history = history.slice(-HISTORY_LIMIT);
+    saveHistory();
     sendButton.disabled = false;
     input.disabled = false;
     input.focus();
   }
 
+  renderSavedHistory();
+
   heroTrigger.addEventListener('click', () => openPanel(heroTrigger));
   floatingTrigger.addEventListener('click', () => openPanel(floatingTrigger));
   closeButton.addEventListener('click', closePanel);
+  if (newChatButton) newChatButton.addEventListener('click', startNewConversation);
   modeButtons.forEach(button => button.addEventListener('click', () => setMode(button.dataset.expressinhoMode)));
   quickButtons.forEach(button => button.addEventListener('click', () => {
     if (button.dataset.expressinhoMode) setMode(button.dataset.expressinhoMode);
