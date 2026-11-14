@@ -138,7 +138,8 @@
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Falha ao enviar cadastro.');
       $('draftStatus').textContent = 'Enviado · pendente';
-      say('Cadastro enviado! Ele está na fila privada para sua aprovação. Código: ' + data.id, 'success');\n      await loadQueue();
+      say('Cadastro enviado! Ele está na fila privada para sua aprovação. Código: ' + data.id, 'success');
+      await loadQueue();
     } catch (error) { say(error.message || 'Não foi possível enviar. Verifique a conexão.', 'error'); }
     finally { button.disabled = false; button.textContent = 'Enviar para Express’Arte'; }
   }
@@ -212,7 +213,8 @@
     if (sharedImage) showImage(sharedImage);
   });
   $('removeImage').addEventListener('click', () => { sharedImage = null; $('imageFile').value = ''; $('filePreview').hidden = true; if (objectUrl) URL.revokeObjectURL(objectUrl); objectUrl = null; });
-  $('previewButton').addEventListener('click', fetchPreview);\n  $('refreshQueue').addEventListener('click', loadQueue);
+  $('previewButton').addEventListener('click', fetchPreview);
+  $('refreshQueue').addEventListener('click', loadQueue);
   $('sendButton').addEventListener('click', sendImport);
   $('saveConnection').addEventListener('click', () => {
     const value = $('adminToken').value.trim();
