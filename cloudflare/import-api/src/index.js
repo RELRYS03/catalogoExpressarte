@@ -52,6 +52,25 @@ function metaValue(html, wanted) {
   }
   return '';
 }
+async function fetchAllowedPage(sourceUrl) {
+  let current = sourceUrl;
+  for (let attempt = 0; attempt < 4; attempt++) {
+    const response = await fetch(current, {
+      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; ExpressArteCatalog/1.0)', 'Accept': 'text/html,application/xhtml+xml' },
+      redirect: 'manual'
+    });
+    if (response.status >= 300 && response.status < 400) {
+      const location = response.headers.get('Location');
+      if (!location) throw new Error('Redirecionamento sem destino');
+      const next = new URL(location, current);
+      if (next.protocol !== 'https:' || !allowedPageHosts.has(next.hostname.toLowerCase())) throw new Error('Redirecionamento para domínio não permitido');
+      current = next.toString();
+      continue;
+    }
+    return { response, url: current };
+  }
+  throw new Error('Muitos redirecionamentos na página de origem');
+}
 async function limitedText(response, maxBytes = 2_000_000) {
   if (!response.body) return '';
   const reader = response.body.getReader();
@@ -99,13 +118,10 @@ export default {
         if (!sourceUrl) return json({ error: 'Link HTTPS inválido' }, 400, cors);
         const host = new URL(sourceUrl).hostname.toLowerCase();
         if (!allowedPageHosts.has(host)) return json({ error: 'Este site ainda não está na lista de fontes suportadas' }, 422, cors);
-        const upstream = await fetch(sourceUrl, {
-          headers: { 'User-Agent': 'Mozilla/5.0 (compatible; ExpressArteCatalog/1.0)', 'Accept': 'text/html,application/xhtml+xml' },
-          redirect: 'follow'
-        });
+        const fetched = await fetchAllowedPage(sourceUrl);
+        const upstream = fetched.response;
         if (!upstream.ok) return json({ error: 'O site de origem não permitiu consultar esta página (HTTP ' + upstream.status + ')' }, 502, cors);
-        const finalUrl = new URL(upstream.url);
-        if (!allowedPageHosts.has(finalUrl.hostname.toLowerCase())) return json({ error: 'Redirecionamento para domínio não permitido' }, 422, cors);
+        const finalUrl = new URL(fetched.url);
         const html = await limitedText(upstream);
         const title = metaValue(html, 'og:title') || metaValue(html, 'twitter:title');
         const rawImage = metaValue(html, 'og:image') || metaValue(html, 'twitter:image');
