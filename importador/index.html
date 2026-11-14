@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#4a2b1c">
+  <meta name="description" content="Importe modelos compartilhados para o catálogo Express'Arte.">
+  <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="icon" href="./icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="./styles.css">
+  <title>Express'Arte Importador</title>
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="../" aria-label="Voltar ao catálogo Express'Arte">
+      <span class="brand-mark">E<span>3D</span></span>
+      <span><strong>Express'<em>Arte</em></strong><small>IMPORTADOR MOBILE</small></span>
+    </a>
+    <span class="connection" id="connectionStatus"><i></i> Verificando conexão</span>
+  </header>
+  <main class="shell">
+    <section class="intro">
+      <span class="eyebrow">BAMBU HANDY · MAKERWORLD · OUTROS SITES</span>
+      <h1>Seu próximo modelo começa aqui.</h1>
+      <p>Compartilhe um link ou uma imagem pelo menu do Android. Revise os dados e envie para sua fila privada do catálogo.</p>
+      <div class="steps"><span>1. Compartilhar</span><b>→</b><span>2. Revisar</span><b>→</b><span>3. Enviar</span></div>
+    </section>
+    <section class="panel" aria-labelledby="formTitle">
+      <div class="panel-heading">
+        <div><span class="eyebrow">NOVO CADASTRO</span><h2 id="formTitle">Modelo recebido</h2></div>
+        <span class="status-pill" id="draftStatus">Rascunho local</span>
+      </div>
+      <div class="share-note" id="shareNote" role="status">
+        <span class="share-icon">↗</span>
+        <span>Nesta tela aparecerão os links e as imagens que você compartilhar pelo Bambu Handy ou por outro aplicativo.</span>
+      </div>
+      <label for="sourceUrl">Link original do modelo</label>
+      <div class="url-row">
+        <input id="sourceUrl" type="url" inputmode="url" placeholder="https://makerworld.com/models/..." autocomplete="url">
+        <button class="secondary-button" id="previewButton" type="button">Buscar dados</button>
+      </div>
+      <div class="preview-card" id="previewCard" hidden>
+        <img id="coverPreview" alt="Prévia da imagem do modelo">
+        <div><strong id="previewTitle">Prévia do modelo</strong><small id="previewMeta">Imagem e informações encontradas</small></div>
+      </div>
+      <label for="title">Nome do modelo</label>
+      <input id="title" type="text" maxlength="180" placeholder="Ex.: circle slicer v2.1.1">
+      <label for="author">Criador (se disponível)</label>
+      <input id="author" type="text" maxlength="120" placeholder="Nome do criador">
+      <div class="two-columns">
+        <div><label for="price">Preço de venda sugerido (R$)</label><input id="price" type="text" inputmode="decimal" placeholder="Ex.: 29,90"></div>
+        <div><label for="category">Categoria</label><select id="category">
+          <option value="Outros">Escolher categoria</option><option>Academia</option><option>Brinquedos</option><option>Canecas</option><option>Chaveiros</option><option>Decoração</option><option>Presentes</option><option>Religiosos</option><option>Suportes</option><option>Colecionáveis</option>
+        </select></div>
+      </div>
+      <label for="imageFile">Imagem de capa (opcional)</label>
+      <input id="imageFile" type="file" accept="image/*">
+      <p class="hint">Se o compartilhamento incluir uma imagem, ela aparecerá aqui. Também pode selecionar uma imagem salva no celular.</p>
+      <div class="file-preview" id="filePreview" hidden><img id="filePreviewImage" alt="Imagem selecionada"><span id="filePreviewName"></span><button type="button" id="removeImage" aria-label="Remover imagem">×</button></div>
+      <details class="advanced">
+        <summary>Conexão segura com o catálogo</summary>
+        <label for="apiBase">Endereço da API Cloudflare</label>
+        <input id="apiBase" type="url" inputmode="url" placeholder="https://seu-worker.workers.dev">
+        <label for="adminToken">Chave administrativa</label>
+        <input id="adminToken" type="password" autocomplete="off" placeholder="Cole a chave fornecida na configuração">
+        <button class="secondary-button full" type="button" id="saveConnection">Guardar nesta sessão</button>
+        <p class="hint">A chave fica somente na sessão atual do navegador, não é gravada no código do aplicativo. Nunca compartilhe essa chave.</p>
+      </details>
+      <div class="actions">
+        <button class="primary-button" id="sendButton" type="button">Enviar para Express'Arte</button>
+        <button class="text-button" id="clearButton" type="button">Limpar formulário</button>
+      </div>
+      <p class="feedback" id="feedback" role="status" aria-live="polite">Os modelos enviados entram como pendentes. Nada é publicado automaticamente.</p>
+    </section>
+    <section class="privacy"><strong>Você continua no controle.</strong><p>O importador guarda somente o link, a imagem autorizada e os dados do cadastro. A aprovação para publicação e uso comercial continua manual.</p></section>
+  </main>
+  <footer>Express'Arte · Catálogo e Importação</footer>
+  <script src="./app.js" defer></script>
+</body>
+</html>
