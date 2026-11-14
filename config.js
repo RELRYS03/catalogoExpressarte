@@ -7,5 +7,5 @@ window.EXPRESSARTE_CONFIG = {
   instagramUrl: "https://www.instagram.com/expressarte_personalizados3d/?hl=en",
   draftMode: true,
   // Endpoint HTTPS opcional para a IA real. Nunca coloque chaves de API neste arquivo.
-  expressinhoEndpoint: ""
+  expressinhoEndpoint: "",\n  // Origem pública da API Cloudflare. Deixe vazio até a implantação.\n  catalogApiEndpoint: ""
 };
