@@ -123,6 +123,15 @@ test('manifest declara o destino de compartilhamento Android', async () => {
   assert.equal(manifest.share_target.params.files[0].name, 'images');
 });
 
+test('prévia de metadados e editor de capa têm identificadores distintos', async () => {
+  const { readFile } = await import('node:fs/promises');
+  const html = await readFile(new URL('../../../importador/index.html', import.meta.url), 'utf8');
+  const ids = [...html.matchAll(/\bid="([^"]+)"/g)].map(([, id]) => id);
+  assert.equal(new Set(ids).size, ids.length);
+  assert.match(html, /<img id="coverPreview"/);
+  assert.match(html, /<canvas id="coverCropPreview"/);
+});
+
 test('importador aceita origem do Worker, /api e configuração compartilhada sem duplicar rotas', async () => {
   const { readFile } = await import('node:fs/promises');
   const { runInNewContext } = await import('node:vm');

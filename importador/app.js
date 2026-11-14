@@ -77,7 +77,7 @@
     context.drawImage(coverSource, ...crop, 0, 0, canvas.width, canvas.height);
   }
   function updateCoverPreview() {
-    if (coverSource) drawCover($('coverPreview'), coverCrop());
+    if (coverSource) drawCover($('coverCropPreview'), coverCrop());
   }
   async function openCover() {
     const file = originalImage;
