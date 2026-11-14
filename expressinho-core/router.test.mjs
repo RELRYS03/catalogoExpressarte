@@ -32,7 +32,7 @@ test('lista diferencia sugestão pendente de aprovação', () => {
 test('responde a várias perguntas comerciais na mesma mensagem', () => {
   const question = 'Quero comprar 10 unidades. Tem desconto? Está disponível para pronta entrega? Posso personalizar com meu nome? Quando recebo?';
   const reply = getDeterministicReply(question + ' Pote Anilha 28KG / 64LB', 'loja', knowledge);
-  assert.match(reply, /R\\$\\s?349,00/);
+  assert.match(reply, /R\$\s?349,00/);
   assert.match(reply, /preço provisório/i);
   assert.match(reply, /desconto.*não há política/i);
   assert.match(reply, /disponibilidade não está informada/i);
