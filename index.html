@@ -6,12 +6,12 @@
   <meta name="theme-color" content="#5a3524">
   <meta name="description" content="Catálogo de produtos da Express'Arte – Personalizados 3D.">
   <title>Express'Arte | Catálogo de produtos</title>
-  <link rel="stylesheet" href="styles.css?v=20261114-promocoes-compactas">
+  <link rel="stylesheet" href="styles.css?v=20261114-voltar-ao-topo">
   <link rel="stylesheet" href="product-details.css">
   <link rel="stylesheet" href="expressinho.css">
 </head>
 <body>
-  <div class="draft-ribbon"><span class="status-dot"></span> CATÁLOGO EM DESENVOLVIMENTO · PREÇOS SUJEITOS A CONFIRMAÇÃO</div>
+  <div class="draft-ribbon" id="inicio" tabindex="-1"><span class="status-dot"></span> CATÁLOGO EM DESENVOLVIMENTO · PREÇOS SUJEITOS A CONFIRMAÇÃO</div>
 
   <header class="site-header">
     <button class="icon-button menu-toggle" id="menuToggle" aria-label="Abrir menu" aria-expanded="false" aria-controls="mobileMenu">
@@ -195,6 +195,10 @@
     <p class="expressinho-disclaimer">Não executa ações no computador nem altera produtos. Para ativar a IA real, conectaremos um serviço seguro sem expor chaves no navegador.</p>
   </section>
 
+  <a class="back-to-top" href="#inicio">
+    <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5m-6 6 6-6 6 6"/></svg>
+    Voltar ao topo
+  </a>
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
   <script src="config.js"></script>
   <script src="app.js?v=20261114-promocoes"></script>

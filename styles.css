@@ -139,6 +139,33 @@
 }
 
 
+.back-to-top {
+  position: fixed;
+  z-index: 19;
+  left: 50%;
+  bottom: calc(28px + env(safe-area-inset-bottom));
+  transform: translateX(-50%);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+  padding: 0 14px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--white);
+  color: var(--brown);
+  font-size: 12px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+.back-to-top:hover { background: var(--cream-2); }
+@media (max-width: 680px) {
+  .back-to-top { bottom: calc(92px + env(safe-area-inset-bottom)); }
+}
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+}
+
 /* Promoções */
 .promotion-controls{display:flex;gap:4px}
 .promotion-controls .icon-button{width:44px;height:44px;border:1px solid var(--line)}
