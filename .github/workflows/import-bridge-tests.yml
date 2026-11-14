@@ -4,6 +4,8 @@ on:
     branches: [feat/cloudflare-catalog-import-bridge]
     paths:
       - 'cloudflare/import-api/**'
+      - 'importador/**'
+      - 'importador/**'
       - '.github/workflows/import-bridge-tests.yml'
   pull_request:
     paths:
