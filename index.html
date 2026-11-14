@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#5a3524">
   <meta name="description" content="Catálogo de produtos da Express'Arte – Personalizados 3D.">
   <title>Express'Arte | Catálogo de produtos</title>
-  <link rel="stylesheet" href="styles.css?v=20261022-uniforme">
+  <link rel="stylesheet" href="styles.css?v=20261114-promocoes">
   <link rel="stylesheet" href="product-details.css">
   <link rel="stylesheet" href="expressinho.css">
 </head>
@@ -82,7 +82,17 @@
     </section>
 
     <section class="weekly-deals-section" id="destaques" aria-labelledby="weeklyDealsTitle" hidden>
-      <div class="section-heading"><h2 id="weeklyDealsTitle">Promoções</h2></div>
+      <div class="section-heading">
+        <h2 id="weeklyDealsTitle">Promoções</h2>
+        <div class="promotion-controls" id="promotionControls" hidden>
+          <button class="icon-button" type="button" id="previousPromotion" aria-controls="promotionGrid" aria-label="Promoção anterior">
+            <svg aria-hidden="true" viewBox="0 0 24 24"><path d="m14 6-6 6 6 6"/></svg>
+          </button>
+          <button class="icon-button" type="button" id="nextPromotion" aria-controls="promotionGrid" aria-label="Próxima promoção">
+            <svg aria-hidden="true" viewBox="0 0 24 24"><path d="m10 6 6 6-6 6"/></svg>
+          </button>
+        </div>
+      </div>
       <div class="weekly-deals-grid" id="promotionGrid"></div>
     </section>
     <section class="products-section" id="catalogo" aria-labelledby="catalogTitle" hidden>
@@ -187,7 +197,7 @@
 
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
   <script src="config.js"></script>
-  <script src="app.js"></script>
+  <script src="app.js?v=20261114-promocoes"></script>
   <script src="product-details.js"></script>
   <script src="expressinho.js"></script>
 </body>

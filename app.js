@@ -277,8 +277,38 @@
     }
     await revealLinkedProduct();
   }
+  const promotionGrid = $('#promotionGrid');
+  const promotionControls = $('#promotionControls');
+  const promotionMotion = matchMedia('(prefers-reduced-motion: reduce)');
+
+  function updatePromotionControls() {
+    promotionControls.hidden = promotionGrid.scrollWidth - promotionGrid.clientWidth <= 1;
+  }
+
+  function movePromotion(direction) {
+    const { scrollLeft, scrollWidth, clientWidth } = promotionGrid;
+    const end = scrollWidth - clientWidth;
+    const wrap = direction > 0 ? scrollLeft >= end - 1 : scrollLeft <= 1;
+    if (wrap) {
+      promotionGrid.scrollTo({ left: direction > 0 ? 0 : end, behavior: 'instant' });
+      return;
+    }
+    const positions = [...promotionGrid.children].map(card => card.offsetLeft);
+    const nextPosition = direction > 0
+      ? positions.find(left => left > scrollLeft + 1)
+      : positions.reverse().find(left => left < scrollLeft - 1);
+    promotionGrid.scrollTo({
+      left: nextPosition ?? (direction > 0 ? end : 0),
+      behavior: promotionMotion.matches ? 'instant' : 'smooth'
+    });
+  }
+
+  $('#previousPromotion').addEventListener('click', () => movePromotion(-1));
+  $('#nextPromotion').addEventListener('click', () => movePromotion(1));
+  new ResizeObserver(updatePromotionControls).observe(promotionGrid);
+
   function renderPromotions(promotions) {
-    const grid = $('#promotionGrid');
+    const grid = promotionGrid;
     grid.replaceChildren();
     for (const offer of promotions) {
       const product = getProduct(offer.product_id) || getProduct('imported-' + offer.product_id);
@@ -309,6 +339,7 @@
       grid.append(card);
     }
     $('#destaques').hidden = !grid.childElementCount;
+    updatePromotionControls();
   }
 
   function sendOrder() {
