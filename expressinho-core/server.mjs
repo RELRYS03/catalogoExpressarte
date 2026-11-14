@@ -11,12 +11,12 @@ const MAX_BODY_BYTES = 20 * 1024;
 const CACHE_TTL_MS = Math.max(0, Number(process.env.EXPRESSINHO_CACHE_TTL_MS || 300000));
 const CACHE_MAX_ENTRIES = Math.max(0, Number(process.env.EXPRESSINHO_CACHE_MAX_ENTRIES || 100));
 const responseCache = new Map();
-const VOLATILE_QUERY = /\\b(pre[cç]o|valor|custa|quanto|estoque|dispon[ií]vel|prazo|entrega|promo[cç][aã]o|desconto|pedido|hoje|amanh[ãa]|agora)\\b/i;
+const VOLATILE_QUERY = /\b(pre[cç]o|valor|custa|quanto|estoque|dispon[ií]vel|prazo|entrega|promo[cç][aã]o|desconto|pedido|hoje|amanh[ãa]|agora)\b/i;
 
 function cacheKey(mode, model, message, history) {
   // Cache exato apenas para perguntas sem histórico: evita reaproveitar contexto de outra conversa.
   if (!CACHE_TTL_MS || !CACHE_MAX_ENTRIES || history.length || VOLATILE_QUERY.test(message)) return null;
-  return [mode, model, message.normalize('NFKC').toLocaleLowerCase('pt-BR').replace(/\\s+/g, ' ').trim()].join('::');
+  return [mode, model, message.normalize('NFKC').toLocaleLowerCase('pt-BR').replace(/\s+/g, ' ').trim()].join('::');
 }
 
 function readCachedReply(key) {
