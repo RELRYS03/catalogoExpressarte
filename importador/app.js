@@ -107,7 +107,9 @@
     finally { $('previewButton').disabled = false; $('previewButton').textContent = 'Buscar dados'; }
   }
   function parsePrice(value) {
-    const normalized = String(value).trim().replace(/\s/g,'').replace(/\./g,'').replace(',','.');
+    let normalized = String(value).trim().replace(/R\\$/gi,'').replace(/\\s/g,'');
+    if (normalized.includes(',')) normalized = normalized.replace(/\\./g,'').replace(',','.');
+    else if ((normalized.match(/\\./g) || []).length > 1) normalized = normalized.replace(/\\./g,'');
     if (!normalized) return null;
     const n = Number(normalized);
     return Number.isFinite(n) && n >= 0 ? Math.round(n * 100) : NaN;
