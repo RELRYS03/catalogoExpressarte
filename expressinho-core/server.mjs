@@ -316,9 +316,19 @@ const server = http.createServer(async (req, res) => {
     if (req.method !== 'GET') return sendJson(res, 405, { error: 'Use GET.' });
     try {
       const model = await getInstalledModel();
-      return sendJson(res, 200, { ok: true, service: 'Expressinho IA local', provider: 'ollama', model, deterministic: true, cache: cacheStats() });
+      return sendJson(res, 200, { ok: true, service: 'Expressinho IA local', provider: 'ollama', model, deterministic: true, onlineFallbackConfigured: Boolean(getCompatibleProviderConfig()), cache: cacheStats() });
     } catch (error) {
-      return sendJson(res, 503, { ok: false, error: error.message || 'Ollama indisponível.' });
+      let onlineFallbackConfigured = false;
+      let configurationError = null;
+      try {
+        onlineFallbackConfigured = Boolean(getCompatibleProviderConfig());
+      } catch (configError) {
+        configurationError = configError.message;
+      }
+      if (onlineFallbackConfigured) {
+        return sendJson(res, 200, { ok: true, service: 'Expressinho IA', provider: 'online-fallback', localAvailable: false, onlineFallbackConfigured: true, deterministic: true, cache: cacheStats() });
+      }
+      return sendJson(res, 503, { ok: false, localAvailable: false, onlineFallbackConfigured: false, error: configurationError || error.message || 'Ollama indisponível.' });
     }
   }
   if (url.pathname === '/api/chat') return handleChat(req, res);
