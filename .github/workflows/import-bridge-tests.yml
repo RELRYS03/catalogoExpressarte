@@ -19,5 +19,10 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
+      - name: Verificar sintaxe JavaScript
+        run: |
+          node --check cloudflare/import-api/src/index.js
+          node --check importador/app.js
+          node --check importador/sw.js
       - name: Testar API e contrato de compartilhamento Android
         run: node --test cloudflare/import-api/tests/bridge.test.mjs
