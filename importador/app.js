@@ -293,9 +293,13 @@
   async function signIn(event, setup = false) {
     event.preventDefault();
     const button = $(setup ? 'createAdmin' : 'saveConnection');
+    const label = button.textContent;
     const password = $(setup ? 'setupPassword' : 'adminPassword');
+    const feedback = $('adminFeedback');
     const revision = ++adminRevision;
+    feedback.hidden = true;
     button.disabled = true;
+    button.textContent = setup ? 'Criando usuário…' : 'Entrando…';
     try {
       const target = endpoint('/api/imports');
       const api = $('apiBase').value.trim();
@@ -304,7 +308,10 @@
       const headers = { 'Content-Type': 'application/json' };
       if (setup) {
         const key = $('adminToken').value.trim() || token();
-        if (!key) throw new Error('Informe a chave administrativa atual.');
+        if (!key) {
+          $('adminToken').focus();
+          throw new Error('Cole a chave administrativa atual no campo acima e toque em Criar usuário.');
+        }
         headers.Authorization = 'Bearer ' + key;
       }
       const response = await fetch(endpoint('/api/admin/' + (setup ? 'setup' : 'login')), {
@@ -331,9 +338,11 @@
       say(remember ? 'Sessão lembrada neste aparelho.' : 'Sessão iniciada.', 'success');
       await loadQueue();
     } catch (error) {
-      say(error.message || 'Não foi possível entrar.', 'error');
+      feedback.textContent = error.message || 'Não foi possível entrar.';
+      feedback.hidden = false;
     } finally {
       button.disabled = false;
+      button.textContent = label;
     }
   }
   function signOut() {
