@@ -52,6 +52,16 @@ test('login privado cria uma conta, limita tentativas e revoga sessões', async 
     const id = product.body.id;
     const row = db.prepare('SELECT details_json FROM catalog_product_details WHERE product_id=?').get(id);
     assert.equal(JSON.parse(row.details_json).description, 'Kit para montar');
+    const newImport = new FormData();
+    newImport.set('title', 'Modelo com medidas');
+    newImport.set('sourceUrl', 'https://example.com/modelo-com-medidas');
+    const measurements = { description: '', printMinutes: 103, filamentGrams: 1150.04, assembly: '', leadTime: '' };
+    newImport.set('details', JSON.stringify(measurements));
+    const createdWithMeasurements = await worker.fetch(new Request(base + '/api/imports', { method: 'POST', headers, body: newImport }), env);
+    assert.equal(createdWithMeasurements.status, 201);
+    const newId = (await createdWithMeasurements.json()).id;
+    const savedMeasurements = db.prepare('SELECT details_json FROM catalog_product_details WHERE product_id=?').get(newId);
+    assert.deepEqual(JSON.parse(savedMeasurements.details_json), measurements);
     const form = new FormData();
     form.set('priceCents', '1200');
     form.set('details', JSON.stringify({ description: 'Kit revisto', printMinutes: 90, filamentGrams: 21.5, assembly: 'Encaixe as rodas.', leadTime: 'Até três dias' }));

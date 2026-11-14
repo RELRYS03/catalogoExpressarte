@@ -149,7 +149,7 @@
     const time = minutes ? [Math.floor(minutes / 60) ? Math.floor(minutes / 60) + ' h' : '', minutes % 60 ? minutes % 60 + ' min' : ''].filter(Boolean).join(' ') : '';
     const specs = [
       ['Tempo de impressão', time],
-      ['Filamento', details.filamentGrams ? new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 2 }).format(details.filamentGrams) + ' g' : ''],
+      ['Filamento', details.filamentGrams ? new Intl.NumberFormat('pt-BR', { useGrouping: 'always', maximumFractionDigits: 2 }).format(details.filamentGrams) + ' g' : ''],
       ['Prazo de produção', details.leadTime]
     ].filter(([, value]) => value);
     return '<div class="catalog-product-details"><p class="product-description">' + escapeHtml(details.description || fallback) + '</p>' +

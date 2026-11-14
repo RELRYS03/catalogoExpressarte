@@ -384,11 +384,15 @@ export default {
         if (contentType.includes('multipart/form-data')) {
           const form = await request.formData();
           imageFile = form.get('image');
-          body = Object.fromEntries(['sourceUrl','sourceSite','title','author','description','category','priceCents','imageUrl','licenseName'].map(key => [key, form.get(key)]));
+          body = Object.fromEntries(['sourceUrl','sourceSite','title','author','description','details','category','priceCents','imageUrl','licenseName'].map(key => [key, form.get(key)]));
         } else body = await parseJson(request);
         if (!body) return json({ error: 'Dados inválidos ou muito grandes' }, 400, cors);
         if (body.description != null && (typeof body.description !== 'string' || body.description.length > 1200)) return json({ error: 'Escreva uma descrição de até 1200 caracteres.' }, 400, cors);
         const description = body.description?.trim();
+        const details = body.details != null
+          ? readProductDetails(body.details)
+          : description ? { description, printMinutes: null, filamentGrams: null, assembly: '', leadTime: '' } : null;
+        if (body.details != null && !details) return json({ error: 'Confira os detalhes do produto.' }, 400, cors);
         const linkProvided = body.sourceUrl != null && body.sourceUrl !== '';
         const sourceUrl = linkProvided ? safeUrl(body.sourceUrl) : null;
         let imageUrl = body.imageUrl ? safeUrl(body.imageUrl) : '';
@@ -412,8 +416,7 @@ export default {
             "INSERT INTO catalog_imports (id,source_url,source_site,title,author,image_url,category,price_cents,license_name,status) VALUES (?,?,?,?,?,?,?,?,?,'pending')"
           ).bind(id, sourceUrl || 'urn:expressarte:product:' + id, sourceUrl ? str(body.sourceSite, 80) || new URL(sourceUrl).hostname : 'foto-propria', title, str(body.author, 120), imageUrl,
             str(body.category, 80) || 'Outros', price, str(body.licenseName, 120));
-          if (description) {
-            const details = { description, printMinutes: null, filamentGrams: null, assembly: '', leadTime: '' };
+          if (details) {
             await env.DB.batch([insert, storeProductDetails(env, 'catalog_imports', id, details)]);
           } else {
             await insert.run();

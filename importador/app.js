@@ -1,7 +1,7 @@
 (() => {
   'use strict';
   const $ = id => document.getElementById(id);
-  const fields = ['sourceUrl','title','author','description','price','category'];
+  const fields = ['sourceUrl','title','author','description','printMinutes','filamentGrams','price','category'];
   let sharedImage = null;
   let originalImage = null;
   let coverSource = null;
@@ -563,10 +563,14 @@
     const sourceUrl = cleanUrl(rawLink);
     const title = $('title').value.trim();
     const priceCents = parsePrice($('price').value);
+    const printMinutes = parsePrintTime($('printMinutes').value.trim());
+    const filamentGrams = parseFilamentWeight($('filamentGrams').value.trim());
     if (rawLink && !sourceUrl) return say('Confira o link HTTPS informado.', 'error');
     if (!sourceUrl && !sharedImage) return say('Adicione um link ou escolha uma foto do produto.', 'error');
     if (!title) return say('Informe o nome do modelo.', 'error');
     if (Number.isNaN(priceCents)) return say('Confira o preço informado.', 'error');
+    const measurementError = checkMeasurements(printMinutes, filamentGrams);
+    if (measurementError) return say(measurementError, 'error');
     if (!token()) return promptSignIn();
     const button = $('sendButton'); button.disabled = true; button.textContent = 'Enviando…';
     try {
@@ -576,7 +580,11 @@
         body.append('sourceSite', hostOf(sourceUrl));
       }
       body.append('title', title); body.append('author', $('author').value.trim());
-      if ($('description').value.trim()) body.append('description', $('description').value.trim());
+      const description = $('description').value.trim();
+      if (description) body.append('description', description);
+      if (printMinutes !== null || filamentGrams !== null) {
+        body.append('details', JSON.stringify({ description, printMinutes, filamentGrams, assembly: '', leadTime: '' }));
+      }
       body.append('category', $('category').value); body.append('priceCents', priceCents == null ? '' : String(priceCents));
       const preview = $('previewCard').dataset;
       const currentPreview = preview.sourceUrl === sourceUrl ? preview : {};
@@ -634,22 +642,56 @@
   }
   const detailFields = [
     ['description', 'Descrição do produto', 1200],
-    ['printMinutes', 'Tempo de impressão (minutos)', 6],
-    ['filamentGrams', 'Filamento consumido (g)', 10],
+    ['printMinutes', 'Tempo de impressão', 30],
+    ['filamentGrams', 'Filamento consumido (g)', 20],
     ['leadTime', 'Prazo de produção', 100],
     ['assembly', 'Como montar ou usar', 1600]
   ];
+  const gramsFormat = new Intl.NumberFormat('pt-BR', { useGrouping: 'always', maximumFractionDigits: 2 });
+
+  function formatPrintTime(minutes) {
+    const hours = Math.floor(minutes / 60);
+    const remainder = minutes % 60;
+    return [hours && hours + ' h', remainder && remainder + ' min'].filter(Boolean).join(' ');
+  }
+
+  function parsePrintTime(value) {
+    if (!value) return null;
+    const minutesOnly = /^(\d+)\s*(?:m|min(?:uto)?s?)?$/i.exec(value);
+    const time = /^(\d+)\s*(?:h|horas?)(?:\s*(?:e\s+)?(\d+)\s*(?:m|min(?:uto)?s?)?)?$/i.exec(value);
+    const minutes = minutesOnly ? Number(minutesOnly[1]) : time ? Number(time[1]) * 60 + Number(time[2] || 0) : NaN;
+    return Number.isSafeInteger(minutes) && minutes > 0 && minutes <= 100000 ? minutes : NaN;
+  }
+
+  function parseFilamentWeight(value) {
+    if (!value) return null;
+    const weight = /^(\d{1,3}(?:\.\d{3})+(?:,\d{1,2})?|\d+(?:[,.]\d{1,2})?)\s*(kg|g)?$/i.exec(value);
+    if (!weight) return NaN;
+    const amount = weight[1];
+    const normalized = /^\d{1,3}(?:\.\d{3})+(?:,|$)/.test(amount) ? amount.replaceAll('.', '') : amount;
+    const grams = Number(normalized.replace(',', '.')) * (weight[2]?.toLowerCase() === 'kg' ? 1000 : 1);
+    return grams > 0 && grams <= 100000 ? Math.round(grams * 100) / 100 : NaN;
+  }
+
+  function checkMeasurements(printMinutes, filamentGrams) {
+    if (Number.isNaN(printMinutes)) return 'Confira o tempo de impressão. Use um valor como 1h43min ou 103 min.';
+    if (Number.isNaN(filamentGrams)) return 'Confira o peso do filamento. Use um valor como 70,04 g ou 1.150 g.';
+    return '';
+  }
+
   function renderProductDetailFields(item) {
     const details = JSON.parse(item.details_json || '{}');
     return '<fieldset class="edit-product-details"><legend>Detalhes do produto</legend>' + detailFields.map(([name, label, limit]) => {
-      const value = escapeHtml(String(details[name] ?? '').replace('.', name === 'filamentGrams' ? ',' : '.'));
+      let value = details[name] ?? '';
+      if (name === 'printMinutes' && value) value = formatPrintTime(value);
+      if (name === 'filamentGrams' && value) value = gramsFormat.format(value);
+      value = escapeHtml(String(value));
       const attrs = ' name="' + name + '" maxlength="' + limit + '"';
       if (name === 'description' || name === 'assembly') {
         return '<label>' + label + '<textarea' + attrs + ' rows="3">' + value + '</textarea></label>';
       }
-      const mode = name === 'printMinutes' ? 'numeric' : name === 'filamentGrams' ? 'decimal' : 'text';
-      const example = name === 'leadTime' ? ' placeholder="Ex.: até 3 dias úteis"' : '';
-      return '<label>' + label + '<input' + attrs + ' inputmode="' + mode + '" value="' + value + '"' + example + '></label>';
+      const examples = { printMinutes: 'Ex.: 1h43min', filamentGrams: 'Ex.: 70,04 g ou 1.150 g', leadTime: 'Ex.: até 3 dias úteis' };
+      return '<label>' + label + '<input' + attrs + ' value="' + value + '" placeholder="' + examples[name] + '"></label>';
     }).join('') + '</fieldset>';
   }
   async function saveProductEdit(event) {
@@ -666,13 +708,13 @@
     const result = form.querySelector('[role="status"]');
     const price = parsePrice(input.value);
     const details = Object.fromEntries(detailFields.map(([name]) => [name, form.elements.namedItem(name).value.trim()]));
-    if ((details.printMinutes && !/^\d+$/.test(details.printMinutes)) ||
-        (details.filamentGrams && !/^\d+(?:[,.]\d+)?$/.test(details.filamentGrams))) {
-      result.textContent = 'Informe o tempo em minutos inteiros e o filamento em gramas.';
+    details.printMinutes = parsePrintTime(details.printMinutes);
+    details.filamentGrams = parseFilamentWeight(details.filamentGrams);
+    const measurementError = checkMeasurements(details.printMinutes, details.filamentGrams);
+    if (measurementError) {
+      result.textContent = measurementError;
       return;
     }
-    details.printMinutes = details.printMinutes ? Number(details.printMinutes) : null;
-    details.filamentGrams = details.filamentGrams ? Number(details.filamentGrams.replace(',', '.')) : null;
     if (Number.isNaN(price) || price > 100000000 || (price === null && card.dataset.builtIn === 'true')) {
       result.textContent = 'Confira o valor informado.';
       return;
@@ -718,6 +760,8 @@
         card.querySelector('.queue-category').textContent = data.category;
       }
       input.value = data.priceCents === null ? '' : (data.priceCents / 100).toFixed(2).replace('.', ',');
+      form.elements.namedItem('printMinutes').value = formatPrintTime(details.printMinutes);
+      form.elements.namedItem('filamentGrams').value = details.filamentGrams === null ? '' : gramsFormat.format(details.filamentGrams);
       form.parentElement.querySelector('summary').textContent = 'Editar produto · ' +
         (data.priceCents === null ? 'Sob consulta' : formatMoney.format(data.priceCents / 100));
       if (file) {
