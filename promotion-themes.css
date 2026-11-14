@@ -15,6 +15,15 @@
   background: var(--offer-paper);
 }
 .promotion-heading[data-theme] h2 { color: var(--offer-ink, var(--brown)); }
+.promotion-heading-title { display: flex; align-items: center; gap: clamp(8px, 2vw, 24px); }
+.promotion-heading .promotion-mascot {
+  display: block;
+  width: auto;
+  height: clamp(68px, 9vw, 96px);
+  object-fit: contain;
+  margin-bottom: -8px;
+  align-self: end;
+}
 .weekly-deal-card[data-theme] { border-color: var(--offer-accent, var(--line)); }
 .weekly-deal-card[data-theme] .weekly-deal-photo { background: var(--offer-paper, var(--cream-2)); }
 .weekly-deal-card[data-theme] .weekly-deal-tag,

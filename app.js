@@ -304,11 +304,35 @@
   const promotionGrid = $('#promotionGrid');
   const promotionControls = $('#promotionControls');
   const promotionHeading = $('.promotion-heading');
+  const promotionMascot = $('#promotionMascot');
   const promotionThemes = config.promotionThemes || {};
+  const promotionMascotImages = new Map([
+    ['natal', 'assets/expressinho-promocao-natal.webp'],
+    ['reveillon', 'assets/expressinho-promocao-reveillon.webp']
+  ]);
   const promotionMotion = matchMedia('(prefers-reduced-motion: reduce)');
+  let promotionMascotCards = [];
+  let commonPromotionTheme = 'default';
+
+  function updatePromotionMascot() {
+    const left = promotionGrid.scrollLeft;
+    const right = left + promotionGrid.clientWidth;
+    const visibleCard = promotionMascotCards.find(card => {
+      const center = card.offsetLeft + card.offsetWidth / 2;
+      return center >= left && center <= right;
+    });
+    const theme = (visibleCard || promotionMascotCards[0])?.dataset.theme;
+    promotionHeading.dataset.theme = theme || commonPromotionTheme;
+    promotionMascot.hidden = !theme;
+    if (theme) {
+      const source = promotionMascotImages.get(theme);
+      if (promotionMascot.getAttribute('src') !== source) promotionMascot.src = source;
+    }
+  }
 
   function updatePromotionControls() {
     promotionControls.hidden = promotionGrid.scrollWidth - promotionGrid.clientWidth <= 1;
+    updatePromotionMascot();
   }
 
   function movePromotion(direction) {
@@ -331,11 +355,13 @@
 
   $('#previousPromotion').addEventListener('click', () => movePromotion(-1));
   $('#nextPromotion').addEventListener('click', () => movePromotion(1));
+  promotionGrid.addEventListener('scroll', updatePromotionMascot, { passive: true });
   new ResizeObserver(updatePromotionControls).observe(promotionGrid);
 
   function renderPromotions(promotions) {
     const grid = promotionGrid;
     grid.replaceChildren();
+    promotionMascotCards = [];
     const themesInUse = new Set();
     for (const offer of promotions) {
       const product = getProduct(offer.product_id) || getProduct('imported-' + offer.product_id);
@@ -354,6 +380,7 @@
         card.classList.add('promotion-theme');
         card.dataset.theme = theme;
       }
+      if (promotionMascotImages.has(theme)) promotionMascotCards.push(card);
       card.innerHTML = '<div class="weekly-deal-photo">' +
         (cover ? '<img src="' + escapeHtml(cover) + '" alt="' + escapeHtml(product.name) + '" loading="lazy">' : '') +
         '<span class="weekly-deal-tag">' + label + '</span>' +
@@ -374,7 +401,7 @@
       grid.append(card);
     }
     $('#destaques').hidden = !grid.childElementCount;
-    promotionHeading.dataset.theme = themesInUse.size === 1 ? themesInUse.values().next().value : 'default';
+    commonPromotionTheme = themesInUse.size === 1 ? themesInUse.values().next().value : 'default';
     updatePromotionControls();
   }
 
