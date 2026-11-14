@@ -53,7 +53,9 @@
   const token = () => $('adminToken').value.trim() || sessionStorage.getItem('expressarte_admin_token') || '';
   function endpoint(path) {
     const base = apiBase();
-    return base.startsWith('http') ? new URL(path.replace(/^\//,''), base + '/').toString() : new URL(base + path, location.origin).toString();
+    return base.startsWith('http')
+      ? new URL(path.replace(/^\/+/, ''), base + '/').toString()
+      : new URL(path, location.origin).toString();
   }
   async function checkHealth() {
     try {
@@ -107,9 +109,9 @@
     finally { $('previewButton').disabled = false; $('previewButton').textContent = 'Buscar dados'; }
   }
   function parsePrice(value) {
-    let normalized = String(value).trim().replace(/R\\$/gi,'').replace(/\\s/g,'');
-    if (normalized.includes(',')) normalized = normalized.replace(/\\./g,'').replace(',','.');
-    else if ((normalized.match(/\\./g) || []).length > 1) normalized = normalized.replace(/\\./g,'');
+    let normalized = String(value).trim().replace(/R\$/gi, '').replace(/\s/g, '');
+    if (normalized.includes(',')) normalized = normalized.replace(/\./g, '').replace(',', '.');
+    else if ((normalized.match(/\./g) || []).length > 1) normalized = normalized.replace(/\./g, '');
     if (!normalized) return null;
     const n = Number(normalized);
     return Number.isFinite(n) && n >= 0 ? Math.round(n * 100) : NaN;
