@@ -97,17 +97,17 @@ async function fetchMakerWorldMetadata(sourceUrl, host) {
   if (!match) return null;
   const id = match[1];
   const upstream = await fetch('https://api.bambulab.com/v1/design-service/design/' + id, {
-    headers: { Accept: 'application/json' },
+    headers: { Accept: 'application/json', 'User-Agent': 'ExpressArteCatalog/1.0' },
     redirect: 'error',
     signal: AbortSignal.timeout(8000)
   });
   if (!upstream.ok) {
     await upstream.body?.cancel();
-    return null;
+    throw new Error('HTTP ' + upstream.status);
   }
   const design = JSON.parse(await limitedText(upstream));
   const title = str(design?.title, 180);
-  if (String(design?.id) !== id || !title) return null;
+  if (String(design?.id) !== id || !title) throw new Error('Metadados incompletos');
   return {
     title,
     author: str(design.designCreator?.name, 120) || str(design.designCreator?.handle, 120),
@@ -191,14 +191,19 @@ export default {
         if (!sourceUrl) return json({ error: 'Link HTTPS inválido' }, 400, cors);
         const host = new URL(sourceUrl).hostname.toLowerCase();
         if (!allowedPageHosts.has(host)) return json({ error: 'Este site ainda não está na lista de fontes suportadas' }, 422, cors);
-        const design = await fetchMakerWorldMetadata(sourceUrl, host).catch(() => null);
+        let metadataError = '';
+        const design = await fetchMakerWorldMetadata(sourceUrl, host).catch(error => {
+          metadataError = /^(HTTP \d{3}|Metadados incompletos)$/.test(error.message) ? error.message : error.name;
+          return null;
+        });
         if (design) return json(design, 200, cors);
         const fetched = await fetchAllowedPage(sourceUrl);
         const upstream = fetched.response;
-        if (!upstream.ok) return json({ error: 'O site de origem não permitiu consultar esta página (HTTP ' + upstream.status + ')' }, 502, cors);
+        if (!upstream.ok) return json({ error: 'Não foi possível consultar o modelo na origem. Confira o link ou preencha os dados manualmente.', upstreamStatus: upstream.status, ...(metadataError ? { metadataError } : {}) }, 502, cors);
         const finalUrl = new URL(fetched.url);
         const html = await limitedText(upstream);
-        const title = metaValue(html, 'og:title') || metaValue(html, 'twitter:title');
+        const pageTitle = metaValue(html, 'og:title') || metaValue(html, 'twitter:title');
+        const title = host.replace(/^www\./, '') === 'makerworld.com' ? pageTitle.replace(/\s+-\s+Free 3D Print Model\s+-\s+MakerWorld$/i, '') : pageTitle;
         const rawImage = metaValue(html, 'og:image') || metaValue(html, 'twitter:image');
         const imageUrl = rawImage ? safeUrl(new URL(rawImage, finalUrl).toString()) : '';
         const author = metaValue(html, 'author') || metaValue(html, 'article:author');
