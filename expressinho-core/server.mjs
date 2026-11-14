@@ -4,6 +4,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { getDeterministicReply } from './router.mjs';
 import { getCompatibleProviderConfig, generateCompatibleReply } from './providers.mjs';
+import { runKnowledgeTools, formatToolEvidence } from './tools.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const HOST = '127.0.0.1';
@@ -137,8 +138,10 @@ async function handleChat(req, res) {
       return sendJson(res, 200, { reply: directReply, mode, provider: 'knowledge', cached: false });
     }
 
+    const toolResults = runKnowledgeTools({ message, mode, knowledge });
+    const toolEvidence = formatToolEvidence(toolResults);
     const messages = [
-      { role: 'system', content: buildSystemPrompt(mode, knowledge) },
+      { role: 'system', content: buildSystemPrompt(mode, knowledge) + (toolEvidence ? '\\n\\n' + toolEvidence : '') },
       ...history,
       { role: 'user', content: message }
     ];
