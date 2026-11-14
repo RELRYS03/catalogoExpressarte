@@ -33,4 +33,4 @@ A API precisa permitir a origem HTTPS exata do PWA em ALLOWED_ORIGIN. A implanta
 - O Bambu Handy mostrado no teste compartilhou título e link, não a fotografia como arquivo. A capa será buscada na página original pelo endpoint de prévia; isso depende de a MakerWorld permitir a consulta automatizada.
 - Alguns aplicativos compartilham apenas texto/link, outros podem compartilhar imagens como arquivo. O app aceita ambos.
 - A PWA não lê a tela de outros aplicativos nem cria bolha sobreposta. Isso não é necessário para o fluxo de compartilhamento.
-- A aplicação ainda não está publicada nem conectada a uma instância Cloudflare provisionada.
+- A vitrine principal também tem uma integração opcional: configure catalogApiEndpoint em config.js com a origem do Worker para carregar apenas produtos aprovados. A aplicação ainda não está publicada nem conectada a uma instância Cloudflare provisionada.
