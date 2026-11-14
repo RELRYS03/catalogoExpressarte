@@ -2,6 +2,7 @@ import http from 'node:http';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { getDeterministicReply } from './router.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const HOST = '127.0.0.1';
@@ -159,9 +160,7 @@ async function handleChat(req, res) {
   if (!message) return sendJson(res, 400, { error: 'Escreva uma pergunta antes de enviar.' });
 
   try {
-    const results = await Promise.all([getInstalledModel(), readKnowledge()]);
-    const model = results[0];
-    const knowledge = results[1];
+    const knowledge = await readKnowledge();
     let history = Array.isArray(body.history) ? body.history.slice(-10) : [];
     history = history.filter(item =>
       item && ['user', 'assistant'].includes(item.role) &&
@@ -173,6 +172,13 @@ async function handleChat(req, res) {
       history.pop();
     }
 
+    const directReply = getDeterministicReply(message, mode, knowledge);
+    if (directReply) {
+      return sendJson(res, 200, { reply: directReply, mode, provider: 'knowledge', cached: false });
+    }
+
+    // Só consulta o modelo quando a base aprovada não resolve a pergunta.
+    const model = await getInstalledModel();
     const key = cacheKey(mode, model, message, history);
     const cachedReply = readCachedReply(key);
     if (cachedReply) {
@@ -280,7 +286,7 @@ const server = http.createServer(async (req, res) => {
     if (req.method !== 'GET') return sendJson(res, 405, { error: 'Use GET.' });
     try {
       const model = await getInstalledModel();
-      return sendJson(res, 200, { ok: true, service: 'Expressinho IA local', provider: 'ollama', model, cache: cacheStats() });
+      return sendJson(res, 200, { ok: true, service: 'Expressinho IA local', provider: 'ollama', model, deterministic: true, cache: cacheStats() });
     } catch (error) {
       return sendJson(res, 503, { ok: false, error: error.message || 'Ollama indisponível.' });
     }
