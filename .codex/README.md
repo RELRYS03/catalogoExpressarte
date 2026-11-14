@@ -16,3 +16,7 @@ A configuração do MCP é por projeto e não substitui a autenticação OAuth. 
 
 Instruções oficiais: https://developers.cloudflare.com/agent-setup/prompt.md
 Configuração por projeto no Codex: https://learn.chatgpt.com/docs/config-file/config-basic
+
+## Instalador Windows
+
+Na raiz do repositório, execute `scripts/setup-cloudflare-codex.ps1` no PowerShell. O script instala as Cloudflare Skills globalmente, inicia o OAuth do MCP e verifica a lista de servidores. Ele requer Node.js/npm e Codex CLI já instalados. O login OAuth exige interação no navegador e consentimento do titular da conta.
