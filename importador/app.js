@@ -784,6 +784,10 @@
         card.querySelector('.queue-category').textContent = data.category;
       }
       input.value = data.priceCents === null ? '' : (data.priceCents / 100).toFixed(2).replace('.', ',');
+      card.querySelectorAll('[data-promotion]').forEach(promotion => {
+        promotion.dataset.regularPrice = data.priceCents ?? '';
+        updatePromotionPreview(promotion);
+      });
       form.elements.namedItem('printMinutes').value = formatPrintTime(details.printMinutes);
       form.elements.namedItem('filamentGrams').value = details.filamentGrams === null ? '' : gramsFormat.format(details.filamentGrams);
       form.parentElement.querySelector('summary').textContent = 'Editar produto · ' +
@@ -820,7 +824,8 @@
       const theme = Object.hasOwn(promotionThemes, current?.theme) ? current.theme : 'default';
       const options = Object.entries(promotionThemes).map(([key, label]) =>
         '<option value="' + key + '"' + (key === theme ? ' selected' : '') + '>' + escapeHtml(label) + '</option>').join('');
-      return '<form data-promotion="' + slot + '"><input type="hidden" name="productId" value="' + escapeHtml(product.id) + '">' +
+      return '<form data-promotion="' + slot + '" data-regular-price="' + escapeHtml(product.price_cents ?? '') + '">' +
+        '<input type="hidden" name="productId" value="' + escapeHtml(product.id) + '">' +
         '<label>Campanha (opcional)<input name="campaign" maxlength="60" placeholder="Ex.: Natal" value="' +
         escapeHtml(current?.campaign ?? (names.length === 1 ? names[0] : '')) + '"></label>' +
         '<label>Tema da campanha<select name="theme">' + options + '</select></label>' +
@@ -828,7 +833,8 @@
         (current ? (current.price_cents / 100).toFixed(2).replace('.', ',') : '') +
         '"></label><div class="promotion-preview promotion-theme" data-theme="' + theme + '">' +
         '<small>Prévia visual · <span data-preview-campaign></span></small><strong>' + escapeHtml(product.title) + '</strong>' +
-        '<span class="promotion-preview-price" data-preview-price hidden></span></div>' +
+        '<span class="promotion-preview-price" data-preview-price hidden></span>' +
+        '<span class="promotion-preview-discount" data-preview-discount hidden></span></div>' +
         '<label>Foto da promoção (opcional)<input name="promotionPhoto" type="file" accept="image/jpeg,image/png,image/webp,image/avif"></label>' +
         '<label class="edit-photo-rights"><input name="promotionRights" type="checkbox"> Tenho autorização para usar esta foto</label>' +
         '<div class="category-actions"><button class="secondary-button" type="submit">Enviar pra promoção</button>' +
@@ -846,6 +852,10 @@
     const priceLabel = preview.querySelector('[data-preview-price]');
     priceLabel.hidden = !Number.isSafeInteger(price) || price <= 0;
     priceLabel.textContent = priceLabel.hidden ? '' : formatMoney.format(price / 100);
+    const discount = window.EXPRESSARTE_CONFIG?.promotionDiscount?.(Number(form.dataset.regularPrice), price);
+    const discountLabel = preview.querySelector('[data-preview-discount]');
+    discountLabel.hidden = !discount;
+    discountLabel.textContent = discount ? discount + ' de desconto' : '';
   }
   function formatPromotionDate(timestamp) {
     return new Date(timestamp).toLocaleString('pt-BR', {dateStyle:'short', timeStyle:'short'});

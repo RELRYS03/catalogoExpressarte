@@ -1,5 +1,5 @@
-const CACHE_NAME = 'expressarte-importador-v22';
-const SHELL = ['./','./index.html','./styles.css','./app.js','./manifest.webmanifest','./icon.svg','../config.js','../promotion-themes.css?v=1'];
+const CACHE_NAME = 'expressarte-importador-v23';
+const SHELL = ['./','./index.html','./styles.css','./app.js?v=descontos','./manifest.webmanifest','./icon.svg','../config.js?v=descontos','../promotion-themes.css?v=2'];
 const DB_NAME = 'expressarte-share-v1';
 function openShareDb() {
   return new Promise((resolve,reject) => {

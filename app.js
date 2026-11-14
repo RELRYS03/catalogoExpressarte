@@ -342,6 +342,7 @@
       if (!product || offer.expires_at <= Date.now()) continue;
       const price = offer.price_cents / 100;
       if (product.price > 0 && price >= product.price) continue;
+      const discount = config.promotionDiscount?.(Math.round(product.price * 100), offer.price_cents);
       const label = offer.slot === 'day' ? 'Promoção do dia' : 'Promoção da semana';
       const campaign = offer.campaign ? '<p class="weekly-deal-category">' + escapeHtml(offer.campaign) + '</p>' : '';
       const cover = /^https:\/\//i.test(offer.image_url || '') ? offer.image_url : product.cover;
@@ -355,7 +356,8 @@
       }
       card.innerHTML = '<div class="weekly-deal-photo">' +
         (cover ? '<img src="' + escapeHtml(cover) + '" alt="' + escapeHtml(product.name) + '" loading="lazy">' : '') +
-        '<span class="weekly-deal-tag">' + label + '</span></div>' +
+        '<span class="weekly-deal-tag">' + label + '</span>' +
+        (discount ? '<span class="weekly-deal-discount"><strong>' + escapeHtml(discount) + '</strong><small>desconto</small></span>' : '') + '</div>' +
         '<div class="weekly-deal-content">' + campaign + '<h3>' + escapeHtml(product.name) + '</h3><div class="weekly-deal-price">' +
         (product.price > price ? '<del aria-label="Preço normal">' + money(product.price) + '</del>' : '') +
         '<div><span>Preço promocional</span><strong>' + money(price) + '</strong></div></div>' +

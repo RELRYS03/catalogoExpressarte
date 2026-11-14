@@ -23,6 +23,31 @@
 .weekly-deal-card[data-theme] .weekly-deal-category,
 .weekly-deal-card[data-theme] .weekly-deal-price strong { color: var(--offer-ink, var(--brown-2)); }
 
+.weekly-deal-discount {
+  position: absolute;
+  right: 6px;
+  bottom: 6px;
+  display: grid;
+  place-content: center;
+  width: 50px;
+  aspect-ratio: 1;
+  border: 1px solid #fffdfa;
+  border-radius: 50%;
+  background: var(--offer-ink, var(--brown));
+  color: #fffdfa;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+  text-align: center;
+}
+.weekly-deal-discount strong { font-size: 12px; }
+.weekly-deal-discount small { font-size: 9px; }
+@media (max-width: 620px) {
+  .weekly-deal-discount { width: 40px; right: 4px; bottom: 3px; }
+  .weekly-deal-discount strong { font-size: 11px; }
+  .weekly-deal-discount small { font-size: 8px; }
+  .weekly-deal-tag { top: 5px; padding: 4px 6px; line-height: 1.1; }
+}
+
 .promotion-preview {
   --preview-ink: var(--offer-ink, var(--brown));
   --preview-paper: var(--offer-paper, var(--cream2));
@@ -36,3 +61,4 @@
 .promotion-preview small, .promotion-preview strong { display: block; }
 .promotion-preview small { margin-bottom: 4px; font-weight: 700; }
 .promotion-preview-price { display: block; margin-top: 4px; font-weight: 800; }
+.promotion-preview-discount { display: block; margin-top: 2px; font-size: 12px; font-weight: 700; }
