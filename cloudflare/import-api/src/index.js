@@ -8,7 +8,7 @@ function corsHeaders(request, env) {
   return origin && env.ALLOWED_ORIGIN && origin === env.ALLOWED_ORIGIN
     ? { 'Access-Control-Allow-Origin': origin, 'Vary': 'Origin',
         'Access-Control-Allow-Headers': 'Authorization, Content-Type',
-        'Access-Control-Allow-Methods': 'GET, POST, PATCH, OPTIONS' } : {};
+        'Access-Control-Allow-Methods': 'GET, POST, PATCH, DELETE, OPTIONS' } : {};
 }
 function safeUrl(input) {
   if (typeof input !== 'string' || input.length > 2048) return null;
@@ -127,11 +127,11 @@ async function saveProductEdit(request, env, id, builtIn, cors) {
   const { key, image = '', error, status } = await uploadEditPhoto(form, env, 'catalog-imports/' + id);
   if (error) return json({ error }, status, cors);
   const sql = builtIn
-    ? "INSERT INTO catalog_product_overrides (price_cents,image_url,category,id) VALUES (?,?,?,?) ON CONFLICT(id) DO UPDATE SET price_cents=excluded.price_cents,image_url=COALESCE(NULLIF(excluded.image_url,''),image_url),category=COALESCE(excluded.category,category) RETURNING price_cents,image_url,category"
+    ? "INSERT INTO catalog_product_overrides (price_cents,image_url,category,id) SELECT ?,?,?,? WHERE NOT EXISTS (SELECT 1 FROM catalog_removed_products WHERE id=?) ON CONFLICT(id) DO UPDATE SET price_cents=excluded.price_cents,image_url=COALESCE(NULLIF(excluded.image_url,''),image_url),category=COALESCE(excluded.category,category) RETURNING price_cents,image_url,category"
     : "UPDATE catalog_imports SET price_cents=?,image_url=COALESCE(NULLIF(?,''),image_url),category=COALESCE(?,category),updated_at=CURRENT_TIMESTAMP WHERE id=? RETURNING price_cents,image_url,category";
   let saved;
   try {
-    const edit = env.DB.prepare(sql).bind(price, image, category, id);
+    const edit = env.DB.prepare(sql).bind(price, image, category, id, ...(builtIn ? [id] : []));
     if (details) {
       const source = builtIn ? 'catalog_product_overrides' : 'catalog_imports';
       const updateDetails = storeProductDetails(env, source, id, details);
@@ -160,6 +160,10 @@ async function savePromotion(request, env, slot, cors) {
     await env.DB.prepare('DELETE FROM catalog_promotion_items WHERE slot=? AND product_id=?').bind(slot, id).run();
     return json({ promotion: null }, 200, cors);
   }
+  const builtIn = builtInIds.includes(id);
+  const canPromote = builtIn
+    ? 'NOT EXISTS (SELECT 1 FROM catalog_removed_products WHERE id=?)'
+    : "EXISTS (SELECT 1 FROM catalog_imports WHERE id=? AND status='approved' AND commercial_use_allowed=1 AND image_use_allowed=1)";
   const rawPrice = form.get('priceCents');
   const campaign = str(form.get('campaign'), 60);
   const price = typeof rawPrice === 'string' && /^\d+$/.test(rawPrice) ? Number(rawPrice) : NaN;
@@ -177,17 +181,40 @@ async function savePromotion(request, env, slot, cors) {
   const now = Date.now();
   try {
     const promotion = await env.DB.prepare(`INSERT INTO catalog_promotion_items (slot,product_id,price_cents,image_url,expires_at,campaign)
-      VALUES (?,?,?,?,?,?) ON CONFLICT(slot,product_id) DO UPDATE SET
+      SELECT ?,?,?,?,?,? WHERE ${canPromote} ON CONFLICT(slot,product_id) DO UPDATE SET
       image_url=COALESCE(NULLIF(excluded.image_url,''),image_url),
       expires_at=CASE WHEN expires_at>? AND campaign=excluded.campaign THEN expires_at ELSE excluded.expires_at END,
       price_cents=excluded.price_cents,campaign=excluded.campaign
       RETURNING slot,product_id,price_cents,image_url,expires_at,campaign`)
-      .bind(slot, id, price, image, now + (slot === 'day' ? 1 : 7) * 86400000, campaign, now).first();
+      .bind(slot, id, price, image, now + (slot === 'day' ? 1 : 7) * 86400000, campaign, id, now).first();
+    if (!promotion) {
+      if (key) await env.IMAGES.delete(key);
+      return json({ error: 'Escolha um produto publicado.' }, 400, cors);
+    }
     return json({ promotion }, 200, cors);
   } catch (err) {
     if (key) await env.IMAGES.delete(key);
     throw err;
   }
+}
+async function deleteProduct(env, id, cors) {
+  const builtIn = builtInIds.includes(id);
+  const removed = builtIn
+    ? env.DB.prepare('INSERT INTO catalog_removed_products (id) VALUES (?) ON CONFLICT(id) DO NOTHING').bind(id)
+    : env.DB.prepare('DELETE FROM catalog_imports WHERE id=?').bind(id);
+  await env.DB.batch([
+    removed,
+    env.DB.prepare('DELETE FROM catalog_promotion_items WHERE product_id=?').bind(id),
+    env.DB.prepare('DELETE FROM catalog_promotions WHERE product_id=?').bind(id),
+    env.DB.prepare('DELETE FROM catalog_product_details WHERE product_id=?').bind(id),
+    env.DB.prepare('DELETE FROM catalog_product_overrides WHERE id=?').bind(id)
+  ]);
+  return json({ deleted: true }, 200, cors);
+}
+
+async function removedProductIds(env) {
+  const { results } = await env.DB.prepare('SELECT id FROM catalog_removed_products').all();
+  return results.map(row => row.id);
 }
 async function fetchMakerWorldMetadata(sourceUrl, host) {
   if (host !== 'makerworld.com' && host !== 'www.makerworld.com') return null;
@@ -333,6 +360,7 @@ export default {
         if (id !== null) return json({ products: results }, 200, cors);
         const overrides = await env.DB.prepare('SELECT id,price_cents,image_url,category,' + productDetailsField('catalog_product_overrides') + ' FROM catalog_product_overrides').all();
         const { results: promotions } = await env.DB.prepare(`SELECT p.* FROM catalog_promotion_items p WHERE p.expires_at>?
+          AND NOT EXISTS (SELECT 1 FROM catalog_removed_products r WHERE r.id=p.product_id)
           AND (p.product_id IN ('academia-001','religioso-001') OR EXISTS (SELECT 1 FROM catalog_imports i
           WHERE i.id=p.product_id AND i.status='approved' AND i.commercial_use_allowed=1 AND i.image_use_allowed=1))
           ORDER BY p.slot,p.campaign,p.expires_at,p.product_id`).bind(Date.now()).all();
@@ -343,7 +371,7 @@ export default {
           const extra = await env.DB.prepare(sql + ' AND id IN (' + chunk.map(() => '?').join(',') + ')').bind(...chunk).all();
           results.push(...extra.results);
         }
-        return json({ products: results, overrides: overrides.results, categories: await customCategories(env), promotions }, 200, cors);
+        return json({ products: results, overrides: overrides.results, categories: await customCategories(env), promotions, removedProductIds: await removedProductIds(env) }, 200, cors);
       }
       if (path === '/api/preview' && request.method === 'GET') {
         if (!await authorized(request, env)) return json({ error: 'Não autorizado' }, 401, cors);
@@ -377,7 +405,7 @@ export default {
           const { results } = await env.DB.prepare('SELECT *,' + productDetailsField('catalog_imports') + ' FROM catalog_imports ORDER BY created_at DESC LIMIT 200').all();
           const overrides = await env.DB.prepare('SELECT id,price_cents,image_url,category,' + productDetailsField('catalog_product_overrides') + ' FROM catalog_product_overrides').all();
           const { results: promotions } = await env.DB.prepare('SELECT * FROM catalog_promotion_items ORDER BY slot,expires_at').all();
-          return json({ imports: results, overrides: overrides.results, promotions }, 200, cors);
+          return json({ imports: results, overrides: overrides.results, promotions, removedProductIds: await removedProductIds(env) }, 200, cors);
         }
         const contentType = request.headers.get('Content-Type') || '';
         let body, imageFile = null;
@@ -429,6 +457,10 @@ export default {
         return json({ id, status: 'pending', imageStored: Boolean(uploadedKey) }, 201, cors);
       }
       const edit = path.match(/^\/api\/admin\/(products\/(academia-001|religioso-001|[0-9a-f-]{36})|promotions\/(day|week))$/);
+      if (edit?.[2] && request.method === 'DELETE') {
+        if (!await authorized(request, env)) return json({ error: 'Não autorizado' }, 401, cors);
+        return await deleteProduct(env, edit[2], cors);
+      }
       if (edit && request.method === 'PATCH') {
         if (!await authorized(request, env)) return json({ error: 'Não autorizado' }, 401, cors);
         if (!request.headers.get('Content-Type')?.startsWith('multipart/form-data')) return json({ error: 'Formato inválido.' }, 400, cors);

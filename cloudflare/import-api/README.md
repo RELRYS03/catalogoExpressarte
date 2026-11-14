@@ -10,6 +10,7 @@ Esta API recebe cadastros do Express'Arte Importador Mobile e da futura extensã
 - GET /api/imports: exige Bearer ADMIN_TOKEN e lista a fila privada.
 - PATCH /api/imports/{id}: exige Bearer ADMIN_TOKEN e altera status. Para aprovar, exige confirmação explícita de licença comercial e autorização de uso da imagem.
 - GET /api/products: lista somente itens aprovados com as duas permissões confirmadas.
+- DELETE /api/admin/products/{id}: exige autenticação administrativa e retira o produto e suas promoções. Para produtos originais, registra a remoção em D1.
 
 Todos os cadastros começam como pending. O envio nunca publica automaticamente.
 
@@ -19,6 +20,7 @@ O arquivo wrangler.toml é um modelo inicial. Substitua o database_id pelo ID re
 
 1. Crie o D1 expressarte-catalog-imports.
 2. Execute a migração em cloudflare/import-api/schema.sql.
+   Em um banco existente, aplique `catalog-removed-products.sql` antes de publicar a rota de exclusão.
 3. Crie o bucket R2 expressarte-catalog-images e configure acesso público por domínio customizado (recomendado) ou endpoint público autorizado.
 4. Configure os bindings DB (D1) e IMAGES (R2).
 5. Configure os valores ALLOWED_ORIGIN com a origem HTTPS exata do PWA e PUBLIC_ASSETS_URL com a origem pública de imagens.

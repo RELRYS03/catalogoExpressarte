@@ -14,6 +14,7 @@ test('login privado cria uma conta, limita tentativas e revoga sessões', async 
     db.exec(await readFile(new URL('../catalog-categories.sql', import.meta.url), 'utf8'));
     db.exec(await readFile(new URL('../catalog-promotions.sql', import.meta.url), 'utf8'));
     db.exec(await readFile(new URL('../catalog-promotion-items.sql', import.meta.url), 'utf8'));
+    db.exec(await readFile(new URL('../catalog-removed-products.sql', import.meta.url), 'utf8'));
     db.exec(await readFile(new URL('../catalog-product-details.sql', import.meta.url), 'utf8'));
     const env = { ADMIN_TOKEN: token, DB: {
       prepare(sql) {
@@ -102,6 +103,19 @@ test('login privado cria uma conta, limita tentativas e revoga sessões', async 
     }), env);
     assert.equal(moved.status, 200);
     assert.equal((await moved.json()).category, 'Decoração');
+    const deletion = '/api/admin/products/';
+    assert.equal((await send(env, 'DELETE', deletion + 'religioso-001')).status, 401);
+    assert.equal((await call(deletion + 'religioso-001', 'DELETE')).status, 200);
+    assert.equal((await call(deletion + id, 'DELETE')).status, 200);
+    assert.equal((await call(deletion + id, 'DELETE')).status, 200);
+    const afterDelete = (await send(env, 'GET', '/api/products')).body;
+    assert.deepEqual(afterDelete.removedProductIds, ['religioso-001']);
+    assert.deepEqual(afterDelete.promotions, []);
+    assert.deepEqual((await send(env, 'GET', '/api/products?id=' + id)).body.products, []);
+    const remaining = await (await call('/api/imports')).json();
+    assert.deepEqual(remaining.imports.map(item => item.id), [newId]);
+    assert.deepEqual(remaining.removedProductIds, ['religioso-001']);
+    assert.equal(db.prepare('SELECT details_json FROM catalog_product_details WHERE product_id=?').get(id), undefined);
     assert.equal((await call('/api/admin/logout', 'POST')).status, 200);
     assert.equal((await call('/api/imports')).status, 401);
     for (let i = 0; i < 8; i++) {
@@ -222,6 +236,7 @@ test('editor privado salva foto e preço do produto original sem trocar seu ID',
     db.exec(await readFile(new URL('../product-overrides.sql', import.meta.url), 'utf8'));
     db.exec(await readFile(new URL('../catalog-promotions.sql', import.meta.url), 'utf8'));
     db.exec(await readFile(new URL('../catalog-promotion-items.sql', import.meta.url), 'utf8'));
+    db.exec(await readFile(new URL('../catalog-removed-products.sql', import.meta.url), 'utf8'));
     const uploads = [];
     const env = {
       ADMIN_TOKEN: token, PUBLIC_ASSETS_URL: 'https://images.example.com',

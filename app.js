@@ -20,6 +20,7 @@
   const sendWhatsApp = $('#sendWhatsApp');
   const toast = $('#toast');
   let toastTimeout;
+  let catalogReady = !String(config.catalogApiEndpoint || '').trim();
 
   function notify(message) {
     toast.textContent = message;
@@ -29,6 +30,7 @@
   }
   function getProduct(id) { return products.find(p => p.id === id); }
   function visibleProduct(card) {
+    if (!catalogReady) return false;
     const name = (card.dataset.name || '').toLocaleLowerCase('pt-BR');
     const category = card.dataset.category;
     return Boolean(state.search || state.category) &&
@@ -246,6 +248,16 @@
     if (!String(config.catalogApiEndpoint || '').trim()) return;
     try {
       const data = await fetchProducts(productsEndpoint());
+      const removed = new Set(data.removedProductIds || []);
+      for (let index = products.length - 1; index >= 0; index--) {
+        if (!removed.has(products[index].id)) continue;
+        const [{ id }] = products.splice(index, 1);
+        productGrid.querySelector('[data-product-id="' + id + '"]')?.remove();
+        delete state.quantities[id];
+        state.order.delete(id);
+      }
+      if (removed.size) renderOrder();
+      catalogReady = true;
       (data.categories || []).forEach(ensureCategoryButton);
       for (const edit of data.overrides || []) {
         const product = getProduct(edit.id);

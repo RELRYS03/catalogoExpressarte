@@ -104,6 +104,8 @@ footer { margin-bottom: 64px; }
 .queue-price input { margin-top: 4px; }
 .queue-price button { min-height: 44px; justify-self: start; }
 .queue-price p { margin: 0; color: var(--brown2); font-size: 13px; }
+.queue-delete { margin-top: 12px; display: block; }
+.queue-delete button { padding-inline: 12px; }
 .queue-group-title { margin: 10px 0 0; color: var(--brown); font-size: 15px; }
 .queue-price .edit-photo-rights { display: flex; align-items: center; gap: 8px; }
 .queue-price .edit-photo-rights input { width: 18px; min-height: 18px; margin: 0; accent-color: var(--brown); }

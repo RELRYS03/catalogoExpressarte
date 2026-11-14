@@ -640,6 +640,30 @@
       button.disabled = false;
     }
   }
+  async function deleteQueueProduct(button) {
+    const card = button.closest('.queue-card');
+    const title = card.querySelector('.queue-title').textContent;
+    if (!window.confirm('Excluir “' + title + '” do catálogo e do Importador? As promoções desse produto também serão removidas.')) return;
+    const notice = $('queueNotice');
+    notice.textContent = '';
+    button.disabled = true;
+    try {
+      const response = await fetch(endpoint('/api/admin/products/' + encodeURIComponent(card.dataset.id)), {
+        method: 'DELETE',
+        headers: { Authorization: 'Bearer ' + token() }
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Não foi possível excluir o produto.');
+      card.remove();
+      notice.textContent = 'Produto excluído do catálogo e do Importador.';
+      await loadQueue();
+      $('refreshQueue').focus();
+    } catch (error) {
+      const status = card.querySelector('.delete-product-status');
+      status.textContent = error.message || 'Não foi possível excluir o produto.';
+      button.disabled = false;
+    }
+  }
   const detailFields = [
     ['description', 'Descrição do produto', 1200],
     ['printMinutes', 'Tempo de impressão', 30],
@@ -874,7 +898,8 @@
         if (!res.ok) throw new Error(data.error || 'Falha ao consultar a fila.');
       }
       const edits = new Map((data.overrides || []).map(edit => [edit.id, edit]));
-      const originals = (window.EXPRESSARTE_CONFIG?.builtInProducts || []).map(product => {
+      const removed = new Set(data.removedProductIds || []);
+      const originals = (window.EXPRESSARTE_CONFIG?.builtInProducts || []).filter(product => !removed.has(product.id)).map(product => {
         const edit = edits.get(product.id);
         return { id: product.id, title: product.name, category: edit?.category || product.category, builtIn: true,
           price_cents: edit?.price_cents ?? Math.round(product.price * 100),
@@ -913,7 +938,7 @@
           '<label><input type="checkbox" data-image-rights ' + (item.image_use_allowed ? 'checked' : '') + '> Tenho autorização para exibir esta imagem no catálogo.</label></div>' +
           (approved ? '<div class="queue-actions"><button class="queue-reject" type="button" data-queue-action="rejected">Recusar</button></div>' : '');
         return '<article class="queue-card" data-built-in="' + Boolean(item.builtIn) + '" data-id="' + escapeHtml(item.id) + '">' + image +
-          '<div class="queue-content"><strong>' + escapeHtml(item.title) + '</strong>' +
+          '<div class="queue-content"><strong class="queue-title">' + escapeHtml(item.title) + '</strong>' +
           '<div class="queue-meta"><span class="queue-category">' + escapeHtml(currentCategory) + '</span>' + (item.author ? ' · ' + escapeHtml(item.author) : '') + '</div>' +
           (item.builtIn ? '' : '<span class="queue-status">' + status + '</span><br>' + source) + '</div>' + review +
           '<details class="queue-price"><summary>Editar produto · ' + (price ? escapeHtml(formatMoney.format(item.price_cents / 100)) : 'Sob consulta') + '</summary>' +
@@ -925,13 +950,16 @@
           (!item.builtIn && !approved ? '<button class="primary-button" type="submit" name="publish" data-queue-action="approved">Enviar pro catálogo</button>' : '') +
           '</div><p role="status"></p></form>' +
           (approved || item.builtIn ? renderPromotionForms(item, data.promotions || []) : '<p class="hint">Publique o produto no catálogo para colocá-lo em promoção.</p>') +
-          '<p class="hint promotion-notice" role="status"></p></details>' +
+          '<p class="hint promotion-notice" role="status"></p>' +
+          '<div class="queue-actions queue-delete"><button class="queue-reject" type="button" data-delete-product>Excluir produto</button></div>' +
+          '<p class="hint delete-product-status" role="status"></p></details>' +
           share + '</article>';
       };
       list.innerHTML = (originals.length ? '<h3 class="queue-group-title">Produtos do catálogo</h3>' + originals.map(renderCard).join('') : '') +
         '<h3 class="queue-group-title">Modelos importados</h3>' +
         (imports.length ? imports.map(renderCard).join('') : '<div class="queue-empty">Nenhum modelo importado ainda.</div>');
       list.querySelectorAll('[data-queue-action="rejected"]').forEach(button => button.addEventListener('click', () => updateQueueItem(button)));
+      list.querySelectorAll('[data-delete-product]').forEach(button => button.addEventListener('click', () => deleteQueueProduct(button)));
       list.querySelectorAll('[data-copy-product]').forEach(button => button.addEventListener('click', () => copyProductLink(button)));
       list.querySelectorAll('[data-promotion]').forEach(form => form.addEventListener('submit', savePromotion));
       if (promotionUpdate) {
