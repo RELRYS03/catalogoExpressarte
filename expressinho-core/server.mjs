@@ -3,6 +3,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { getDeterministicReply } from './router.mjs';
+import { getCompatibleProviderConfig, generateCompatibleReply } from './providers.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const HOST = '127.0.0.1';
@@ -177,41 +178,70 @@ async function handleChat(req, res) {
       return sendJson(res, 200, { reply: directReply, mode, provider: 'knowledge', cached: false });
     }
 
-    // Só consulta o modelo quando a base aprovada não resolve a pergunta.
-    const model = await getInstalledModel();
-    const key = cacheKey(mode, model, message, history);
-    const cachedReply = readCachedReply(key);
-    if (cachedReply) {
-      return sendJson(res, 200, { reply: cachedReply, mode, model, provider: 'ollama', cached: true });
+    // Tenta primeiro o modelo local; API online só entra se estiver explicitamente configurada.
+    const messages = [
+      { role: 'system', content: buildSystemPrompt(mode, knowledge) },
+      ...history,
+      { role: 'user', content: message }
+    ];
+
+    let ollamaError;
+    try {
+      const model = await getInstalledModel();
+      const key = cacheKey(mode, model, message, history);
+      const cachedReply = readCachedReply(key);
+      if (cachedReply) {
+        return sendJson(res, 200, { reply: cachedReply, mode, model, provider: 'ollama', cached: true });
+      }
+
+      const response = await fetchWithTimeout(OLLAMA_URL + '/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model,
+          stream: false,
+          messages,
+          options: { temperature: 0.25 }
+        })
+      }, 120000);
+
+      if (!response.ok) {
+        const detail = (await response.text()).slice(0, 500);
+        throw new Error('Ollama não conseguiu responder (' + response.status + '): ' + detail);
+      }
+      const result = await response.json();
+      const reply = result?.message?.content;
+      if (typeof reply !== 'string' || !reply.trim()) throw new Error('O modelo local não devolveu uma resposta de texto.');
+
+      saveCachedReply(key, reply.trim());
+      return sendJson(res, 200, { reply: reply.trim(), mode, model, provider: 'ollama', cached: false });
+    } catch (error) {
+      ollamaError = error;
     }
 
-    const response = await fetchWithTimeout(OLLAMA_URL + '/api/chat', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: model,
-        stream: false,
-        messages: [
-          { role: 'system', content: buildSystemPrompt(mode, knowledge) },
-          ...history,
-          { role: 'user', content: message }
-        ],
-        options: { temperature: 0.25 }
-      })
-    }, 120000);
-
-    if (!response.ok) {
-      const detail = (await response.text()).slice(0, 500);
-      throw new Error('Ollama não conseguiu responder (' + response.status + '): ' + detail);
+    let onlineConfig;
+    try {
+      onlineConfig = getCompatibleProviderConfig();
+    } catch (error) {
+      throw new Error((ollamaError?.message || 'Ollama indisponível.') + ' Configuração online inválida: ' + error.message);
     }
-    const result = await response.json();
-    const reply = result && result.message && typeof result.message.content === 'string'
-      ? result.message.content.trim()
-      : '';
-    if (!reply) throw new Error('O modelo não devolveu uma resposta de texto.');
 
-    saveCachedReply(key, reply);
-    sendJson(res, 200, { reply, mode, model, provider: 'ollama', cached: false });
+    if (onlineConfig) {
+      try {
+        const reply = await generateCompatibleReply({ config: onlineConfig, messages });
+        return sendJson(res, 200, {
+          reply,
+          mode,
+          model: onlineConfig.model,
+          provider: 'compatible-api',
+          fallback: true
+        });
+      } catch (onlineError) {
+        throw new Error('Ollama indisponível (' + (ollamaError?.message || 'falha local') + ') e o provedor online também falhou: ' + onlineError.message);
+      }
+    }
+
+    throw new Error((ollamaError?.message || 'Ollama indisponível.') + ' Provedor online não configurado; nenhuma chamada paga foi realizada.');
   } catch (error) {
     sendJson(res, 503, {
       error: error.message || 'Não foi possível conectar ao Ollama.',
