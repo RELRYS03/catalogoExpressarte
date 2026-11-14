@@ -47,7 +47,7 @@
 @media (prefers-reduced-motion: no-preference) {
   .weekly-deals-section[data-theme="natal"].promotion-in-view .promotion-snow::before,
   .weekly-deals-section[data-theme="natal"].promotion-in-view .promotion-snow::after {
-    animation: promotion-snowfall 4.8s linear;
+    animation: promotion-snowfall 4.8s linear infinite;
   }
 }
 @keyframes promotion-snowfall {
