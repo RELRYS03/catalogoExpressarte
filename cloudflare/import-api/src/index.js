@@ -91,6 +91,31 @@ async function limitedText(response, maxBytes = 2_000_000) {
 function imageExtension(type) {
   return ({'image/jpeg':'jpg','image/png':'png','image/webp':'webp','image/avif':'avif'})[type] || null;
 }
+async function fetchMakerWorldMetadata(sourceUrl, host) {
+  if (host !== 'makerworld.com' && host !== 'www.makerworld.com') return null;
+  const match = new URL(sourceUrl).pathname.match(/^\/(?:[a-z]{2}(?:-[a-z]{2})?\/)?models\/(\d{1,16})(?:[-/]|$)/i);
+  if (!match) return null;
+  const id = match[1];
+  const upstream = await fetch('https://api.bambulab.com/v1/design-service/design/' + id, {
+    headers: { Accept: 'application/json' },
+    redirect: 'error',
+    signal: AbortSignal.timeout(8000)
+  });
+  if (!upstream.ok) {
+    await upstream.body?.cancel();
+    return null;
+  }
+  const design = JSON.parse(await limitedText(upstream));
+  const title = str(design?.title, 180);
+  if (String(design?.id) !== id || !title) return null;
+  return {
+    title,
+    author: str(design.designCreator?.name, 120) || str(design.designCreator?.handle, 120),
+    imageUrl: safeUrl(design.coverUrl) || safeUrl(design.coverLandscape) || safeUrl(design.coverPortrait) || '',
+    licenseName: str(design.license, 120),
+    sourceSite: host
+  };
+}
 const catalogCategories = [
   'Academia', 'Brinquedos', 'Canecas', 'Chaveiros', 'Decoração',
   'Presentes', 'Religiosos', 'Suportes', 'Colecionáveis', 'Outros'
@@ -166,6 +191,8 @@ export default {
         if (!sourceUrl) return json({ error: 'Link HTTPS inválido' }, 400, cors);
         const host = new URL(sourceUrl).hostname.toLowerCase();
         if (!allowedPageHosts.has(host)) return json({ error: 'Este site ainda não está na lista de fontes suportadas' }, 422, cors);
+        const design = await fetchMakerWorldMetadata(sourceUrl, host).catch(() => null);
+        if (design) return json(design, 200, cors);
         const fetched = await fetchAllowedPage(sourceUrl);
         const upstream = fetched.response;
         if (!upstream.ok) return json({ error: 'O site de origem não permitiu consultar esta página (HTTP ' + upstream.status + ')' }, 502, cors);

@@ -333,28 +333,41 @@
       req.onerror = () => resolve();
     });
   }
+  function clearModelPreview() {
+    const card = $('previewCard');
+    card.hidden = true;
+    card.dataset.sourceUrl = card.dataset.imageUrl = card.dataset.licenseName = '';
+    $('coverPreview').removeAttribute('src');
+  }
   async function fetchPreview() {
     const url = cleanUrl($('sourceUrl').value);
     if (!url) return say('Informe um link HTTPS válido.', 'error');
     $('sourceUrl').value = url;
     if (!token()) return promptSignIn();
+    clearModelPreview();
     $('previewButton').disabled = true; $('previewButton').textContent = 'Buscando…';
     try {
       const res = await fetch(endpoint('/api/preview?url=' + encodeURIComponent(url)), { headers: { Authorization: 'Bearer ' + token() } });
       const data = await res.json();
+      if (cleanUrl($('sourceUrl').value) !== url) return;
       if (!res.ok) throw new Error(data.error || 'Não foi possível consultar a página.');
       if (data.title && !$('title').value.trim()) $('title').value = data.title;
       updateCategoryAdvice();
       if (data.author && !$('author').value.trim()) $('author').value = data.author;
-      if (data.imageUrl) {
-        $('coverPreview').src = data.imageUrl;
-        $('previewTitle').textContent = data.title || $('title').value || 'Imagem de capa encontrada';
-        $('previewMeta').textContent = data.licenseName ? 'Licença identificada: ' + data.licenseName : 'Capa encontrada na página original';
-        $('previewCard').hidden = false;
-        $('previewCard').dataset.imageUrl = data.imageUrl;
-        $('previewCard').dataset.licenseName = data.licenseName || '';
+      if (!data.title && !data.author && !data.imageUrl && !data.licenseName) {
+        return say('A página não forneceu dados do modelo. Preencha os campos manualmente.', 'error');
       }
-      say(data.imageUrl ? 'Dados encontrados. Confira antes de enviar.' : 'Página consultada, mas não foi possível localizar uma capa. Você pode compartilhar uma imagem separadamente.');
+      const card = $('previewCard');
+      card.dataset.sourceUrl = url;
+      card.dataset.imageUrl = data.imageUrl || '';
+      card.dataset.licenseName = data.licenseName || '';
+      const cover = $('coverPreview');
+      cover.hidden = !data.imageUrl;
+      if (data.imageUrl) cover.src = data.imageUrl;
+      $('previewTitle').textContent = data.title || $('title').value || 'Dados da página original';
+      $('previewMeta').textContent = [data.author, data.licenseName].filter(Boolean).join(' · ');
+      card.hidden = false;
+      say(data.imageUrl ? 'Dados encontrados. Confira antes de enviar.' : 'Dados encontrados sem capa. Você pode selecionar uma imagem.');
     } catch (error) { say(error.message || 'Falha ao buscar dados.', 'error'); }
     finally { $('previewButton').disabled = false; $('previewButton').textContent = 'Buscar dados'; }
   }
@@ -436,8 +449,10 @@
       body.append('sourceUrl', sourceUrl); body.append('sourceSite', hostOf(sourceUrl));
       body.append('title', title); body.append('author', $('author').value.trim());
       body.append('category', $('category').value); body.append('priceCents', priceCents == null ? '' : String(priceCents));
-      body.append('licenseName', $('previewCard').dataset.licenseName || '');
-      const imageUrl = $('previewCard').dataset.imageUrl || '';
+      const preview = $('previewCard').dataset;
+      const currentPreview = preview.sourceUrl === sourceUrl ? preview : {};
+      body.append('licenseName', currentPreview.licenseName || '');
+      const imageUrl = currentPreview.imageUrl || '';
       if (imageUrl) body.append('imageUrl', imageUrl);
       if (sharedImage) body.append('image', sharedImage, sharedImage.name || 'imagem-compartilhada');
       const res = await fetch(endpoint('/api/imports'), { method: 'POST', headers: { Authorization: 'Bearer ' + token() }, body });
@@ -545,7 +560,10 @@
   }
   $('imageFile').addEventListener('change', event => selectImage(event.target.files[0] || null));
   $('title').addEventListener('input', updateCategoryAdvice);
-  $('sourceUrl').addEventListener('input', updateCategoryAdvice);
+  $('sourceUrl').addEventListener('input', () => {
+    if ($('previewCard').dataset.sourceUrl !== cleanUrl($('sourceUrl').value)) clearModelPreview();
+    updateCategoryAdvice();
+  });
   $('category').addEventListener('change', () => { categoryEdited = Boolean($('category').value); updateCategoryAdvice(); });
   $('applyCategory').addEventListener('click', () => { categoryEdited = false; updateCategoryAdvice(); });
   $('analyzeCategory').addEventListener('click', analyzeCategory);
@@ -576,8 +594,8 @@
     restoreCalculatorRates();
     updatePriceCalculator();
     $('priceCalculator').open = false;
-    $('imageFile').value = ''; selectImage(null); $('previewCard').hidden = true;
-    $('previewCard').dataset.imageUrl = ''; $('draftStatus').textContent = 'Rascunho local'; say('Formulário limpo.');
+    $('imageFile').value = ''; selectImage(null); clearModelPreview();
+    $('draftStatus').textContent = 'Rascunho local'; say('Formulário limpo.');
   });
   $('apiBase').value = localStorage.getItem('expressarte_api_base') || window.EXPRESSARTE_CONFIG?.catalogApiEndpoint || '';
   $('adminToken').value = token() ? '' : sessionStorage.getItem('expressarte_admin_token') || '';

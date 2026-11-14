@@ -113,6 +113,27 @@ test('análise visual exige autenticação e só devolve categorias do catálogo
   assert.deepEqual((await send(env, 'POST', route, body, true)).body, { category: null });
 });
 
+test('prévia MakerWorld consulta metadados por ID e usa a página como fallback', async t => {
+  const fetchMock = t.mock.method(globalThis, 'fetch', async url => {
+    if (url === 'https://api.bambulab.com/v1/design-service/design/123') {
+      return Response.json({ id: 123, title: 'Modelo de teste', designCreator: { name: 'Criadora' },
+        coverUrl: 'https://example.com/capa.png', license: 'Licença de teste' });
+    }
+    if (url === 'https://api.bambulab.com/v1/design-service/design/456') return new Response(null, { status: 404 });
+    assert.equal(url, 'https://makerworld.com/models/456');
+    return new Response('<meta property="og:title" content="Modelo da página">');
+  });
+  const env = setup();
+  const preview = url => send(env, 'GET', '/api/preview?url=' + encodeURIComponent(url), undefined, true);
+  assert.deepEqual((await preview('https://makerworld.com/pt-br/models/123-modelo#profileId-5')).body, {
+    title: 'Modelo de teste', author: 'Criadora', imageUrl: 'https://example.com/capa.png',
+    licenseName: 'Licença de teste', sourceSite: 'makerworld.com'
+  });
+  assert.equal(fetchMock.mock.callCount(), 1);
+  assert.equal((await preview('https://makerworld.com/models/456')).body.title, 'Modelo da página');
+  assert.equal(fetchMock.mock.callCount(), 3);
+});
+
 test('PWA recebe link e arquivo de imagem via Web Share Target e API grava imagem em R2', async () => {
   const env = setup();
   const form = new FormData();
