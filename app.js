@@ -119,6 +119,15 @@
   function escapeHtml(value) {
     return String(value).replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
   }
+  const categoryIcons = new Map([
+    ['destaque', '<circle cx="12" cy="9" r="5"/><path d="m9 13-2 7 5-2 5 2-2-7"/>'],
+    ['decoracao', '<path d="M9 3h6M10 3v5c0 2-4 3-4 7a6 6 0 0 0 12 0c0-4-4-5-4-7V3M7 16h10"/>'],
+    ['brinquedos', '<rect x="3" y="8" width="18" height="9" rx="4"/><path d="M8 10.5v4m-2-2h4m5-1h.01m3 2h.01"/>'],
+    ['colecionaveis', '<path d="M5 3h14v18H5zM5 17h14"/><circle cx="12" cy="10" r="3"/>'],
+    ['outros', '<rect x="3.5" y="4" width="17" height="4" rx="1"/><path d="M5 8v12h14V8m-9 4h4"/>']
+  ]);
+  const defaultCategoryIcon = '<path d="M3 4h8l10 10-7 7L3 10z"/><circle cx="7.5" cy="8" r="1"/>';
+
   function ensureCategoryButton(category) {
     const strip = $('#categoryStrip');
     if (!strip || $$('.category-item').some(button => button.dataset.category === category)) return;
@@ -127,7 +136,10 @@
     button.type = 'button';
     button.dataset.category = category;
     button.setAttribute('aria-pressed', 'false');
-    button.innerHTML = '<span class="category-circle"><span aria-hidden="true">✦</span></span><span>' + escapeHtml(category) + '</span>';
+    const name = category.normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLowerCase();
+    const icon = categoryIcons.get(name === 'destaques' ? 'destaque' : name) || defaultCategoryIcon;
+    button.innerHTML = '<span class="category-circle"><svg viewBox="0 0 24 24" aria-hidden="true">' +
+      icon + '</svg></span><span>' + escapeHtml(category) + '</span>';
     button.addEventListener('click', () => browseCategory(category));
     strip.append(button);
   }
