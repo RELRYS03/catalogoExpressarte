@@ -138,7 +138,7 @@ async function handleChat(req, res) {
       return sendJson(res, 200, { reply: directReply, mode, provider: 'knowledge', cached: false });
     }
 
-    const toolResults = runKnowledgeTools({ message, mode, knowledge });
+    const toolResults = runKnowledgeTools({ message, mode, knowledge, history });
     const toolEvidence = formatToolEvidence(toolResults);
     const messages = [
       { role: 'system', content: buildSystemPrompt(mode, knowledge) + (toolEvidence ? '\n\n' + toolEvidence : '') },
