@@ -165,6 +165,7 @@
   }
   async function revealLinkedProduct() {
     const target = location.hash.slice(1);
+    $('.imported-product-card.linked-product')?.classList.remove('linked-product');
     if (!/^imported-[0-9a-f-]{36}$/i.test(target)) return;
     let card = document.getElementById(target);
     if (!card) {
@@ -190,6 +191,7 @@
       $('#searchInput').value = '';
       setCategory('Todas');
     }
+    card.classList.add('linked-product');
     card.focus({ preventScroll: true });
     card.scrollIntoView({ block: 'start', behavior: 'instant' });
   }
