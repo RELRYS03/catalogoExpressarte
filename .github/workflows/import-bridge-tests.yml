@@ -5,11 +5,17 @@ on:
     paths:
       - 'cloudflare/import-api/**'
       - 'importador/**'
+      - 'scripts/build-pages-preview.mjs'
+      - 'config.js'
+      - 'app.js'
       - '.github/workflows/import-bridge-tests.yml'
   pull_request:
     paths:
       - 'cloudflare/import-api/**'
       - 'importador/**'
+      - 'scripts/build-pages-preview.mjs'
+      - 'config.js'
+      - 'app.js'
       - '.github/workflows/import-bridge-tests.yml'
 jobs:
   test:

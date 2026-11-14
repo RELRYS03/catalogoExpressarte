@@ -122,3 +122,29 @@ test('manifest declara o destino de compartilhamento Android', async () => {
   assert.equal(manifest.share_target.params.url, 'url');
   assert.equal(manifest.share_target.params.files[0].name, 'images');
 });
+
+test('importador aceita origem do Worker, /api e configuração compartilhada sem duplicar rotas', async () => {
+  const { readFile } = await import('node:fs/promises');
+  const { runInNewContext } = await import('node:vm');
+  const script = await readFile(new URL('../../../importador/app.js', import.meta.url), 'utf8');
+  for (const configured of ['https://worker.example', 'https://worker.example/api/', '/api']) {
+    const elements = new Map();
+    const calls = [];
+    const storage = { getItem: () => null };
+    const context = {
+      URL, URLSearchParams, console,
+      window: { EXPRESSARTE_CONFIG: { catalogApiEndpoint: configured } },
+      location: { origin: 'https://preview.example', search: '' },
+      localStorage: storage, sessionStorage: storage, navigator: {},
+      document: { getElementById(id) {
+        if (!elements.has(id)) elements.set(id, { value: '', style: {}, addEventListener() {}, querySelector: () => ({ style: {} }) });
+        return elements.get(id);
+      } },
+      fetch: async url => { calls.push(url); return { ok: true, json: async () => ({ service: 'expressarte-import', ok: true, databaseConfigured: true }) }; }
+    };
+    runInNewContext(script, context);
+    await new Promise(resolve => setImmediate(resolve));
+    assert.equal(elements.get('apiBase').value, configured);
+    assert.deepEqual(calls, [configured.startsWith('https') ? 'https://worker.example/api/health' : 'https://preview.example/api/health']);
+  }
+});

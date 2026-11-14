@@ -52,10 +52,8 @@
   const apiBase = () => $('apiBase').value.trim().replace(/\/$/, '');
   const token = () => $('adminToken').value.trim() || sessionStorage.getItem('expressarte_admin_token') || '';
   function endpoint(path) {
-    const base = apiBase();
-    return base.startsWith('http')
-      ? new URL(path.replace(/^\/+/, ''), base + '/').toString()
-      : new URL(path, location.origin).toString();
+    const base = apiBase().replace(/\/+$/, '').replace(/\/api$/, '');
+    return new URL(base + path, location.origin).toString();
   }
   async function checkHealth() {
     try {
@@ -237,7 +235,7 @@
     $('imageFile').value = ''; sharedImage = null; $('filePreview').hidden = true; $('previewCard').hidden = true;
     $('previewCard').dataset.imageUrl = ''; $('draftStatus').textContent = 'Rascunho local'; say('Formulário limpo.');
   });
-  $('apiBase').value = localStorage.getItem('expressarte_api_base') || '';
+  $('apiBase').value = localStorage.getItem('expressarte_api_base') || window.EXPRESSARTE_CONFIG?.catalogApiEndpoint || '';
   $('adminToken').value = sessionStorage.getItem('expressarte_admin_token') || '';
   $('adminToken').addEventListener('input', checkHealth);
   if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js').catch(() => setConnectionStatus('Instalação PWA indisponível'));
