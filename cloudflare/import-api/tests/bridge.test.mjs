@@ -57,13 +57,24 @@ test('login privado cria uma conta, limita tentativas e revoga sessões', async 
     const newImport = new FormData();
     newImport.set('title', 'Modelo com medidas');
     newImport.set('sourceUrl', 'https://example.com/modelo-com-medidas');
-    const measurements = { description: '', dimensions: 'Altura: 13 cm', printMinutes: 103, filamentGrams: 1150.04, assembly: '', leadTime: '' };
+    const measurements = { description: '', dimensions: 'Altura: 13 cm', madeToOrder: true, printMinutes: 103, filamentGrams: 1150.04, assembly: '', leadTime: '' };
     newImport.set('details', JSON.stringify(measurements));
     const createdWithMeasurements = await worker.fetch(new Request(base + '/api/imports', { method: 'POST', headers, body: newImport }), env);
     assert.equal(createdWithMeasurements.status, 201);
     const newId = (await createdWithMeasurements.json()).id;
     const savedMeasurements = db.prepare('SELECT details_json FROM catalog_product_details WHERE product_id=?').get(newId);
     assert.deepEqual(JSON.parse(savedMeasurements.details_json), measurements);
+    const changeAvailability = details => {
+      const edit = new FormData();
+      edit.set('priceCents', '1200');
+      edit.set('details', JSON.stringify(details));
+      return worker.fetch(new Request(base + '/api/admin/products/' + newId, { method: 'PATCH', headers, body: edit }), env);
+    };
+    const { madeToOrder, ...legacyDetails } = measurements;
+    assert.equal((await changeAvailability(legacyDetails)).status, 200);
+    assert.equal(JSON.parse(db.prepare('SELECT details_json FROM catalog_product_details WHERE product_id=?').get(newId).details_json).madeToOrder, madeToOrder);
+    assert.equal((await changeAvailability({ ...legacyDetails, madeToOrder: false })).status, 200);
+    assert.equal(JSON.parse(db.prepare('SELECT details_json FROM catalog_product_details WHERE product_id=?').get(newId).details_json).madeToOrder, false);
     const form = new FormData();
     form.set('priceCents', '1200');
     form.set('details', JSON.stringify({ description: 'Kit revisto', printMinutes: 90, filamentGrams: 21.5, assembly: 'Encaixe as rodas.', leadTime: 'Até três dias' }));

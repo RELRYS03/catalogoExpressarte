@@ -97,20 +97,26 @@ function readProductDetails(raw) {
   try {
     const value = JSON.parse(raw);
     if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
-    const { description, printMinutes, filamentGrams, assembly, leadTime, dimensions = '' } = value;
+    const { description, printMinutes, filamentGrams, assembly, leadTime, dimensions = '', madeToOrder = false } = value;
     if ([[description, 1200], [assembly, 1600], [leadTime, 100]].some(([field, limit]) => typeof field !== 'string' || field.length > limit)) return null;
     if (printMinutes !== null && (!Number.isSafeInteger(printMinutes) || printMinutes < 1 || printMinutes > 100000)) return null;
     if (filamentGrams !== null && (typeof filamentGrams !== 'number' || !Number.isFinite(filamentGrams) || filamentGrams <= 0 || filamentGrams > 100000)) return null;
     if (typeof dimensions !== 'string' || dimensions.length > 120) return null;
+    if (typeof madeToOrder !== 'boolean') return null;
     return { description: description.trim(), printMinutes, filamentGrams, assembly: assembly.trim(), leadTime: leadTime.trim(),
-      ...(dimensions.trim() ? { dimensions: dimensions.trim() } : {}) };
+      ...(dimensions.trim() ? { dimensions: dimensions.trim() } : {}),
+      ...(Object.hasOwn(value, 'madeToOrder') ? { madeToOrder } : {}) };
   } catch { return null; }
 }
 const productDetailsField = table =>
   '(SELECT details_json FROM catalog_product_details WHERE product_id=' + table + '.id) AS details_json';
 function storeProductDetails(env, source, id, details) {
   return env.DB.prepare(`INSERT INTO catalog_product_details (product_id,details_json)
-    SELECT id,? FROM ${source} WHERE id=? ON CONFLICT(product_id) DO UPDATE SET details_json=excluded.details_json`)
+    SELECT id,? FROM ${source} WHERE id=? ON CONFLICT(product_id) DO UPDATE SET details_json=
+      CASE WHEN json_type(excluded.details_json,'$.madeToOrder') IS NULL
+        AND json_extract(catalog_product_details.details_json,'$.madeToOrder')=1
+        THEN json_set(excluded.details_json,'$.madeToOrder',json('true'))
+        ELSE excluded.details_json END`)
     .bind(JSON.stringify(details), id);
 }
 async function saveProductEdit(request, env, id, builtIn, cors) {

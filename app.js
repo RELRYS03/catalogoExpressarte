@@ -91,7 +91,7 @@
     const previous = state.order.get(key);
     state.order.set(key, { id, key, quantity: (previous?.quantity || 0) + quantity, price, priceLabel });
     renderOrder();
-    notify(`${product.name} incluído no pedido (${quantity} un.).`);
+    notify(`${product.name} ${product.madeToOrder ? 'incluído como encomenda' : 'incluído no pedido'} (${quantity} un.).`);
   }
     function renderOrder() {
     const entries = Array.from(state.order.values());
@@ -110,7 +110,7 @@
     }
     orderItems.innerHTML = entries.map(entry => {
       const product = getProduct(entry.id);
-      return `<div class="order-item"><div><div class="order-item-name">${escapeHtml(product.name)}</div><div class="order-item-detail">${entry.quantity} × ${money(entry.price ?? product.price)} · ${escapeHtml(entry.priceLabel || product.priceLabel || 'preço provisório')}</div></div><div class="order-item-total">${money(entry.quantity * (entry.price ?? product.price))}</div><button class="remove-item" type="button" data-remove="${escapeHtml(entry.key)}" aria-label="Remover ${escapeHtml(product.name)}">×</button></div>`;
+      return `<div class="order-item"><div><div class="order-item-name">${escapeHtml(product.name)}</div><div class="order-item-detail">${entry.quantity} × ${money(entry.price ?? product.price)} · ${escapeHtml(entry.priceLabel || product.priceLabel || 'preço provisório')}${product.madeToOrder ? ' · Sob encomenda' : ''}</div></div><div class="order-item-total">${money(entry.quantity * (entry.price ?? product.price))}</div><button class="remove-item" type="button" data-remove="${escapeHtml(entry.key)}" aria-label="Remover ${escapeHtml(product.name)}">×</button></div>`;
     }).join('');
     $$('[data-remove]').forEach(button => button.addEventListener('click', () => {
       state.order.delete(button.dataset.remove);
@@ -145,8 +145,7 @@
     button.addEventListener('click', () => browseCategory(category));
     strip.append(button);
   }
-  function renderProductDetails(raw, fallback, showUnconfirmedDimensions = false) {
-    const details = JSON.parse(raw || '{}');
+  function renderProductDetails(details, fallback, showUnconfirmedDimensions = false) {
     const minutes = details.printMinutes;
     const time = minutes ? [Math.floor(minutes / 60) ? Math.floor(minutes / 60) + ' h' : '', minutes % 60 ? minutes % 60 + ' min' : ''].filter(Boolean).join(' ') : '';
     const specs = [
@@ -161,6 +160,14 @@
         '<div><dt>' + label + '</dt><dd>' + escapeHtml(value) + '</dd></div>').join('') + '</dl>' : '') +
       (details.assembly ? '<details class="catalog-product-assembly"><summary>Como montar ou usar</summary><p>' + escapeHtml(details.assembly) + '</p></details>' : '') + '</div>';
   }
+  const preorderBadge = '<span class="preorder-badge">Esgotado · Sob encomenda</span>';
+  function showProductAvailability(card, product, details) {
+    product.madeToOrder = details.madeToOrder === true;
+    if (!product.madeToOrder) return;
+    card.classList.add('made-to-order');
+    card.querySelector('.product-badge').outerHTML = preorderBadge;
+    card.querySelector('.add-order-button').lastChild.textContent = ' Encomendar';
+  }
   function addImportedProduct(item) {
     const safeId = String(item.id || '').replace(/[^a-zA-Z0-9_-]/g, '');
     if (!safeId) return;
@@ -174,7 +181,9 @@
     const hasPrice = item.price_cents !== null && item.price_cents !== undefined && Number.isFinite(Number(item.price_cents));
     const price = hasPrice ? Math.max(0, Number(item.price_cents) / 100) : 0;
     const priceLabel = hasPrice ? 'preço informado' : 'consulte o valor';
-    products.push({ id, name, category, price, priceLabel, cover: imageUrl, draft: false });
+    const product = { id, name, category, price, priceLabel, cover: imageUrl, draft: false };
+    const details = JSON.parse(item.details_json || '{}');
+    products.push(product);
     state.quantities[id] = 1;
     ensureCategoryButton(category);
     const card = document.createElement('article');
@@ -192,13 +201,14 @@
       : '';
     card.innerHTML = '<div class="product-photo-area"><span class="product-badge">SELECIONADO</span><div class="product-gallery">' + photo + '</div></div>' +
       '<div class="product-info"><span class="product-category-label"><span class="category-mini-icon">✦</span> ' + escapeHtml(category.toLocaleUpperCase('pt-BR')) + '</span>' +
-      '<h3>' + escapeHtml(name) + '</h3>' + renderProductDetails(item.details_json,
+      '<h3>' + escapeHtml(name) + '</h3>' + renderProductDetails(details,
         'Modelo selecionado pela Express’Arte. Consulte disponibilidade e prazo de produção.', true) +
       (author ? '<p class="product-author">Criador original: ' + escapeHtml(author) + '</p>' : '') +
       '<div class="price-line"><span class="price">' + (hasPrice ? money(price) : 'Consulte') + '</span><span class="provisional-label">' + priceLabel + '</span></div>' +
       '<div class="quantity-row"><span>Quantidade</span><div class="quantity-control"><button class="qty-minus" type="button" aria-label="Diminuir quantidade">−</button><output class="qty-value" aria-live="polite">1</output><button class="qty-plus" type="button" aria-label="Aumentar quantidade">+</button></div><span class="unit-label">un.</span></div>' +
       '<button class="add-order-button" type="button"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg> Incluir no pedido</button>' +
       '<p class="product-footnote">Produto selecionado para o catálogo. Preço e disponibilidade sujeitos à confirmação. ' + source + '</p></div>';
+    showProductAvailability(card, product, details);
     productGrid.append(card);
     card.querySelector('.qty-minus').addEventListener('click', () => updateQuantity(card, state.quantities[id] - 1));
     card.querySelector('.qty-plus').addEventListener('click', () => updateQuantity(card, state.quantities[id] + 1));
@@ -272,9 +282,11 @@
           ensureCategoryButton(edit.category);
         }
         if (edit.details_json) {
+          const details = JSON.parse(edit.details_json);
           const description = card.querySelector('.product-description');
-          description.insertAdjacentHTML('beforebegin', renderProductDetails(edit.details_json, description.textContent));
+          description.insertAdjacentHTML('beforebegin', renderProductDetails(details, description.textContent));
           description.remove();
+          showProductAvailability(card, product, details);
         }
         if (Number.isSafeInteger(edit.price_cents)) {
           product.price = edit.price_cents / 100;
@@ -381,7 +393,7 @@
       const campaign = offer.campaign ? '<p class="weekly-deal-category">' + escapeHtml(offer.campaign) + '</p>' : '';
       const cover = /^https:\/\//i.test(offer.image_url || '') ? offer.image_url : product.cover;
       const card = document.createElement('article');
-      card.className = 'weekly-deal-card';
+      card.className = 'weekly-deal-card' + (product.madeToOrder ? ' made-to-order' : '');
       const theme = Object.hasOwn(promotionThemes, offer.theme) ? offer.theme : 'default';
       themesInUse.add(theme);
       if (theme !== 'default') {
@@ -393,10 +405,10 @@
         (cover ? '<img src="' + escapeHtml(cover) + '" alt="' + escapeHtml(product.name) + '" loading="lazy">' : '') +
         '<span class="weekly-deal-tag">' + label + '</span>' +
         (discount ? '<span class="weekly-deal-discount"><strong>' + escapeHtml(discount) + '</strong><small>desconto</small></span>' : '') + '</div>' +
-        '<div class="weekly-deal-content">' + campaign + '<h3>' + escapeHtml(product.name) + '</h3><div class="weekly-deal-price">' +
+        '<div class="weekly-deal-content">' + (product.madeToOrder ? preorderBadge : '') + campaign + '<h3>' + escapeHtml(product.name) + '</h3><div class="weekly-deal-price">' +
         (product.price > price ? '<del aria-label="Preço normal">' + money(product.price) + '</del>' : '') +
         '<div><span>Preço promocional</span><strong>' + money(price) + '</strong></div></div>' +
-        '<button class="weekly-deal-button" type="button">Aproveitar oferta</button></div>';
+        '<button class="weekly-deal-button" type="button">' + (product.madeToOrder ? 'Encomendar oferta' : 'Aproveitar oferta') + '</button></div>';
       card.querySelector('button').addEventListener('click', () => {
         if (offer.expires_at <= Date.now()) {
           renderPromotions(promotions);
@@ -425,7 +437,7 @@
     const lines = entries.map(entry => {
       const product = getProduct(entry.id);
       const offer = entry.key === entry.id ? '' : ` (${entry.priceLabel}: ${money(entry.price)} por unidade)`;
-      return `• ${product.name} — ${entry.quantity} ${entry.quantity === 1 ? 'unidade' : 'unidades'}${offer}`;
+      return `• ${product.name} — ${entry.quantity} ${entry.quantity === 1 ? 'unidade' : 'unidades'}${offer}${product.madeToOrder ? ' — Sob encomenda' : ''}`;
     });
     const message = `Olá! Gostaria de pedir:\n\n${lines.join('\n')}\n\nPode confirmar a disponibilidade e o valor final, por favor?`;
     window.open(`https://wa.me/${number}?text=${encodeURIComponent(message)}`, '_blank', 'noopener,noreferrer');

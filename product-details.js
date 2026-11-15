@@ -36,6 +36,7 @@ selectPhoto(0);
 let lastFocus=null;
 function openDetails(){
  lastFocus=document.activeElement;
+ dialog.querySelector('.ea-details-add').textContent=card.classList.contains('made-to-order')?'Encomendar':'Adicionar ao pedido';
  dialog.querySelector('.ea-details-qty').value='1';
  dialog.querySelector('.ea-details-price').textContent=card.querySelector('.price').textContent;
  dialog.querySelector('.ea-details-eyebrow').textContent='EXPRESS’ARTE • '+card.dataset.category.toLocaleUpperCase('pt-BR');

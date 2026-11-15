@@ -643,9 +643,10 @@
       body.append('title', title); body.append('author', $('author').value.trim());
       const description = $('description').value.trim();
       const dimensions = $('dimensions').value.trim();
+      const madeToOrder = $('madeToOrder').checked;
       if (description) body.append('description', description);
-      if (dimensions || printMinutes !== null || filamentGrams !== null) {
-        body.append('details', JSON.stringify({ description, dimensions, printMinutes, filamentGrams, assembly: '', leadTime: '' }));
+      if (dimensions || madeToOrder || printMinutes !== null || filamentGrams !== null) {
+        body.append('details', JSON.stringify({ description, dimensions, madeToOrder, printMinutes, filamentGrams, assembly: '', leadTime: '' }));
       }
       body.append('category', $('category').value); body.append('priceCents', priceCents == null ? '' : String(priceCents));
       const preview = $('previewCard').dataset;
@@ -768,7 +769,9 @@
 
   function renderProductDetailFields(item) {
     const details = JSON.parse(item.details_json || '{}');
-    return '<fieldset class="edit-product-details"><legend>Detalhes do produto</legend>' + detailFields.map(([name, label, limit]) => {
+    return '<fieldset class="edit-product-details"><legend>Detalhes do produto</legend>' +
+      '<label class="edit-photo-rights"><input type="checkbox" name="madeToOrder"' + (details.madeToOrder === true ? ' checked' : '') +
+      '> Esgotado — aceita encomenda</label>' + detailFields.map(([name, label, limit]) => {
       let value = details[name] ?? '';
       if (name === 'printMinutes' && value) value = formatPrintTime(value);
       if (name === 'filamentGrams' && value) value = gramsFormat.format(value);
@@ -795,6 +798,7 @@
     const result = form.querySelector('[role="status"]');
     const price = parsePrice(input.value);
     const details = Object.fromEntries(detailFields.map(([name]) => [name, form.elements.namedItem(name).value.trim()]));
+    details.madeToOrder = form.elements.namedItem('madeToOrder').checked;
     details.printMinutes = parsePrintTime(details.printMinutes);
     details.filamentGrams = parseFilamentWeight(details.filamentGrams);
     const measurementError = checkMeasurements(details.printMinutes, details.filamentGrams);
@@ -1148,6 +1152,7 @@
     categoryEdited = false;
     imageSuggestion = null;
     fields.forEach(id => { $(id).value = ''; });
+    $('madeToOrder').checked = false;
     calculatorFields.forEach(id => { $(id).value = ''; });
     restoreCalculatorRates();
     updatePriceCalculator();
