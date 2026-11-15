@@ -211,7 +211,7 @@
       .then(result => {
         if (!status) return;
         status.textContent = result.ok && result.data.ok
-          ? (result.data.provider === 'openai-compatible' ? 'OpenAI conectada · ' : 'Ollama conectado · ') + result.data.model
+          ? (({ freellmapi: 'FreeLLMAPI conectado · ', nvidia: 'NVIDIA conectada · ', 'openai-compatible': 'API online conectada · ', ollama: 'Ollama conectado · ' }[result.data.provider] || 'IA conectada · ') + (result.data.model || ''))
           : 'IA indisponível · veja o diagnóstico ao enviar uma mensagem';
       })
       .catch(() => {
