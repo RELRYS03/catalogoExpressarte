@@ -139,8 +139,8 @@
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ message: message, mode: mode, history: history.slice(-10) })
     });
-    if (!response.ok) throw new Error('A conexão com o serviço do Expressinho falhou.');
-    const data = await response.json();
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.error || ('O serviço do Expressinho respondeu com HTTP ' + response.status + '.'));
     if (!data || typeof data.reply !== 'string' || !data.reply.trim()) {
       throw new Error('O serviço do Expressinho não devolveu uma resposta válida.');
     }
@@ -162,7 +162,7 @@
     try {
       answer = await getAnswer(message);
     } catch (error) {
-      answer = localAnswer(message, mode) + '\n\nNão consegui conectar à IA agora. Tente novamente em instantes.';
+      answer = 'Não consegui obter resposta da IA. Diagnóstico: ' + (error && error.message ? error.message : 'erro desconhecido') + '.';
     }
 
     pending.remove();
@@ -211,8 +211,8 @@
       .then(result => {
         if (!status) return;
         status.textContent = result.ok && result.data.ok
-          ? (result.data.provider === 'openai-compatible' ? 'OpenAI ativa · ' : 'Ollama ativo · ') + result.data.model
-          : 'IA indisponível';
+          ? (result.data.provider === 'openai-compatible' ? 'OpenAI conectada · ' : 'Ollama conectado · ') + result.data.model
+          : 'IA indisponível · veja o diagnóstico ao enviar uma mensagem';
       })
       .catch(() => {
         const statusElement = $('#expressinhoStatus');
