@@ -154,10 +154,10 @@ async function handleChat(req, res) {
       try {
         const key = cacheKey(mode, onlineConfig.model, message, history);
         const cachedReply = readCachedReply(key);
-        if (cachedReply) return sendJson(res, 200, { reply: cachedReply, mode, model: onlineConfig.model, provider: 'openai-compatible', cached: true });
+        if (cachedReply) return sendJson(res, 200, { reply: cachedReply, mode, model: onlineConfig.model, provider: onlineConfig.provider || 'openai-compatible', cached: true });
         const reply = await generateCompatibleReply({ config: onlineConfig, messages });
         saveCachedReply(key, reply);
-        return sendJson(res, 200, { reply, mode, model: onlineConfig.model, provider: 'openai-compatible', cached: false });
+        return sendJson(res, 200, { reply, mode, model: onlineConfig.model, provider: onlineConfig.provider || 'openai-compatible', cached: false });
       } catch (onlineError) {
         // Se a API falhar, tenta o modelo local; nunca finge que a resposta veio da OpenAI.
         try {
@@ -249,7 +249,7 @@ const server = http.createServer(async (req, res) => {
     let online;
     try { online = getCompatibleProviderConfig(); }
     catch (error) {
-      return sendJson(res, 503, { ok: false, provider: 'openai-compatible', onlineConfigured: true, error: 'Configuração online inválida: ' + error.message });
+      return sendJson(res, 503, { ok: false, provider: online?.provider || 'openai-compatible', onlineConfigured: true, error: 'Configuração online inválida: ' + error.message });
     }
     let onlineStatus = { configured: false, reachable: false };
     if (online) {
@@ -284,8 +284,8 @@ const server = http.createServer(async (req, res) => {
       localStatus.error = 'Ollama indisponível: ' + error.message;
     }
     const ok = Boolean((online && onlineStatus.reachable) || localStatus.selectedModel);
-    const provider = online && onlineStatus.reachable ? 'openai-compatible' : (localStatus.selectedModel ? 'ollama' : 'unavailable');
-    const model = provider === 'openai-compatible' ? online.model : (localStatus.selectedModel || null);
+    const provider = online && onlineStatus.reachable ? (online.provider || 'openai-compatible') : (localStatus.selectedModel ? 'ollama' : 'unavailable');
+    const model = online && onlineStatus.reachable ? online.model : (localStatus.selectedModel || null);
     return sendJson(res, ok ? 200 : 503, {
       ok, service: 'Expressinho IA', provider, model,
       openai: onlineStatus, ollama: localStatus, cache: cacheStats()
