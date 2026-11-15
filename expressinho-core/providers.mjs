@@ -1,23 +1,49 @@
+function isAllowedBaseUrl(value) {
+  let url;
+  try { url = new URL(value); }
+  catch { return false; }
+  if (url.protocol === 'https:') return true;
+  // HTTP só é permitido para o FreeLLMAPI na própria máquina.
+  return url.protocol === 'http:' &&
+    ['localhost', '127.0.0.1', '[::1]', '::1'].includes(url.hostname.toLowerCase());
+}
+
+function makeConfig(provider, baseUrl, apiKey, model) {
+  const normalizedBaseUrl = String(baseUrl || '').trim().replace(/\\/+$/, '');
+  if (!normalizedBaseUrl || !apiKey || !model) return null;
+  if (!isAllowedBaseUrl(normalizedBaseUrl)) {
+    throw new Error('Use HTTPS para provedores externos. HTTP só é permitido em localhost.');
+  }
+  return { provider, baseUrl: normalizedBaseUrl, apiKey: String(apiKey).trim(), model: String(model).trim() };
+}
+
 export function getCompatibleProviderConfig(env = process.env) {
   const enabled = String(env.EXPRESSINHO_ONLINE_ENABLED || 'true').toLowerCase() === 'true';
   if (!enabled) return null;
 
-  // NVIDIA NIM tem prioridade quando suas variáveis estão configuradas.
-  const nvidiaBaseUrl = String(env.NVIDIA_API_BASE_URL || env.NVIDIA_NIM_BASE_URL || 'https://integrate.api.nvidia.com/v1').trim().replace(/\/+$/, '');
+  // FreeLLMAPI é o roteador principal: ele escolhe NVIDIA e aplica sua própria cadeia de fallback.
+  const freeLlmConfig = makeConfig(
+    'freellmapi',
+    env.FREELLMAPI_BASE_URL || 'http://127.0.0.1:3001/v1',
+    String(env.FREELLMAPI_API_KEY || '').trim(),
+    String(env.FREELLMAPI_MODEL || 'auto').trim()
+  );
+  if (freeLlmConfig) return freeLlmConfig;
+
+  // NVIDIA NIM direto continua disponível como alternativa ao roteador.
+  const nvidiaBaseUrl = String(env.NVIDIA_API_BASE_URL || env.NVIDIA_NIM_BASE_URL || 'https://integrate.api.nvidia.com/v1').trim();
   const nvidiaApiKey = String(env.NVIDIA_API_KEY || env.NVIDIA_NIM_API_KEY || '').trim();
   const nvidiaModel = String(env.NVIDIA_API_MODEL || env.NVIDIA_NIM_MODEL || '').trim();
-  if (nvidiaApiKey && nvidiaModel) {
-    if (!/^https:\/\/[^/]+/i.test(nvidiaBaseUrl)) throw new Error('O endpoint NVIDIA precisa usar HTTPS.');
-    return { provider: 'nvidia', baseUrl: nvidiaBaseUrl, apiKey: nvidiaApiKey, model: nvidiaModel };
-  }
+  const nvidiaConfig = makeConfig('nvidia', nvidiaBaseUrl, nvidiaApiKey, nvidiaModel);
+  if (nvidiaConfig) return nvidiaConfig;
 
-  // OpenAI permanece como segunda opção online.
-  const baseUrl = String(env.EXPRESSINHO_API_BASE_URL || '').trim().replace(/\/+$/, '');
-  const apiKey = String(env.EXPRESSINHO_API_KEY || '').trim();
-  const model = String(env.EXPRESSINHO_API_MODEL || '').trim();
-  if (!baseUrl || !apiKey || !model) return null;
-  if (!/^https:\/\/[^/]+/i.test(baseUrl)) throw new Error('O endpoint online precisa usar HTTPS.');
-  return { provider: 'openai-compatible', baseUrl, apiKey, model };
+  // Provedor OpenAI-compatible legado.
+  return makeConfig(
+    'openai-compatible',
+    env.EXPRESSINHO_API_BASE_URL,
+    String(env.EXPRESSINHO_API_KEY || '').trim(),
+    String(env.EXPRESSINHO_API_MODEL || '').trim()
+  );
 }
 
 export async function generateCompatibleReply({ config, messages, fetchImpl = fetch, timeoutMs = 45000 }) {
