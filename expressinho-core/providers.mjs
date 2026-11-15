@@ -9,7 +9,7 @@ function isAllowedBaseUrl(value) {
 }
 
 function makeConfig(provider, baseUrl, apiKey, model) {
-  const normalizedBaseUrl = String(baseUrl || '').trim().replace(/\\/+$/, '');
+  const normalizedBaseUrl = String(baseUrl || '').trim().replace(/\/+$/, '');
   if (!normalizedBaseUrl || !apiKey || !model) return null;
   if (!isAllowedBaseUrl(normalizedBaseUrl)) {
     throw new Error('Use HTTPS para provedores externos. HTTP só é permitido em localhost.');
