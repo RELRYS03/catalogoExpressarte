@@ -182,6 +182,21 @@
   color: #fff8ef;
 }
 .expressinho-message.pending { color: #8b7868; font-style: italic; }
+.expressinho-answer-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.expressinho-answer-actions :is(a, button) {
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  padding: 5px 10px;
+  border: 1px solid #d7b992;
+  border-radius: 10px;
+  background: #fffdfa;
+  color: #4a2b1c;
+  font: inherit;
+  font-weight: 800;
+}
+.expressinho-answer-actions :is(a, button):hover { background: #f4e5d1; }
+.expressinho-answer-actions button:disabled { cursor: default; }
 .expressinho-quick-prompts {
   display: flex;
   gap: 7px;

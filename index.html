@@ -9,7 +9,7 @@
   <link rel="icon" href="assets/expressarte-icon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="styles.css?v=encomendas">
   <link rel="stylesheet" href="product-details.css">
-  <link rel="stylesheet" href="expressinho.css">
+  <link rel="stylesheet" href="expressinho.css?v=loja">
   <link rel="stylesheet" href="promotion-themes.css?v=5">
 </head>
 <body>
@@ -175,21 +175,21 @@
       <img class="expressinho-panel-avatar" src="assets/expressinho-rosto-referencia.png" alt="">
       <div class="expressinho-panel-title">
         <strong>Expressinho IA</strong>
-        <small id="expressinhoStatus">Base inicial · IA ainda não conectada</small>
+        <small id="expressinhoStatus">Assistente virtual da Express’Arte</small>
       </div>
       <button class="expressinho-close" id="expressinhoClose" type="button" aria-label="Fechar assistente">×</button>
     </header>
-    <p class="expressinho-notice">Primeira versão: respostas baseadas em informações iniciais. As conversas não são salvas como memória permanente.</p>
     <div class="expressinho-modes" role="group" aria-label="Área de ajuda">
       <button class="expressinho-mode" type="button" data-expressinho-mode="loja" aria-pressed="true">Loja</button>
       <button class="expressinho-mode" type="button" data-expressinho-mode="studio" aria-pressed="false">Studio 3D</button>
       <button class="expressinho-mode" type="button" data-expressinho-mode="fabricacao" aria-pressed="false">Fabricação</button>
     </div>
     <div class="expressinho-messages" id="expressinhoMessages" aria-live="polite" aria-relevant="additions text">
-      <div class="expressinho-message assistant">Oi! Sou o Expressinho. Já tenho uma base inicial sobre o catálogo e posso orientar sobre Studio 3D e fabricação. Minha conexão com uma IA completa e minha memória permanente ainda serão configuradas.</div>
+      <div class="expressinho-message assistant">Oi! Sou o Expressinho. Posso procurar produtos, conferir promoções e calcular o total de várias unidades. O que você está procurando?</div>
     </div>
     <div class="expressinho-quick-prompts" aria-label="Perguntas rápidas">
       <button type="button" data-expressinho-mode="loja" data-expressinho-prompt="Quais produtos estão cadastrados?">Produtos</button>
+      <button type="button" data-expressinho-mode="loja" data-expressinho-prompt="Quais estão em promoção?">Promoções</button>
       <button type="button" data-expressinho-mode="studio" data-expressinho-prompt="Como você pode me ajudar com o Blender?">Ajuda com Blender</button>
       <button type="button" data-expressinho-mode="fabricacao" data-expressinho-prompt="Quais dados você precisa para calcular uma impressão?">Custo de impressão</button>
     </div>
@@ -198,7 +198,6 @@
       <input id="expressinhoInput" type="text" maxlength="600" placeholder="Escreva sua dúvida..." autocomplete="off">
       <button class="expressinho-send" id="expressinhoSend" type="submit">Enviar</button>
     </form>
-    <p class="expressinho-disclaimer">Não executa ações no computador nem altera produtos. Para ativar a IA real, conectaremos um serviço seguro sem expor chaves no navegador.</p>
   </section>
 
   <a class="back-to-top" href="#inicio">
@@ -207,8 +206,8 @@
   </a>
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
   <script src="config.js?v=descontos"></script>
-  <script src="app.js?v=encomendas"></script>
+  <script src="app.js?v=expressinho-loja"></script>
   <script src="product-details.js?v=encomendas"></script>
-  <script src="expressinho.js"></script>
+  <script src="expressinho.js?v=loja"></script>
 </body>
 </html>

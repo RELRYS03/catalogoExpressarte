@@ -22,9 +22,10 @@
   let mode = 'loja';
   let activeTrigger = heroTrigger;
   let history = [];
+  let lastProductId = '';
 
   const status = $('#expressinhoStatus');
-  if (status && endpoint) status.textContent = 'Serviço de IA configurado';
+  const money = cents => (cents / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
   function setExpanded(expanded) {
     heroTrigger.setAttribute('aria-expanded', String(expanded));
@@ -66,6 +67,102 @@
     });
   }
 
+  const ignoredWords = new Set(('oi ola eu e o a os as um uma de da do das dos no na em por para com que quero gostaria pedir fazer ' +
+    'preciso comprar encomendar encomenda valor preco quanto fica sai custa tem voce voces consegue conseguir mostrar ver me ' +
+    'produto item preco pedido unidade peca qual quais esse essa isto isso deles dele dela mesmo agora pode ' +
+    'orcamento desconto promocao oferta atacado estoque pronta pronto entrega disponivel disponibilidade prazo frete dia ate r ' +
+    'estao esta cadastrado publicado vende vendem confirmacao confirmar').split(' '));
+  const normalize = text => text.toLocaleLowerCase('pt-BR').normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  const words = text => (normalize(text).match(/[a-z]+/g) || []).map(word => word === 'quais' ? 'qual' : word.replace(/oes$/, 'ao').replace(/s$/, ''));
+
+  function contactAction(message) {
+    const number = String(config.whatsappNumber || '').replace(/\D/g, '');
+    return number ? { label: 'Consultar pelo WhatsApp', href: 'https://wa.me/' + number + '?text=' + encodeURIComponent(message) } : null;
+  }
+
+  async function shopAnswer(message) {
+    const shop = window.EXPRESSARTE_LOJA;
+    if (!shop) return null;
+    const text = normalize(message);
+    const quantityMatch = text.match(/\b(\d+)\s*(?:unidades?|un\.?|pecas?)\b/) ||
+      text.match(/(?:^\s*(?:e\s+)?|\b(?:quero|preciso de|gostaria de|tem|separar|encomendar|quanto (?:custa|fica|sai))\s+)(\d+)(?![\d.,/])(?=\s|[!?]|$)/);
+    const quantity = quantityMatch ? Number(quantityMatch[1]) : null;
+    if (quantity !== null && (quantity < 1 || quantity > 999)) return { text: 'Informe uma quantidade de 1 a 999 unidades.' };
+
+    const promoOnly = /\b(?:promocao|promocoes|ofertas?)\b/.test(text);
+    const listRequested = /\b(?:quais|ver|mostrar|listar)\s+(?:os\s+)?(?:produtos|itens)\b|\b(?:voces? (?:vende|vendem|tem)|catalogo)\b/.test(text);
+    const budget = text.match(/\bate\s*(?:r\$\s*)?(\d+(?:\.\d{3})*(?:,\d{1,2})?)(?![\d.,/])/);
+    const budgetCents = budget ? Math.round(Number(budget[1].replaceAll('.', '').replace(',', '.')) * 100) : null;
+    const delivery = message.match(/\b(?:para|at[eé])\s+(?:(?:o\s+)?dia\s+)?(\d{1,2}\/\d{1,2}(?:\/\d{2,4})?|amanh[ãa]|sexta(?:-feira)?|s[áa]bado|domingo)\b/i)?.[1] ||
+      message.match(/\bpara\s+(?:o\s+)?dia\s+(\d{1,2})\b/i)?.[1];
+    const stockCheck = /\b(?:estoque|pronta entrega|prontos?|disponibilidade)\b/.test(text) || (quantity !== null && /\btem\b/.test(text));
+    const quote = stockCheck || Boolean(delivery) || /\b(?:desconto|atacado|prazo|frete|entrega|personalizar|personalizado)\b/.test(text);
+    const query = delivery ? text.replace(normalize(delivery), ' ') : text;
+    const terms = [...new Set(words(query).filter(word => word.length > 2 && !ignoredWords.has(word)))];
+    const products = await shop.products();
+    if (!products) return { text: 'Não consegui consultar o catálogo agora. Tente novamente em instantes.' };
+
+    let matches = products.map(product => {
+      const name = words(product.name);
+      const category = words(product.category || '');
+      const matched = terms.filter(term => name.includes(term) || category.includes(term)).length;
+      const score = matched * 3 + terms.filter(term => name.includes(term)).length;
+      return { product, matched, score };
+    }).filter(item => item.matched > 0).sort((a, b) => b.score - a.score);
+    if (matches.length) {
+      const best = matches[0].matched;
+      matches = matches.filter(item => item.matched === best);
+    }
+    const continuation = quantity !== null || quote || /\b(?:esse|essa|dele|dela)\b/.test(text);
+    const specificQuestion = terms.some(term => !['preco', 'total', 'forma', 'fazer', 'confirmar', 'comprar'].includes(term));
+    if (!matches.length && continuation && !specificQuestion && lastProductId) {
+      const previous = products.find(product => product.id === lastProductId);
+      if (previous) matches = [{ product: previous }];
+    }
+    if (!matches.length && (listRequested || promoOnly || budgetCents !== null) && (!terms.length || listRequested)) {
+      matches = products.map(product => ({ product }));
+    }
+
+    const matchingProducts = matches.map(item => item.product).filter(product =>
+      (!promoOnly || product.promotion) &&
+      (budgetCents === null || (product.priceCents !== null && product.priceCents * (quantity || 1) <= budgetCents)));
+    if (!matchingProducts.length) {
+      if (quantity !== null && !matches.length) return { text: 'Qual produto você quer e em qual quantidade? Pode escrever o nome como aparece no catálogo.' };
+      if (matches.length || promoOnly || budgetCents !== null || listRequested) return { text: 'Não encontrei produtos publicados que atendam a esse pedido. Tente outro nome ou valor.' };
+      return null;
+    }
+    if (matchingProducts.length > 1) {
+      const choices = matchingProducts.slice(0, 4);
+      return {
+        text: (quantity !== null ? 'Qual destes produtos você quer? Me diga o nome e a quantidade.' : 'Encontrei estes produtos no catálogo:') + '\n' +
+          choices.map(product => '• ' + product.name + ' — ' + (product.priceCents === null ? 'Preço sob consulta' : money(product.priceCents)) +
+            (product.madeToOrder ? ' · Sob encomenda' : '')).join('\n'),
+        actions: choices.filter(product => product.href).map(product => ({ label: 'Ver ' + product.name, href: product.href }))
+      };
+    }
+
+    const product = matchingProducts[0];
+    lastProductId = product.id;
+    const units = quantity || 1;
+    const unitText = units + (units === 1 ? ' unidade' : ' unidades');
+    const price = product.priceCents;
+    const productAction = product.href ? { label: 'Ver produto', href: product.href } : null;
+    const detail = product.name + ' — ' + (price === null ? 'preço sob consulta' : money(price) + ' por unidade') +
+      (product.promotion ? ' (' + product.promotion + ')' : '') + '.';
+    const total = quantity && price !== null ? '\n' + unitText + (units === 1 ? ' fica em ' : ' ficam em ') + money(price * units) + '.' : '';
+    if (quote || price === null) {
+      const date = delivery ? '\nData desejada: ' + delivery + '.' : '';
+      const contact = contactAction('Olá! Gostaria de consultar a Express’Arte sobre ' + product.name + '.\nQuantidade: ' +
+        unitText + '.' + date + '\nMinha dúvida: ' + message);
+      return { text: detail + total + (product.madeToOrder ? '\nProduto sob encomenda.' : '') +
+        '\nA loja pode confirmar disponibilidade, prazo e condições pelo WhatsApp.', actions: [productAction, contact].filter(Boolean) };
+    }
+    return {
+      text: detail + total + (product.madeToOrder ? '\nProduto sob encomenda. Confirme o prazo com a loja.' : '\nA loja confirma a disponibilidade ao receber o pedido.'),
+      actions: [productAction, { label: product.madeToOrder ? 'Incluir como encomenda' : 'Incluir no pedido', add: () => shop.add(product.id, units, price, product.promotion) }].filter(Boolean)
+    };
+  }
+
   function localAnswer(message, selectedMode) {
     const text = message.toLocaleLowerCase('pt-BR');
     if (/\b(aprender|memorizar|guardar|ensinar|corrigir|lembrar|memória|memoria)\b/.test(text)) {
@@ -73,16 +170,7 @@
     }
 
     if (selectedMode === 'loja') {
-      if (/\b(pote|anilha|28kg|64lb)\b/.test(text)) {
-        return 'Na base de teste está cadastrado o Pote Anilha 28KG / 64LB, com preço provisório de R$ 34,90. O produto continua em rascunho e ainda não deve ser anunciado como preço final. Só a equipe da Express’Arte pode confirmar o valor e a publicação.';
-      }
-      if (/\b(preço|preco|valor|quanto|custa|custar)\b/.test(text)) {
-        return 'Por enquanto, o único preço cadastrado na demonstração é R$ 34,90 para o Pote Anilha 28KG / 64LB. Esse valor é provisório e o produto está em rascunho; não vou inventar preços para outros itens.';
-      }
-      if (/\b(whatsapp|pedido|comprar|encomenda|instagram|contato)\b/.test(text)) {
-        return 'O catálogo está preparado para montar um pedido com produtos e quantidades e abrir o WhatsApp comercial para você confirmar. Antes de divulgar, a equipe ainda precisa aprovar os produtos e os preços que estão em rascunho.';
-      }
-      return 'Estou começando pela base comercial aprovada. Neste momento, só tenho o Pote Anilha 28KG / 64LB cadastrado como produto de teste, por R$ 34,90 provisórios. Pergunte sobre esse item ou escolha Studio 3D ou Fabricação para mudar de assunto.';
+      return 'Me diga o nome do produto ou a categoria. Posso procurar ofertas e calcular pedidos com várias unidades. Para uma dúvida específica, fale com a loja pelo WhatsApp.';
     }
 
     if (selectedMode === 'studio') {
@@ -99,7 +187,12 @@
   }
 
   async function getAnswer(message) {
-    if (!endpoint) return localAnswer(message, mode);
+    if (mode === 'loja') {
+      const answer = await shopAnswer(message);
+      if (answer) return answer;
+    }
+    if (!endpoint) return { text: localAnswer(message, mode),
+      actions: mode === 'loja' ? [contactAction('Olá! Tenho uma dúvida sobre o catálogo.\n' + message)].filter(Boolean) : [] };
 
     const response = await fetch(endpoint, {
       method: 'POST',
@@ -111,7 +204,7 @@
     if (!data || typeof data.reply !== 'string' || !data.reply.trim()) {
       throw new Error('O serviço do Expressinho não devolveu uma resposta válida.');
     }
-    return data.reply.trim();
+    return { text: data.reply.trim() };
   }
 
   async function submitMessage(rawMessage) {
@@ -123,18 +216,45 @@
     input.value = '';
     sendButton.disabled = true;
     input.disabled = true;
-    const pending = addMessage(endpoint ? 'Pensando…' : 'Consultando a base inicial…', 'assistant', 'pending');
+    const pending = addMessage(mode === 'loja' ? 'Consultando o catálogo…' : 'Preparando a resposta…', 'assistant', 'pending');
 
     let answer;
     try {
       answer = await getAnswer(message);
-    } catch (error) {
-      answer = localAnswer(message, mode) + '\n\nNão consegui acessar o serviço de IA configurado; usei a base inicial local. Nenhuma chave de API deve ser colocada neste site.';
+    } catch {
+      answer = { text: localAnswer(message, mode),
+        actions: mode === 'loja' ? [contactAction('Olá! Tenho uma dúvida sobre o catálogo.\n' + message)].filter(Boolean) : [] };
     }
 
     pending.remove();
-    addMessage(answer, 'assistant');
-    history.push({ role: 'assistant', content: answer });
+    const bubble = addMessage(answer.text, 'assistant');
+    if (answer.actions?.length) {
+      const actions = document.createElement('div');
+      actions.className = 'expressinho-answer-actions';
+      answer.actions.forEach(action => {
+        const control = document.createElement(action.href ? 'a' : 'button');
+        control.textContent = action.label;
+        if (action.href) {
+          control.href = action.href;
+          control.addEventListener('click', closePanel);
+          if (!action.href.startsWith('#')) {
+            control.target = '_blank';
+            control.rel = 'noopener noreferrer';
+          }
+        } else {
+          control.type = 'button';
+          control.addEventListener('click', () => {
+            const added = action.add();
+            control.textContent = added ? 'Adicionado' : 'O preço mudou. Consulte novamente.';
+            control.disabled = true;
+          });
+        }
+        actions.appendChild(control);
+      });
+      bubble.appendChild(actions);
+      messages.scrollTop = messages.scrollHeight;
+    }
+    history.push({ role: 'assistant', content: answer.text });
     history = history.slice(-12);
     sendButton.disabled = false;
     input.disabled = false;
@@ -174,12 +294,12 @@
       .then(result => {
         if (!status) return;
         status.textContent = result.ok && result.data.ok
-          ? 'IA local ativa · ' + result.data.model
-          : 'Ollama precisa ser iniciado';
+          ? 'Assistente da Express’Arte'
+          : 'Consulta ao catálogo';
       })
       .catch(() => {
         const statusElement = $('#expressinhoStatus');
-        if (statusElement) statusElement.textContent = 'IA local indisponível · base inicial ativa';
+        if (statusElement) statusElement.textContent = 'Consulta ao catálogo';
       });
   }
 

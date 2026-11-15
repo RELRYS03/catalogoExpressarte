@@ -81,10 +81,9 @@
     catalogTitle.focus({ preventScroll: true });
     catalog.scrollIntoView({ block: 'start', behavior: 'instant' });
   }
-  function addProduct(id, priceOverride = null, priceLabelOverride = null) {
+  function addProduct(id, priceOverride = null, priceLabelOverride = null, quantity = state.quantities[id] || 1) {
     const product = getProduct(id);
     if (!product) return;
-    const quantity = state.quantities[id] || 1;
     const price = priceOverride ?? product.price;
     const priceLabel = priceLabelOverride ?? product.priceLabel;
     const key = priceOverride === null ? id : id + ':' + priceLabel + ':' + price;
@@ -378,7 +377,10 @@
     promotionSection.classList.toggle('promotion-in-view', entry.isIntersecting);
   }, { threshold: 0.15 }).observe(promotionSection);
 
+  let livePromotions = [];
+
   function renderPromotions(promotions) {
+    livePromotions = promotions;
     const grid = promotionGrid;
     grid.replaceChildren();
     promotionMascotCards = [];
@@ -489,5 +491,34 @@
   renderOrder();
   applyFilters();
   window.addEventListener('hashchange', revealLinkedProduct);
-  loadApprovedImports();
+  const catalogLoaded = loadApprovedImports();
+  function shopProduct(product) {
+    const normalCents = Math.round(product.price * 100);
+    const offer = livePromotions.reduce((best, current) => {
+      if (current.product_id !== product.id && 'imported-' + current.product_id !== product.id) return best;
+      if (current.expires_at <= Date.now() || !Number.isSafeInteger(current.price_cents) || current.price_cents <= 0 ||
+          (normalCents > 0 && current.price_cents >= normalCents)) return best;
+      return !best || current.price_cents < best.price_cents ? current : best;
+    }, null);
+    return {
+      id: product.id, name: product.name, category: product.category, madeToOrder: product.madeToOrder === true,
+      priceCents: offer?.price_cents || (normalCents > 0 ? normalCents : null),
+      promotion: offer ? (offer.slot === 'day' ? 'Promoção do dia' : 'Promoção da semana') : '',
+      href: /^imported-[0-9a-f-]{36}$/i.test(product.id) ? '#' + product.id : ''
+    };
+  }
+  window.EXPRESSARTE_LOJA = {
+    async products() {
+      await catalogLoaded;
+      return catalogReady ? products.filter(product => !product.draft).map(shopProduct) : null;
+    },
+    add(id, quantity, priceCents, promotion) {
+      const product = getProduct(id);
+      if (!product || product.draft || !Number.isSafeInteger(quantity) || quantity < 1 || quantity > 999) return false;
+      const latest = shopProduct(product);
+      if (!latest.priceCents || latest.priceCents !== priceCents || latest.promotion !== promotion) return false;
+      addProduct(id, promotion ? priceCents / 100 : null, promotion || null, quantity);
+      return true;
+    }
+  };
 })();
