@@ -246,18 +246,50 @@ const server = http.createServer(async (req, res) => {
   if (url.pathname === '/api/health') {
     if (!checkOrigin(req, res)) return;
     if (req.method !== 'GET') return sendJson(res, 405, { error: 'Use GET.' });
-    try {
-      const online = getCompatibleProviderConfig();
-      if (online) return sendJson(res, 200, { ok: true, service: 'Expressinho IA', provider: 'openai-compatible', model: online.model, localFallback: true, cache: cacheStats() });
-    } catch (error) {
-      return sendJson(res, 503, { ok: false, error: 'Configuração online inválida: ' + error.message });
+    let online;
+    try { online = getCompatibleProviderConfig(); }
+    catch (error) {
+      return sendJson(res, 503, { ok: false, provider: 'openai-compatible', onlineConfigured: true, error: 'Configuração online inválida: ' + error.message });
     }
-    try {
-      const model = await getInstalledModel();
-      return sendJson(res, 200, { ok: true, service: 'Expressinho IA local', provider: 'ollama', model, onlineConfigured: false, cache: cacheStats() });
-    } catch (error) {
-      return sendJson(res, 503, { ok: false, onlineConfigured: false, error: error.message });
+    let onlineStatus = { configured: false, reachable: false };
+    if (online) {
+      onlineStatus = { configured: true, reachable: false, model: online.model };
+      try {
+        const response = await fetchWithTimeout(online.baseUrl + '/models', {
+          headers: { 'Authorization': 'Bearer ' + online.apiKey }
+        }, 10000);
+        if (!response.ok) {
+          const detail = (await response.text()).slice(0, 240);
+          onlineStatus.error = 'OpenAI HTTP ' + response.status + (detail ? ': ' + detail : '');
+        } else {
+          onlineStatus.reachable = true;
+        }
+      } catch (error) {
+        onlineStatus.error = 'Falha de rede com OpenAI: ' + (error.name === 'AbortError' ? 'tempo esgotado' : error.message);
+      }
     }
+    let localStatus = { reachable: false };
+    try {
+      const response = await fetchWithTimeout(OLLAMA_URL + '/api/tags', {}, 5000);
+      if (!response.ok) throw new Error('Ollama HTTP ' + response.status);
+      const payload = await response.json();
+      const models = Array.isArray(payload.models) ? payload.models : [];
+      localStatus = { reachable: true, models: models.map(item => item.name || item.model).filter(Boolean) };
+      if (!models.length) localStatus.error = 'Ollama está aberto, mas não há modelos instalados.';
+      else {
+        try { localStatus.selectedModel = await getInstalledModel(); }
+        catch (error) { localStatus.error = error.message; }
+      }
+    } catch (error) {
+      localStatus.error = 'Ollama indisponível: ' + error.message;
+    }
+    const ok = Boolean((online && onlineStatus.reachable) || localStatus.selectedModel);
+    const provider = online && onlineStatus.reachable ? 'openai-compatible' : (localStatus.selectedModel ? 'ollama' : 'unavailable');
+    const model = provider === 'openai-compatible' ? online.model : (localStatus.selectedModel || null);
+    return sendJson(res, ok ? 200 : 503, {
+      ok, service: 'Expressinho IA', provider, model,
+      openai: onlineStatus, ollama: localStatus, cache: cacheStats()
+    });
   }
   if (url.pathname === '/api/chat') return handleChat(req, res);
   return serveStatic(req, res, url.pathname);
