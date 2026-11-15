@@ -7,7 +7,7 @@ const root = resolve(fileURLToPath(new URL('..', import.meta.url)));
 const dist = join(root, 'dist-preview');
 await rm(dist, { recursive: true, force: true });
 await mkdir(dist, { recursive: true });
-const files = ['index.html','styles.css','app.js','config.js','expressinho.js','expressinho.css','product-details.js','product-details.css','promotion-themes.css'];
+const files = ['index.html','styles.css','app.js','config.js','expressinho.js','expressinho.css','product-details.js','product-details.css','promotion-themes.css','manifest.webmanifest','catalog-sw.js'];
 for (const file of files) await copyFile(join(root, file), join(dist, file));
 await cp(join(root, 'assets'), join(dist, 'assets'), { recursive: true });
 await cp(join(root, 'importador'), join(dist, 'importador'), {
@@ -23,6 +23,9 @@ await writeFile(join(dist, '_headers'), [
   '  Cache-Control: no-cache',
   '',
   '/config.js',
+  '  Cache-Control: no-cache',
+  '',
+  '/catalog-sw.js',
   '  Cache-Control: no-cache',
   '',
   '/*',

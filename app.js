@@ -1,6 +1,9 @@
 (() => {
   'use strict';
   const config = window.EXPRESSARTE_CONFIG || { whatsappNumber: '', storeName: "Express'Arte", draftMode: true };
+  if (location.origin === config.catalogPagesOrigin && 'serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/catalog-sw.js').catch(error => console.warn('Instalação do catálogo indisponível.', error));
+  }
   const money = value => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
   const products = (config.builtInProducts || []).map(product => ({ ...product }));
   const state = { category: '', search: '', quantities: Object.fromEntries(products.map(p => [p.id, 1])), order: new Map() };
