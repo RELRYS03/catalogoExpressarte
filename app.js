@@ -145,7 +145,7 @@
     button.addEventListener('click', () => browseCategory(category));
     strip.append(button);
   }
-  function renderProductDetails(raw, fallback) {
+  function renderProductDetails(raw, fallback, showUnconfirmedDimensions = false) {
     const details = JSON.parse(raw || '{}');
     const minutes = details.printMinutes;
     const time = minutes ? [Math.floor(minutes / 60) ? Math.floor(minutes / 60) + ' h' : '', minutes % 60 ? minutes % 60 + ' min' : ''].filter(Boolean).join(' ') : '';
@@ -154,7 +154,9 @@
       ['Filamento', details.filamentGrams ? new Intl.NumberFormat('pt-BR', { useGrouping: 'always', maximumFractionDigits: 2 }).format(details.filamentGrams) + ' g' : ''],
       ['Prazo de produção', details.leadTime]
     ].filter(([, value]) => value);
-    return '<div class="catalog-product-details"><p class="product-description">' + escapeHtml(details.description || fallback) + '</p>' +
+    const dimensions = details.dimensions ? '<p class="product-dimensions"><strong>Dimensões</strong> ' + escapeHtml(details.dimensions) + '</p>'
+      : showUnconfirmedDimensions ? '<p class="product-dimensions">Dimensões a confirmar no pedido</p>' : '';
+    return '<div class="catalog-product-details"><p class="product-description">' + escapeHtml(details.description || fallback) + '</p>' + dimensions +
       (specs.length ? '<dl class="catalog-product-specs">' + specs.map(([label, value]) =>
         '<div><dt>' + label + '</dt><dd>' + escapeHtml(value) + '</dd></div>').join('') + '</dl>' : '') +
       (details.assembly ? '<details class="catalog-product-assembly"><summary>Como montar ou usar</summary><p>' + escapeHtml(details.assembly) + '</p></details>' : '') + '</div>';
@@ -191,7 +193,7 @@
     card.innerHTML = '<div class="product-photo-area"><span class="product-badge">SELECIONADO</span><div class="product-gallery">' + photo + '</div></div>' +
       '<div class="product-info"><span class="product-category-label"><span class="category-mini-icon">✦</span> ' + escapeHtml(category.toLocaleUpperCase('pt-BR')) + '</span>' +
       '<h3>' + escapeHtml(name) + '</h3>' + renderProductDetails(item.details_json,
-        'Modelo selecionado pela Express’Arte. Consulte disponibilidade e prazo de produção.') +
+        'Modelo selecionado pela Express’Arte. Consulte disponibilidade e prazo de produção.', true) +
       (author ? '<p class="product-author">Criador original: ' + escapeHtml(author) + '</p>' : '') +
       '<div class="price-line"><span class="price">' + (hasPrice ? money(price) : 'Consulte') + '</span><span class="provisional-label">' + priceLabel + '</span></div>' +
       '<div class="quantity-row"><span>Quantidade</span><div class="quantity-control"><button class="qty-minus" type="button" aria-label="Diminuir quantidade">−</button><output class="qty-value" aria-live="polite">1</output><button class="qty-plus" type="button" aria-label="Aumentar quantidade">+</button></div><span class="unit-label">un.</span></div>' +

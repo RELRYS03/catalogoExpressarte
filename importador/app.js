@@ -1,7 +1,7 @@
 (() => {
   'use strict';
   const $ = id => document.getElementById(id);
-  const fields = ['sourceUrl','title','author','description','printMinutes','filamentGrams','price','category'];
+  const fields = ['sourceUrl','title','author','description','dimensions','printMinutes','filamentGrams','price','category'];
   let sharedImage = null;
   let originalImage = null;
   let coverSource = null;
@@ -460,6 +460,8 @@
     const card = $('previewCard');
     card.hidden = true;
     card.dataset.sourceUrl = card.dataset.imageUrl = card.dataset.licenseName = '';
+    $('dimensionSuggestion').hidden = true;
+    $('suggestedDimensions').textContent = '';
     $('coverPreview').removeAttribute('src');
   }
   async function fetchPreview() {
@@ -477,7 +479,11 @@
       if (data.title && !$('title').value.trim()) $('title').value = data.title;
       updateCategoryAdvice();
       if (data.author && !$('author').value.trim()) $('author').value = data.author;
-      if (!data.title && !data.author && !data.imageUrl && !data.licenseName) {
+      if (data.dimensions) {
+        $('suggestedDimensions').textContent = data.dimensions;
+        $('dimensionSuggestion').hidden = false;
+      }
+      if (!data.title && !data.author && !data.imageUrl && !data.licenseName && !data.dimensions) {
         return say('A página não forneceu dados do modelo. Preencha os campos manualmente.', 'error');
       }
       const card = $('previewCard');
@@ -581,9 +587,10 @@
       }
       body.append('title', title); body.append('author', $('author').value.trim());
       const description = $('description').value.trim();
+      const dimensions = $('dimensions').value.trim();
       if (description) body.append('description', description);
-      if (printMinutes !== null || filamentGrams !== null) {
-        body.append('details', JSON.stringify({ description, printMinutes, filamentGrams, assembly: '', leadTime: '' }));
+      if (dimensions || printMinutes !== null || filamentGrams !== null) {
+        body.append('details', JSON.stringify({ description, dimensions, printMinutes, filamentGrams, assembly: '', leadTime: '' }));
       }
       body.append('category', $('category').value); body.append('priceCents', priceCents == null ? '' : String(priceCents));
       const preview = $('previewCard').dataset;
@@ -666,6 +673,7 @@
   }
   const detailFields = [
     ['description', 'Descrição do produto', 1200],
+    ['dimensions', 'Dimensões (opcional)', 120],
     ['printMinutes', 'Tempo de impressão', 30],
     ['filamentGrams', 'Filamento consumido (g)', 20],
     ['leadTime', 'Prazo de produção', 100],
@@ -714,7 +722,7 @@
       if (name === 'description' || name === 'assembly') {
         return '<label>' + label + '<textarea' + attrs + ' rows="3">' + value + '</textarea></label>';
       }
-      const examples = { printMinutes: 'Ex.: 1h43min', filamentGrams: 'Ex.: 70,04 g ou 1.150 g', leadTime: 'Ex.: até 3 dias úteis' };
+      const examples = { dimensions: 'Ex.: 13 cm de altura', printMinutes: 'Ex.: 1h43min', filamentGrams: 'Ex.: 70,04 g ou 1.150 g', leadTime: 'Ex.: até 3 dias úteis' };
       return '<label>' + label + '<input' + attrs + ' value="' + value + '" placeholder="' + examples[name] + '"></label>';
     }).join('') + '</fieldset>';
   }
@@ -1049,6 +1057,11 @@
   $('applyCover').addEventListener('click', applyCover);
   ['coverZoom', 'coverX', 'coverY'].forEach(id => $(id).addEventListener('input', updateCoverPreview));
   $('previewButton').addEventListener('click', fetchPreview);
+  $('useSuggestedDimensions').addEventListener('click', () => {
+    $('dimensions').value = $('suggestedDimensions').textContent;
+    $('dimensionSuggestion').hidden = true;
+    $('dimensions').focus();
+  });
   $('refreshQueue').addEventListener('click', () => loadQueue());
   $('sendButton').addEventListener('click', sendImport);
   restoreCalculatorRates();

@@ -58,6 +58,12 @@
       <input id="author" type="text" maxlength="120" placeholder="Nome do criador">
       <label for="description">Descrição (opcional)</label>
       <textarea id="description" rows="3" maxlength="1200" placeholder="Ex.: kit de encaixe com trator e reboque."></textarea>
+      <label for="dimensions">Dimensões (opcional)</label>
+      <input id="dimensions" type="text" maxlength="120" placeholder="Ex.: 13 cm de altura">
+      <p id="dimensionSuggestion" class="hint" hidden>
+        Medida sugerida pelo MakerWorld: <strong id="suggestedDimensions"></strong>
+        <button type="button" class="secondary-button" id="useSuggestedDimensions">Usar medida</button>
+      </p>
       <div class="two-columns">
         <div><label for="printMinutes">Tempo de impressão (opcional)</label><input id="printMinutes" maxlength="30" placeholder="Ex.: 1h43min"></div>
         <div><label for="filamentGrams">Filamento consumido (opcional)</label><input id="filamentGrams" maxlength="20" placeholder="Ex.: 70,04 g ou 1.150 g"></div>
@@ -178,6 +184,6 @@
     Voltar ao topo
   </a>
   <script src="../config.js?v=descontos" defer></script>
-  <script src="./app.js?v=descontos" defer></script>
+  <script src="./app.js?v=dimensoes" defer></script>
 </body>
 </html>

@@ -57,7 +57,7 @@ test('login privado cria uma conta, limita tentativas e revoga sessões', async 
     const newImport = new FormData();
     newImport.set('title', 'Modelo com medidas');
     newImport.set('sourceUrl', 'https://example.com/modelo-com-medidas');
-    const measurements = { description: '', printMinutes: 103, filamentGrams: 1150.04, assembly: '', leadTime: '' };
+    const measurements = { description: '', dimensions: 'Altura: 13 cm', printMinutes: 103, filamentGrams: 1150.04, assembly: '', leadTime: '' };
     newImport.set('details', JSON.stringify(measurements));
     const createdWithMeasurements = await worker.fetch(new Request(base + '/api/imports', { method: 'POST', headers, body: newImport }), env);
     assert.equal(createdWithMeasurements.status, 201);
@@ -351,22 +351,36 @@ test('análise visual exige autenticação e só devolve categorias do catálogo
 test('prévia MakerWorld consulta metadados por ID e usa a página como fallback', async t => {
   const fetchMock = t.mock.method(globalThis, 'fetch', async url => {
     if (url === 'https://api.bambulab.com/v1/design-service/design/123') {
-      return Response.json({ id: 123, title: 'Modelo de teste', designCreator: { name: 'Criadora' },
+      return Response.json({ id: 123, title: 'Modelo de teste', summary: '<p>130 mm de altura</p>', designCreator: { name: 'Criadora' },
         coverUrl: 'https://example.com/capa.png', license: 'Licença de teste' });
+    }
+    if (url === 'https://api.bambulab.com/v1/design-service/design/789') {
+      return Response.json({ id: 789, title: 'Suporte para ventoinha de 120 mm', summary: 'Height: 80 mm or 120 mm' });
+    }
+    if (url === 'https://api.bambulab.com/v1/design-service/design/890') {
+      return Response.json({ id: 890, title: 'Modelo de teste', summary: '<p>Dimensions: 130 x 80 x 50 mm</p>' });
+    }
+    if (url === 'https://api.bambulab.com/v1/design-service/design/901') {
+      return Response.json({ id: 901, title: 'Modelo de teste sem dimensões', summary: 'Nozzle 0.4 mm, layer height: 0.2 mm' });
     }
     if (url === 'https://api.bambulab.com/v1/design-service/design/456') return new Response(null, { status: 404 });
     assert.equal(url, 'https://makerworld.com/models/456');
-    return new Response('<meta property="og:title" content="Modelo da página">');
+    return new Response('<meta property="og:title" content="Modelo da página"><meta property="og:description" content="Largura: 70,5 mm">');
   });
   const env = setup();
   const preview = url => send(env, 'GET', '/api/preview?url=' + encodeURIComponent(url), undefined, true);
   assert.deepEqual((await preview('https://makerworld.com/pt-br/models/123-modelo#profileId-5')).body, {
     title: 'Modelo de teste', author: 'Criadora', imageUrl: 'https://example.com/capa.png',
-    licenseName: 'Licença de teste', sourceSite: 'makerworld.com'
+    licenseName: 'Licença de teste', sourceSite: 'makerworld.com', dimensions: 'Altura: 13 cm'
   });
   assert.equal(fetchMock.mock.callCount(), 1);
-  assert.equal((await preview('https://makerworld.com/models/456')).body.title, 'Modelo da página');
+  const fallback = (await preview('https://makerworld.com/models/456')).body;
+  assert.equal(fallback.title, 'Modelo da página');
+  assert.equal(fallback.dimensions, 'Largura: 7,05 cm');
   assert.equal(fetchMock.mock.callCount(), 3);
+  assert.equal((await preview('https://makerworld.com/models/789')).body.dimensions, undefined);
+  assert.equal((await preview('https://makerworld.com/models/890')).body.dimensions, '13 × 8 × 5 cm');
+  assert.equal((await preview('https://makerworld.com/models/901')).body.dimensions, undefined);
 });
 
 test('PWA recebe link e arquivo de imagem via Web Share Target e API grava imagem em R2', async () => {

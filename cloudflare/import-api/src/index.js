@@ -97,11 +97,13 @@ function readProductDetails(raw) {
   try {
     const value = JSON.parse(raw);
     if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
-    const { description, printMinutes, filamentGrams, assembly, leadTime } = value;
+    const { description, printMinutes, filamentGrams, assembly, leadTime, dimensions = '' } = value;
     if ([[description, 1200], [assembly, 1600], [leadTime, 100]].some(([field, limit]) => typeof field !== 'string' || field.length > limit)) return null;
     if (printMinutes !== null && (!Number.isSafeInteger(printMinutes) || printMinutes < 1 || printMinutes > 100000)) return null;
     if (filamentGrams !== null && (typeof filamentGrams !== 'number' || !Number.isFinite(filamentGrams) || filamentGrams <= 0 || filamentGrams > 100000)) return null;
-    return { description: description.trim(), printMinutes, filamentGrams, assembly: assembly.trim(), leadTime: leadTime.trim() };
+    if (typeof dimensions !== 'string' || dimensions.length > 120) return null;
+    return { description: description.trim(), printMinutes, filamentGrams, assembly: assembly.trim(), leadTime: leadTime.trim(),
+      ...(dimensions.trim() ? { dimensions: dimensions.trim() } : {}) };
   } catch { return null; }
 }
 const productDetailsField = table =>
@@ -220,6 +222,51 @@ async function removedProductIds(env) {
   const { results } = await env.DB.prepare('SELECT id FROM catalog_removed_products').all();
   return results.map(row => row.id);
 }
+function suggestDimensions(...fields) {
+  const names = {
+    altura: 'Altura', height: 'Altura', largura: 'Largura', width: 'Largura',
+    comprimento: 'Comprimento', length: 'Comprimento', profundidade: 'Profundidade', depth: 'Profundidade',
+    diâmetro: 'Diâmetro', diameter: 'Diâmetro'
+  };
+  const number = '(\\d{1,5}(?:[.,]\\d{1,3})?)';
+  const unit = '(mm|cm)';
+  const axis = '(' + Object.keys(names).join('|') + ')';
+  const triple = new RegExp('\\b(?:dimensões|dimensions|medidas|tamanho|size)\\s*:?\\s*' +
+    [number, number, number].join('\\s*[x×]\\s*') + '\\s*' + unit + '\\b', 'gi');
+  const explicit = new RegExp('\\b' + axis + '\\s*[:=]?\\s*' + number + '\\s*' + unit + '\\b|' +
+    '\\b' + number + '\\s*' + unit + '\\s+(?:de\\s+)?' + axis + '\\b', 'gi');
+  const format = new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 4 });
+  const cm = (value, units) => Number(value.replace(',', '.')) / (units.toLowerCase() === 'mm' ? 10 : 1);
+  const triples = new Set();
+  const values = new Map();
+
+  for (const field of fields) {
+    if (typeof field !== 'string') continue;
+    const lines = decodeEntities(field.slice(0, 12000).replace(/<\/?(?:p|div|li|br|h[1-6])\b[^>]*>/gi, '\n').replace(/<[^>]*>/g, ' ')).split(/[\n;!?]/);
+    for (const line of lines) {
+      const dimensions = [...line.matchAll(triple)];
+      const singles = [...line.matchAll(explicit)].filter(match =>
+        !/\b(?:layer|nozzle|wall|screw|camada|bico|parede|parafuso)\s*[-:]?\s*$/i.test(line.slice(0, match.index)));
+      if (!dimensions.length && !singles.length) continue;
+      // Options and ranges are not a single publishable measurement.
+      if (/\b(?:ou|or|variants?|vers(?:ão|ões)|versions?|opções|options|entre|between)\b|\d\s*(?:cm|mm)?\s*[-–—/]\s*\d|\d\s*(?:cm|mm)?\s+(?:a|até|to)\s+\d/i.test(line)) return '';
+      for (const [, first, second, third, units] of dimensions) {
+        const sizes = [first, second, third].map(value => cm(value, units));
+        if (sizes.every(value => value > 0)) triples.add(sizes.map(value => format.format(value)).join(' × ') + ' cm');
+      }
+      for (const [, leftAxis, leftValue, leftUnit, rightValue, rightUnit, rightAxis] of singles) {
+        const label = names[(leftAxis || rightAxis).toLowerCase()];
+        const value = cm(leftValue || rightValue, leftUnit || rightUnit);
+        if (value <= 0) continue;
+        if (values.has(label) && values.get(label) !== value) return '';
+        values.set(label, value);
+      }
+    }
+  }
+  if (triples.size) return triples.size === 1 && !values.size ? [...triples][0] : '';
+  return [...values].map(([label, value]) => label + ': ' + format.format(value) + ' cm').join(' · ').slice(0, 120);
+}
+
 async function fetchMakerWorldMetadata(sourceUrl, host) {
   if (host !== 'makerworld.com' && host !== 'www.makerworld.com') return null;
   const match = new URL(sourceUrl).pathname.match(/^\/(?:[a-z]{2}(?:-[a-z]{2})?\/)?models\/(\d{1,16})(?:[-/]|$)/i);
@@ -237,12 +284,14 @@ async function fetchMakerWorldMetadata(sourceUrl, host) {
   const design = JSON.parse(await limitedText(upstream));
   const title = str(design?.title, 180);
   if (String(design?.id) !== id || !title) throw new Error('Metadados incompletos');
+  const dimensions = suggestDimensions(title, design.summary, design.description);
   return {
     title,
     author: str(design.designCreator?.name, 120) || str(design.designCreator?.handle, 120),
     imageUrl: safeUrl(design.coverUrl) || safeUrl(design.coverLandscape) || safeUrl(design.coverPortrait) || '',
     licenseName: str(design.license, 120),
-    sourceSite: host
+    sourceSite: host,
+    ...(dimensions ? { dimensions } : {})
   };
 }
 const catalogCategories = [
@@ -401,7 +450,10 @@ export default {
         const imageUrl = rawImage ? safeUrl(new URL(rawImage, finalUrl).toString()) : '';
         const author = metaValue(html, 'author') || metaValue(html, 'article:author');
         const licenseName = metaValue(html, 'license');
-        return json({ title: title.slice(0,180), imageUrl: imageUrl || '', author: author.slice(0,120), licenseName: licenseName.slice(0,120), sourceSite: host }, 200, cors);
+        const dimensions = host.replace(/^www\./, '') === 'makerworld.com'
+          ? suggestDimensions(title, metaValue(html, 'og:description') || metaValue(html, 'description')) : '';
+        return json({ title: title.slice(0,180), imageUrl: imageUrl || '', author: author.slice(0,120), licenseName: licenseName.slice(0,120), sourceSite: host,
+          ...(dimensions ? { dimensions } : {}) }, 200, cors);
       }
       if (path === '/api/imports' && (request.method === 'POST' || request.method === 'GET')) {
         if (!await authorized(request, env)) return json({ error: 'Não autorizado' }, 401, cors);
