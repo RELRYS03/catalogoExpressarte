@@ -24,7 +24,7 @@ function clearSession() {
   return { 'Set-Cookie': cookie + '=; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=0' };
 }
 
-export async function onRequest({ request }) {
+export async function onRequest({ request, env }) {
   const url = new URL(request.url);
   const path = url.pathname.slice(prefix.length);
   const method = request.method;
@@ -36,6 +36,9 @@ export async function onRequest({ request }) {
   const session = cookieParts?.[2];
   const suppliedAuth = request.headers.get('Authorization');
   const target = worker + path + url.search;
+  const callWorker = (options) => env?.IMPORT_API
+    ? env.IMPORT_API.fetch(target, options)
+    : fetch(target, options);
   const headers = new Headers({ Accept: 'application/json' });
   const contentType = request.headers.get('Content-Type');
   if (contentType) headers.set('Content-Type', contentType);
@@ -45,7 +48,7 @@ export async function onRequest({ request }) {
       const migrating = method === 'POST';
       const token = migrating ? suppliedAuth?.match(/^Bearer (session_[0-9a-f]{64})$/)?.[1] : session;
       if (!token) return json({ signedIn: false }, migrating ? 401 : 200);
-      const upstream = await fetch(target, { headers: { Authorization: 'Bearer ' + token }, redirect: 'error' });
+      const upstream = await callWorker({ headers: { Authorization: 'Bearer ' + token }, redirect: 'error' });
       if (upstream.status === 401) return json({ signedIn: false }, migrating ? 401 : 200, migrating ? {} : clearSession());
       if (!upstream.ok) return json({ error: 'Não foi possível consultar a sessão.' }, 502);
       if (!migrating) return json({ signedIn: true, remembered: cookieParts[1] === '1' });
@@ -70,7 +73,7 @@ export async function onRequest({ request }) {
       try { remember = JSON.parse(body)?.remember === true; }
       catch { return json({ error: 'Dados inválidos.' }, 400); }
     }
-    const upstream = await fetch(target, { method, headers, body, redirect: 'error' });
+    const upstream = await callWorker({ method, headers, body, redirect: 'error' });
     if (login && upstream.ok) {
       const { token } = await upstream.json();
       if (!sessionPattern.test(token || '')) return json({ error: 'Não foi possível iniciar a sessão.' }, 502);
