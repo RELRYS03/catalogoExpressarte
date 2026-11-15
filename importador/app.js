@@ -915,6 +915,8 @@
         '<label>Campanha (opcional)<input name="campaign" maxlength="60" placeholder="Ex.: Natal" value="' +
         escapeHtml(current?.campaign ?? (names.length === 1 ? names[0] : '')) + '"></label>' +
         '<label>Tema da campanha<select name="theme">' + options + '</select></label>' +
+        '<p class="hint" data-regular-price-label></p>' +
+        '<p class="hint" data-unsaved-price hidden>Salve o novo preço normal para recalcular o desconto.</p>' +
         '<label>Preço promocional (R$)<input name="promotionPrice" inputmode="decimal" maxlength="12" value="' +
         (current ? (current.price_cents / 100).toFixed(2).replace('.', ',') : '') +
         '"></label><div class="promotion-preview promotion-theme" data-theme="' + theme + '">' +
@@ -938,7 +940,13 @@
     const priceLabel = preview.querySelector('[data-preview-price]');
     priceLabel.hidden = !Number.isSafeInteger(price) || price <= 0;
     priceLabel.textContent = priceLabel.hidden ? '' : formatMoney.format(price / 100);
-    const discount = window.EXPRESSARTE_CONFIG?.promotionDiscount?.(Number(form.dataset.regularPrice), price);
+    const regularPrice = form.dataset.regularPrice === '' ? null : Number(form.dataset.regularPrice);
+    form.querySelector('[data-regular-price-label]').textContent = regularPrice > 0
+      ? 'Preço normal salvo · ' + formatMoney.format(regularPrice / 100)
+      : 'Preço normal sob consulta. O desconto aparece quando houver um preço normal salvo.';
+    const productPrice = form.closest('.queue-price').querySelector('input[name="price"]');
+    form.querySelector('[data-unsaved-price]').hidden = parsePrice(productPrice.value) === regularPrice;
+    const discount = window.EXPRESSARTE_CONFIG?.promotionDiscount?.(regularPrice, price);
     const discountLabel = preview.querySelector('[data-preview-discount]');
     discountLabel.hidden = !discount;
     discountLabel.textContent = discount ? discount + ' de desconto' : '';
@@ -1215,6 +1223,9 @@
       }
       list.querySelectorAll('.queue-price > form').forEach(form => {
         form.addEventListener('submit', saveProductEdit);
+        form.elements.namedItem('price').addEventListener('input', () => {
+          form.parentElement.querySelectorAll('[data-promotion]').forEach(updatePromotionPreview);
+        });
         form.elements.namedItem('category')?.addEventListener('change', event => {
           const creating = !event.target.value;
           form.querySelector('.edit-category-name').hidden = !creating;

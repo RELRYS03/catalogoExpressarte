@@ -135,6 +135,7 @@
   const defaultCategoryIcon = '<path d="M3 4h8l10 10-7 7L3 10z"/><circle cx="7.5" cy="8" r="1"/>';
   // O catálogo aplica os mesmos desenhos às categorias novas e às já cadastradas.
   const categoryIconRules = [
+    [/\b(?:figures?|figuras?|miniaturas?|estatuetas?|bonecos?|bonecas?)\b/, '<circle cx="12" cy="5.8" r="2.8"/><path d="M9 11h6l3 4m-9-4-3 4m3-4v6l-1 4m7-10v6l1 4M6 21h12"/>'],
     [/\b(?:filamentos?|bobinas?|carreteis?|pla|petg|tpu|abs)\b/, '<ellipse cx="8" cy="12" rx="4" ry="8"/><ellipse cx="8" cy="12" rx="1.5" ry="3"/><path d="M8 4h8c2.2 0 4 3.6 4 8s-1.8 8-4 8H8m4-11h7m-7 6h7"/>'],
     [/\b(?:biscoitos?|bolachas?|cookies?|confeitaria)\b/, '<path d="m12 3 2.5 5.5 6 .8-4.4 4.3 1 6-5.1-2.9-5.1 2.9 1-6-4.4-4.3 6-.8L12 3Z"/><path d="M12 11v.01m-2 2h.01m4 0h.01"/>'],
     [/\b(?:vasos?|cachepos?|floreiras?|plantas?|jardinagem)\b/, '<path d="M5 12h14l-2 8H7l-2-8Zm7 0V7m0 2C9 9 7 7 7 4c3 0 5 2 5 5Zm0 0c0-3 2-5 5-5 0 3-2 5-5 5Z"/>'],
@@ -417,9 +418,11 @@
     for (const offer of promotions) {
       const product = getProduct(offer.product_id) || getProduct('imported-' + offer.product_id);
       if (!product || offer.expires_at <= Date.now()) continue;
+      const regularCents = Math.round(product.price * 100);
+      if (!Number.isSafeInteger(offer.price_cents) || offer.price_cents <= 0 ||
+          (regularCents > 0 && offer.price_cents >= regularCents)) continue;
       const price = offer.price_cents / 100;
-      if (product.price > 0 && price >= product.price) continue;
-      const discount = config.promotionDiscount?.(Math.round(product.price * 100), offer.price_cents);
+      const discount = config.promotionDiscount?.(regularCents, offer.price_cents);
       const label = offer.slot === 'day' ? 'Promoção do dia' : 'Promoção da semana';
       const campaign = offer.campaign ? '<p class="weekly-deal-category">' + escapeHtml(offer.campaign) + '</p>' : '';
       const cover = /^https:\/\//i.test(offer.image_url || '') ? offer.image_url : product.cover;
@@ -437,7 +440,7 @@
         '<span class="weekly-deal-tag">' + label + '</span>' +
         (discount ? '<span class="weekly-deal-discount"><strong>' + escapeHtml(discount) + '</strong><small>desconto</small></span>' : '') + '</div>' +
         '<div class="weekly-deal-content">' + (product.madeToOrder ? preorderBadge : '') + campaign + '<h3>' + escapeHtml(product.name) + '</h3><div class="weekly-deal-price">' +
-        (product.price > price ? '<del aria-label="Preço normal">' + money(product.price) + '</del>' : '') +
+        (regularCents > offer.price_cents ? '<del aria-label="Preço normal">' + money(regularCents / 100) + '</del>' : '') +
         '<div><span>Preço promocional</span><strong>' + money(price) + '</strong></div></div>' +
         '<button class="weekly-deal-button" type="button">' + (product.madeToOrder ? 'Encomendar oferta' : 'Aproveitar oferta') + '</button></div>';
       card.querySelector('button').addEventListener('click', () => {
