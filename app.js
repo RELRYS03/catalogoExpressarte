@@ -200,13 +200,14 @@
       : '';
     card.innerHTML = '<div class="product-photo-area"><span class="product-badge">SELECIONADO</span><div class="product-gallery">' + photo + '</div></div>' +
       '<div class="product-info"><span class="product-category-label"><span class="category-mini-icon">✦</span> ' + escapeHtml(category.toLocaleUpperCase('pt-BR')) + '</span>' +
-      '<h3>' + escapeHtml(name) + '</h3>' + renderProductDetails(details,
-        'Modelo selecionado pela Express’Arte. Consulte disponibilidade e prazo de produção.', true) +
-      (author ? '<p class="product-author">Criador original: ' + escapeHtml(author) + '</p>' : '') +
-      '<div class="price-line"><span class="price">' + (hasPrice ? money(price) : 'Consulte') + '</span><span class="provisional-label">' + priceLabel + '</span></div>' +
+      '<h3>' + escapeHtml(name) + '</h3>' +
+      '<div class="price-line"><span class="price">' + (hasPrice ? money(price) : 'Consulte o valor') + '</span></div>' +
       '<div class="quantity-row"><span>Quantidade</span><div class="quantity-control"><button class="qty-minus" type="button" aria-label="Diminuir quantidade">−</button><output class="qty-value" aria-live="polite">1</output><button class="qty-plus" type="button" aria-label="Aumentar quantidade">+</button></div><span class="unit-label">un.</span></div>' +
       '<button class="add-order-button" type="button"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg> Incluir no pedido</button>' +
-      '<p class="product-footnote">Produto selecionado para o catálogo. Preço e disponibilidade sujeitos à confirmação. ' + source + '</p></div>';
+      '<details class="product-card-details"><summary>Ver detalhes</summary>' + renderProductDetails(details,
+        'Modelo selecionado pela Express’Arte. Consulte disponibilidade e prazo de produção.', true) +
+      (author ? '<p class="product-author">Criador original: ' + escapeHtml(author) + '</p>' : '') +
+      '<p class="product-footnote">Produto selecionado para o catálogo. Preço e disponibilidade sujeitos à confirmação. ' + source + '</p></details></div>';
     showProductAvailability(card, product, details);
     productGrid.append(card);
     card.querySelector('.qty-minus').addEventListener('click', () => updateQuantity(card, state.quantities[id] - 1));
