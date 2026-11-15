@@ -24,7 +24,7 @@ export function getCompatibleProviderConfig(env = process.env) {
   // FreeLLMAPI é o roteador principal: ele escolhe NVIDIA e aplica sua própria cadeia de fallback.
   const freeLlmConfig = makeConfig(
     'freellmapi',
-    env.FREELLMAPI_BASE_URL || 'http://127.0.0.1:3001/v1',
+    env.FREELLMAPI_BASE_URL || 'http://127.0.0.1:31415/v1',
     String(env.FREELLMAPI_API_KEY || '').trim(),
     String(env.FREELLMAPI_MODEL || 'auto').trim()
   );
