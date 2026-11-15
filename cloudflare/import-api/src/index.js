@@ -1,5 +1,5 @@
 // Express'Arte Catálogo: API de importação Cloudflare Workers + D1 + R2 opcional.
-import { adminAuth, authorized } from './admin-auth.js';
+import { adminAuth, authorized, readAdminSession } from './admin-auth.js';
 const json = (value, status = 200, cors = {}) => new Response(JSON.stringify(value), {
   status, headers: { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store', ...cors }
 });
@@ -391,6 +391,10 @@ export default {
       if (path === '/api/admin/status' && request.method === 'GET') {
         const account = await env.DB.prepare('SELECT 1 FROM admin_account WHERE id=1').first();
         return json({ configured: Boolean(account) }, 200, cors);
+      }
+      if (path === '/api/admin/session' && request.method === 'GET') {
+        const session = await readAdminSession(request, env);
+        return session ? json({ expiresAt: session.expires_at }, 200, cors) : json({ error: 'Sessão inválida' }, 401, cors);
       }
       const authRoute = path.match(/^\/api\/admin\/(setup|login|logout)$/);
       if (authRoute && request.method === 'POST') {

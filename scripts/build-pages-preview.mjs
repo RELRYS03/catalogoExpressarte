@@ -14,6 +14,7 @@ await cp(join(root, 'importador'), join(dist, 'importador'), {
   recursive: true,
   filter: src => !src.endsWith('README.md')
 });
+await writeFile(join(dist, '_routes.json'), JSON.stringify({ version: 1, include: ['/import-api/*'], exclude: [] }));
 await writeFile(join(dist, '_headers'), [
   '/importador/*',
   '  X-Content-Type-Options: nosniff',

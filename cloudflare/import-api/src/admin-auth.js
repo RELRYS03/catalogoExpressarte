@@ -23,12 +23,17 @@ async function hasAdminKey(request, env) {
   return sameHash(actual, expected);
 }
 
-export async function authorized(request, env) {
+export async function readAdminSession(request, env) {
   const token = bearer(request);
-  if (!sessionPattern.test(token)) return hasAdminKey(request, env);
-  const session = await env.DB.prepare('SELECT 1 FROM admin_sessions WHERE token_hash=? AND expires_at>?')
+  if (!sessionPattern.test(token)) return null;
+  return env.DB.prepare('SELECT expires_at FROM admin_sessions WHERE token_hash=? AND expires_at>?')
     .bind(await digest(token), Date.now()).first();
-  return Boolean(session);
+}
+
+export async function authorized(request, env) {
+  return sessionPattern.test(bearer(request))
+    ? Boolean(await readAdminSession(request, env))
+    : hasAdminKey(request, env);
 }
 
 async function passwordHash(password, salt) {
