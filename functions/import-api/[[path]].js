@@ -37,7 +37,7 @@ export async function onRequest({ request, env }) {
   const suppliedAuth = request.headers.get('Authorization');
   const target = worker + path + url.search;
   const callWorker = (options) => env?.IMPORT_API
-    ? env.IMPORT_API.fetch(target, options)
+    ? env.IMPORT_API.fetch(new Request(target, options))
     : fetch(target, options);
   const headers = new Headers({ Accept: 'application/json' });
   const contentType = request.headers.get('Content-Type');
@@ -73,7 +73,7 @@ export async function onRequest({ request, env }) {
       try { remember = JSON.parse(body)?.remember === true; }
       catch { return json({ error: 'Dados inválidos.' }, 400); }
     }
-    const upstream = await callWorker({ method, headers, body, redirect: 'error' });
+    const upstream = await callWorker({ method, headers, ...(body ? { body } : {}), redirect: 'error' });
     if (login && upstream.ok) {
       const { token } = await upstream.json();
       if (!sessionPattern.test(token || '')) return json({ error: 'Não foi possível iniciar a sessão.' }, 502);
@@ -81,7 +81,8 @@ export async function onRequest({ request, env }) {
     }
     if (path === '/api/admin/logout' && upstream.ok) return json({ ok: true }, 200, clearSession());
     return new Response(upstream.body, { status: upstream.status, headers: { ...responseHeaders, 'Content-Type': 'application/json; charset=utf-8' } });
-  } catch {
+  } catch (error) {
+    if (path === '/api/health') console.error('Import API health:', error.message);
     return json({ error: 'Não foi possível conectar ao Importador.' }, 502);
   }
 }
