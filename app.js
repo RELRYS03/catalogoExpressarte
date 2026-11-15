@@ -136,7 +136,9 @@
     [/\b(?:natal|natalin\w*|presepios?)\b/, '<path d="m12 3 4 5h-2l5 5h-3l5 5H3l5-5H5l5-5H8l4-5Zm0 15v3m-3 0h6"/>'],
     [/\b(?:organizadores?|organizacao|gavetas?)\b/, '<rect x="4" y="4" width="16" height="16" rx="2"/><path d="M4 12h16M10 8h4m-4 8h4"/>'],
     [/\b(?:luminarias?|abajur(?:es)?|lampadas?|iluminacao)\b/, '<path d="M9 18h6m-5 3h4m-5-6c0-2-3-3-3-7a6 6 0 0 1 12 0c0 4-3 5-3 7H9Z"/>'],
-    [/\b(?:ferramentas?|oficina|manutencao)\b/, '<path d="m14 6 3 3 4-4c1 4-2 8-6 8h-1l-6 7a2 2 0 0 1-3-3l7-6v-1c0-4 4-7 8-6l-3 3"/>']
+    [/\b(?:ferramentas?|oficina|manutencao)\b/, '<path d="m14 6 3 3 4-4c1 4-2 8-6 8h-1l-6 7a2 2 0 0 1-3-3l7-6v-1c0-4 4-7 8-6l-3 3"/>'],
+    [/\b(?:lembrancinhas?|festas?|aniversarios?)\b/, '<path d="M4 10h16v4H4zM6 14v7h12v-7m-6-4v11m0-11c-6 0-7-6-3-6 2 0 3 3 3 6Zm0 0c6 0 7-6 3-6-2 0-3 3-3 6Z"/>'],
+    [/\b(?:pascoa|coelhos?|ovos?)\b/, '<path d="M12 3c-4 0-7 7-7 11a7 7 0 0 0 14 0c0-4-3-11-7-11ZM5 14l3-2 4 3 4-3 3 2"/>']
   ];
 
   function ensureCategoryButton(category) {
@@ -193,8 +195,8 @@
     const hasPrice = item.price_cents !== null && item.price_cents !== undefined && Number.isFinite(Number(item.price_cents));
     const price = hasPrice ? Math.max(0, Number(item.price_cents) / 100) : 0;
     const priceLabel = hasPrice ? 'preço informado' : 'consulte o valor';
-    const product = { id, name, category, price, priceLabel, cover: imageUrl, draft: false };
     const details = JSON.parse(item.details_json || '{}');
+    const product = { id, name, category, price, priceLabel, cover: imageUrl, draft: false, details };
     products.push(product);
     state.quantities[id] = 1;
     ensureCategoryButton(category);
@@ -299,6 +301,7 @@
         }
         if (edit.details_json) {
           const details = JSON.parse(edit.details_json);
+          product.details = details;
           const description = card.querySelector('.product-description');
           description.insertAdjacentHTML('beforebegin', renderProductDetails(details, description.textContent));
           description.remove();
@@ -519,6 +522,9 @@
     }, null);
     return {
       id: product.id, name: product.name, category: product.category, madeToOrder: product.madeToOrder === true,
+      description: product.details?.description || '',
+      dimensions: product.details?.dimensions || '',
+      leadTime: product.details?.leadTime || '',
       priceCents: offer?.price_cents || (normalCents > 0 ? normalCents : null),
       promotion: offer ? (offer.slot === 'day' ? 'Promoção do dia' : 'Promoção da semana') : '',
       href: /^imported-[0-9a-f-]{36}$/i.test(product.id) ? '#' + product.id : ''

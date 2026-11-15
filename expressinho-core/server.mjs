@@ -9,7 +9,9 @@ const HOST = '127.0.0.1';
 const PORT = Number(process.env.EXPRESSINHO_PORT || 8767);
 const OLLAMA_URL = String(process.env.OLLAMA_URL || 'http://127.0.0.1:11434').replace(/\/+$/, '');
 const MAX_BODY_BYTES = 20 * 1024;
-const PUBLIC_FILES = new Set(['index.html', 'styles.css', 'expressinho.css', 'app.js', 'expressinho.js', 'config.js']);
+const PUBLIC_FILES = new Set(['index.html', 'styles.css', 'expressinho.css', 'app.js', 'expressinho.js', 'config.js',
+  'product-details.js', 'product-details.css', 'promotion-themes.css']);
+const PUBLIC_PRODUCTS_URL = 'https://expressarte.pages.dev/import-api/api/products';
 const IMAGE_EXTENSIONS = new Set(['.png', '.jpg', '.jpeg', '.webp', '.gif', '.svg', '.ico']);
 const MIME = {
   '.html': 'text/html; charset=utf-8',
@@ -75,8 +77,9 @@ async function getInstalledModel() {
     return found.name || found.model;
   }
 
-  const chatModel = models.find(item => !/(embed|rerank|bge-|nomic-embed|arctic-embed)/i.test(item.name || item.model || ''));
-  if (!chatModel) throw new Error('Só encontrei modelos de embedding. Instale um modelo de conversa no Ollama.');
+  const chatModels = models.filter(item => !/(embed|rerank|bge-|:cloud(?:$|-))/i.test(item.name || item.model || ''));
+  const chatModel = chatModels.find(item => (item.name || item.model) === 'expressinho:latest') || chatModels[0];
+  if (!chatModel) throw new Error('Não encontrei um modelo de conversa local no Ollama.');
   return chatModel.name || chatModel.model;
 }
 
@@ -87,7 +90,15 @@ async function readKnowledge() {
 
 function buildSystemPrompt(mode, knowledge) {
   const modeText = technicalModes[mode]?.systemPrompt ||
-    'ÁREA ATUAL: LOJA. Use os dados aprovados da loja. Nunca invente produtos, preços, estoque, prazo ou personalizações. Se um produto estiver em rascunho, deixe claro que o preço é provisório e que não está publicado.';
+    [
+      'ÁREA ATUAL: LOJA. Atenda como um vendedor prestativo. Entenda o que a pessoa quer resolver e indique o próximo passo.',
+      'Para presentes ou lembrancinhas, pergunte pela ocasião ou faixa de preço se isso ajudar. Se a pessoa já informou, use a informação e evite perguntar de novo.',
+      'Para pedidos em quantidade, pergunte pela peça, número de unidades e data desejada apenas quando esses dados faltarem. Indique o WhatsApp da loja para confirmar disponibilidade, prazo, frete, personalização ou condição comercial.',
+      'Para dúvidas sobre medidas, materiais, cores ou montagem, use só dados cadastrados e confirmados. Se a informação faltar, ofereça confirmação com a loja.',
+      'Para dúvidas sobre pagamento, retirada, entrega ou descontos, peça confirmação com a loja. Nunca ofereça condições, faça reservas ou dê garantias por conta própria.',
+      'A lista abaixo inclui registros de desenvolvimento. Nunca apresente um rascunho ou uma sugestão como produto à venda. Para preço e promoção atuais, oriente a pessoa a consultar o catálogo público.',
+      'Evite insistir na venda. Seja cordial e faça no máximo uma pergunta curta por resposta.'
+    ].join('\n');
 
   return [
     'Você é Expressinho IA, assistente da Express’Arte – Personalizados 3D.',
@@ -208,8 +219,9 @@ async function serveStatic(req, res, pathname) {
   try {
     let content = await fs.readFile(fullPath);
     if (baseName === 'config.js') {
-      let text = content.toString('utf8');
-      text = text.replace(/expressinhoEndpoint:\s*""/, 'expressinhoEndpoint: "/api/chat"');
+      const text = content.toString('utf8')
+        .replace(/expressinhoEndpoint:\s*""/, 'expressinhoEndpoint: "/api/chat"')
+        .replace(/catalogApiEndpoint:\s*"[^"]*"/, 'catalogApiEndpoint: "/import-api"');
       content = Buffer.from(text, 'utf8');
     }
     res.writeHead(200, {
@@ -227,6 +239,20 @@ async function serveStatic(req, res, pathname) {
 
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url || '/', 'http://' + HOST + ':' + PORT);
+  if (url.pathname === '/import-api/api/products') {
+    if (!checkOrigin(req, res)) return;
+    if (req.method !== 'GET') return sendJson(res, 405, { error: 'Use GET.' });
+    try {
+      const target = new URL(PUBLIC_PRODUCTS_URL);
+      const id = url.searchParams.get('id');
+      if (id) target.searchParams.set('id', id);
+      const response = await fetchWithTimeout(target, { redirect: 'error' }, 8000);
+      if (!response.ok) throw new Error('Catálogo indisponível.');
+      return sendJson(res, 200, await response.json());
+    } catch {
+      return sendJson(res, 502, { error: 'Catálogo indisponível.' });
+    }
+  }
   if (url.pathname === '/api/health') {
     if (!checkOrigin(req, res)) return;
     if (req.method !== 'GET') return sendJson(res, 405, { error: 'Use GET.' });

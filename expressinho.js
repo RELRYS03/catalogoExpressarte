@@ -21,6 +21,8 @@
   let activeTrigger = heroTrigger;
   let history = [];
   let lastProductId = '';
+  let lastChoices = [];
+  let pendingQuantity = null;
 
   const status = $('#expressinhoStatus');
   const money = cents => (cents / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
@@ -61,7 +63,10 @@
     'preciso comprar encomendar encomenda valor preco quanto fica sai custa tem voce voces consegue conseguir mostrar ver me ' +
     'produto item preco pedido unidade peca qual quais esse essa isto isso deles dele dela mesmo agora pode ' +
     'orcamento desconto promocao oferta atacado estoque pronta pronto entrega disponivel disponibilidade prazo frete dia ate r ' +
-    'estao esta cadastrado publicado vende vendem confirmacao confirmar').split(' '));
+    'estao esta cadastrado publicado vende vendem confirmacao confirmar consigo dar gostaria recomendacao recomenda ' +
+    'sugere sugestao comparar diferenca medida dimensao tamanho altura largura comprimento grande pequeno maior menor ' +
+    'amanha hoje sexta feira sabado domingo primeiro primeira segundo segunda terceiro terceira quarto quarta opcao ' +
+    'como faco finalizar descricao detalhe funciona usa usar').split(' '));
   const normalize = text => text.toLocaleLowerCase('pt-BR').normalize('NFD').replace(/[\u0300-\u036f]/g, '');
   const words = text => (normalize(text).match(/[a-z]+/g) || []).map(word => word === 'quais' ? 'qual' : word.replace(/oes$/, 'ao').replace(/s$/, ''));
 
@@ -76,10 +81,12 @@
     const text = normalize(message);
     const quantityMatch = text.match(/\b(\d+)\s*(?:unidades?|un\.?|pecas?)\b/) ||
       text.match(/(?:^\s*(?:e\s+)?|\b(?:quero|preciso de|gostaria de|tem|separar|encomendar|quanto (?:custa|fica|sai))\s+)(\d+)(?![\d.,/])(?=\s|[!?]|$)/);
-    const quantity = quantityMatch ? Number(quantityMatch[1]) : null;
+    let quantity = quantityMatch ? Number(quantityMatch[1]) : null;
     if (quantity !== null && (quantity < 1 || quantity > 999)) return { text: 'Informe uma quantidade de 1 a 999 unidades.' };
 
     const promoOnly = /\b(?:promocao|promocoes|ofertas?)\b/.test(text);
+    const gift = /\b(?:presentes?|presentear|lembrancinhas?)\b/.test(text);
+    const measurements = /\b(?:medidas?|dimens(?:ao|oes)|tamanho|altura|largura|comprimento)\b/.test(text);
     const listRequested = /\b(?:quais|ver|mostrar|listar)\s+(?:os\s+)?(?:produtos|itens)\b|\b(?:voces? (?:vende|vendem|tem)|catalogo)\b/.test(text);
     const budget = text.match(/\bate\s*(?:r\$\s*)?(\d+(?:\.\d{3})*(?:,\d{1,2})?)(?![\d.,/])/);
     const budgetCents = budget ? Math.round(Number(budget[1].replaceAll('.', '').replace(',', '.')) * 100) : null;
@@ -89,6 +96,17 @@
     const quote = stockCheck || Boolean(delivery) || /\b(?:desconto|atacado|prazo|frete|entrega|personalizar|personalizado)\b/.test(text);
     const query = delivery ? text.replace(normalize(delivery), ' ') : text;
     const terms = [...new Set(words(query).filter(word => word.length > 2 && !ignoredWords.has(word)))];
+    if (/^(?:oi+|ola+|bom dia|boa tarde|boa noite)[!?.\s]*$/.test(text)) {
+      return { text: 'Oi! Posso te ajudar a achar uma peça ou escolher um presente. Você já tem algo em mente ou quer me dizer quanto pretende gastar?' };
+    }
+    if (/\b(?:como (?:faco (?:o |um )?pedido|comprar|encomendar)|finalizar (?:o )?pedido)\b/.test(text) && !terms.length) {
+      return { text: 'Escolha a peça e a quantidade, toque em “Incluir no pedido” ou “Encomendar” e abra o pedido para enviar a lista à loja pelo WhatsApp.',
+        actions: [{ label: 'Ver meu pedido', href: '#orderPanel' }] };
+    }
+    if (/\b(?:pagamento|pix|cartao|parcel(?:a|am|amento|as))\b/.test(text)) {
+      return { text: 'A loja confirma as formas de pagamento pelo WhatsApp. Posso te ajudar a montar o pedido e calcular o subtotal das peças.',
+        actions: [contactAction('Olá! Quais são as formas de pagamento da Express’Arte?')].filter(Boolean) };
+    }
     const products = await shop.products();
     if (!products) return { text: 'Não consegui consultar o catálogo agora. Tente novamente em instantes.' };
 
@@ -103,7 +121,15 @@
       const best = matches[0].matched;
       matches = matches.filter(item => item.matched === best);
     }
-    const continuation = quantity !== null || quote || /\b(?:esse|essa|dele|dela)\b/.test(text);
+    const option = text.match(/\b(?:opcao\s+([1-4])|(primeir[oa]|segund[oa]|terceir[oa]|quart[oa]))\b/);
+    if (option && !terms.length && lastChoices.length) {
+      const index = option[1] ? Number(option[1]) - 1 : ['primeir', 'segund', 'terceir', 'quart'].indexOf(option[2].slice(0, -1));
+      const selected = products.find(product => product.id === lastChoices[index]);
+      if (!selected) return { text: 'Qual opção você prefere? Escolha um número da última lista ou escreva o nome do produto.' };
+      matches = [{ product: selected }];
+      quantity ??= pendingQuantity;
+    }
+    const continuation = quantity !== null || quote || measurements || /\b(?:esse|essa|dele|dela|descricao|detalhes|como funciona|como (?:se )?usa)\b/.test(text);
     const specificQuestion = terms.some(term => !['preco', 'total', 'forma', 'fazer', 'confirmar', 'comprar'].includes(term));
     if (!matches.length && continuation && !specificQuestion && lastProductId) {
       const previous = products.find(product => product.id === lastProductId);
@@ -112,6 +138,12 @@
     if (!matches.length && (listRequested || promoOnly || budgetCents !== null) && (!terms.length || listRequested)) {
       matches = products.map(product => ({ product }));
     }
+    if (gift && matches.every(item => !item.matched)) {
+      matches = products.map(product => ({ product })).sort((a, b) => {
+        const usualGift = item => /\b(?:presentes?|lembrancinhas?|chaveiros?|canecas?)\b/.test(normalize(item.product.category || ''));
+        return Number(usualGift(b)) - Number(usualGift(a));
+      });
+    }
 
     const matchingProducts = matches.map(item => item.product).filter(product =>
       (!promoOnly || product.promotion) &&
@@ -119,20 +151,29 @@
     if (!matchingProducts.length) {
       if (quantity !== null && !matches.length) return { text: 'Qual produto você quer e em qual quantidade? Pode escrever o nome como aparece no catálogo.' };
       if (matches.length || promoOnly || budgetCents !== null || listRequested) return { text: 'Não encontrei produtos publicados que atendam a esse pedido. Tente outro nome ou valor.' };
+      if (/\b(?:frete|entrega|retirada)\b/.test(text)) return { text: 'O frete, a entrega e a retirada precisam ser confirmados com a loja. Para agilizar, informe seu CEP e a peça que quer pedir.',
+        actions: [contactAction('Olá! Gostaria de consultar a entrega ou retirada.\n' + message)].filter(Boolean) };
       return null;
     }
     if (matchingProducts.length > 1) {
       const choices = matchingProducts.slice(0, 4);
+      lastChoices = choices.map(product => product.id);
+      pendingQuantity = quantity;
+      lastProductId = '';
       return {
-        text: (quantity !== null ? 'Qual destes produtos você quer? Me diga o nome e a quantidade.' : 'Encontrei estes produtos no catálogo:') + '\n' +
-          choices.map(product => '• ' + product.name + ' — ' + (product.priceCents === null ? 'Preço sob consulta' : money(product.priceCents)) +
-            (product.madeToOrder ? ' · Sob encomenda' : '')).join('\n'),
+        text: (gift ? 'Separei algumas opções para você presentear.' : 'Separei estas opções do catálogo.') + '\n' +
+          choices.map((product, index) => (index + 1) + '. ' + product.name + ' — ' + (product.priceCents === null ? 'Preço sob consulta' : money(product.priceCents)) +
+            (product.madeToOrder ? ' · Sob encomenda' : '')).join('\n') +
+          '\nQual chamou sua atenção? Pode responder “a primeira” ou dizer o nome.',
         actions: choices.filter(product => product.href).map(product => ({ label: 'Ver ' + product.name, href: product.href }))
       };
     }
 
     const product = matchingProducts[0];
     lastProductId = product.id;
+    if (lastChoices.includes(product.id)) quantity ??= pendingQuantity;
+    lastChoices = [];
+    pendingQuantity = null;
     const units = quantity || 1;
     const unitText = units + (units === 1 ? ' unidade' : ' unidades');
     const price = product.priceCents;
@@ -140,15 +181,19 @@
     const detail = product.name + ' — ' + (price === null ? 'preço sob consulta' : money(price) + ' por unidade') +
       (product.promotion ? ' (' + product.promotion + ')' : '') + '.';
     const total = quantity && price !== null ? '\n' + unitText + (units === 1 ? ' fica em ' : ' ficam em ') + money(price * units) + '.' : '';
-    if (quote || price === null) {
+    const dimensions = measurements ? '\n' + (product.dimensions ? 'Medidas cadastradas: ' + product.dimensions + '.' : 'A loja pode confirmar as medidas.') : '';
+    const leadTime = /\bprazo\b/.test(text) && product.leadTime ? '\nPrazo cadastrado: ' + product.leadTime + '.' : '';
+    const about = /\b(?:descricao|detalhes|como funciona|como (?:se )?usa)\b/.test(text) && product.description
+      ? '\n' + product.description.slice(0, 320) : '';
+    if (quote || price === null || (measurements && !product.dimensions)) {
       const date = delivery ? '\nData desejada: ' + delivery + '.' : '';
       const contact = contactAction('Olá! Gostaria de consultar a Express’Arte sobre ' + product.name + '.\nQuantidade: ' +
         unitText + '.' + date + '\nMinha dúvida: ' + message);
-      return { text: detail + total + (product.madeToOrder ? '\nProduto sob encomenda.' : '') +
+      return { text: detail + total + dimensions + leadTime + about + (product.madeToOrder ? '\nProduto sob encomenda.' : '') +
         '\nA loja pode confirmar disponibilidade, prazo e condições pelo WhatsApp.', actions: [productAction, contact].filter(Boolean) };
     }
     return {
-      text: detail + total + (product.madeToOrder ? '\nProduto sob encomenda. Confirme o prazo com a loja.' : '\nA loja confirma a disponibilidade ao receber o pedido.'),
+      text: detail + total + dimensions + about + (product.madeToOrder ? '\nProduto sob encomenda. Confirme o prazo com a loja.' : '\nA loja confirma a disponibilidade ao receber o pedido.'),
       actions: [productAction, { label: product.madeToOrder ? 'Incluir como encomenda' : 'Incluir no pedido', add: () => shop.add(product.id, units, price, product.promotion) }].filter(Boolean)
     };
   }
