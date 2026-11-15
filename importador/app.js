@@ -849,6 +849,14 @@
         form.querySelector('.edit-category-name').hidden = true;
         newCategory.required = false;
         card.querySelector('.queue-category').textContent = data.category;
+        if (card.dataset.category !== data.category) {
+          const selected = $('queueCategory').value;
+          card.dataset.category = data.category;
+          groupQueueCards(selected ? data.category : '');
+          applyQueueView();
+          card.closest('.queue-group').open = true;
+          if (!publish) card.querySelector('.queue-price > summary').focus();
+        }
       }
       input.value = data.priceCents === null ? '' : (data.priceCents / 100).toFixed(2).replace('.', ',');
       card.querySelectorAll('[data-promotion]').forEach(promotion => {
@@ -976,11 +984,105 @@
       Array.from(fields).forEach(field => { field.disabled = false; });
     }
   }
+  let queueView = 'all';
+  let queueExpiryTimer;
+  let queueLoad = 0;
+
+  function expandedQueueGroups() {
+    return new Set(Array.from($('queueList').querySelectorAll('.queue-group[open]'), group => group.dataset.category));
+  }
+
+  function groupQueueCards(selected, expanded = expandedQueueGroups()) {
+    const list = $('queueList');
+    const byCategory = new Map();
+    list.querySelectorAll('.queue-card').forEach(card => {
+      const name = card.dataset.category;
+      if (!byCategory.has(name)) byCategory.set(name, []);
+      byCategory.get(name).push(card);
+    });
+    const names = [...byCategory.keys()].sort((a, b) => a.localeCompare(b, 'pt-BR'));
+    const category = $('queueCategory');
+    category.replaceChildren(new Option('Todas as categorias', ''), ...names.map(name => new Option(name, name)));
+    category.value = byCategory.has(selected) ? selected : '';
+    const groups = names.map(name => {
+      const group = document.createElement('details');
+      group.className = 'queue-group';
+      group.dataset.category = name;
+      group.open = expanded.has(name);
+      const summary = document.createElement('summary');
+      summary.append(document.createTextNode(name), document.createElement('span'));
+      const cards = document.createElement('div');
+      cards.className = 'queue-list';
+      cards.append(...byCategory.get(name));
+      group.append(summary, cards);
+      return group;
+    });
+    list.replaceChildren(...groups);
+  }
+
+  function applyQueueView(openGroups = false) {
+    clearTimeout(queueExpiryTimer);
+    const category = $('queueCategory').value;
+    const groups = $('queueList').querySelectorAll('.queue-group');
+    const counts = { all: 0, day: 0, week: 0 };
+    const now = Date.now();
+    let nextExpiry = Infinity;
+    groups.forEach(group => {
+      const selected = !category || group.dataset.category === category;
+      let visible = 0;
+      group.querySelectorAll('.queue-card').forEach(card => {
+        const active = new Set();
+        card.querySelectorAll('[data-queue-offer]').forEach(badge => {
+          const expiry = Number(badge.dataset.expires);
+          badge.hidden = expiry <= now;
+          if (!badge.hidden) {
+            active.add(badge.dataset.queueOffer);
+            nextExpiry = Math.min(nextExpiry, expiry);
+          }
+        });
+        if (selected) {
+          counts.all++;
+          active.forEach(slot => counts[slot]++);
+        }
+        card.hidden = queueView !== 'all' && !active.has(queueView);
+        if (!card.hidden) visible++;
+      });
+      group.hidden = !selected || visible === 0;
+      group.querySelector('summary span').textContent = '(' + visible + ')';
+      if (openGroups) group.open = !group.hidden && Boolean(category || queueView !== 'all');
+    });
+    $('queueFilters').querySelectorAll('[data-queue-view]').forEach(button => {
+      const view = button.dataset.queueView;
+      button.setAttribute('aria-pressed', String(view === queueView));
+      button.querySelector('span').textContent = counts[view];
+    });
+    const empty = $('queueNoResults');
+    empty.hidden = counts[queueView] > 0;
+    empty.textContent = empty.hidden ? '' : {
+      all: 'Nenhum produto na fila.',
+      day: 'Nenhuma promoção do dia ativa nesta seleção.',
+      week: 'Nenhuma promoção da semana ativa nesta seleção.'
+    }[queueView];
+    if (Number.isFinite(nextExpiry)) {
+      queueExpiryTimer = setTimeout(() => applyQueueView(), Math.min(nextExpiry - now + 20, 2147483647));
+    }
+  }
+
   async function loadQueue(loadedData, promotionUpdate) {
     const list = $('queueList');
     const credential = token();
     const revision = adminRevision;
+    const requestId = ++queueLoad;
+    const isCurrent = () => requestId === queueLoad && token() === credential && revision === adminRevision;
+    const selectedCategory = $('queueCategory').value;
+    const expanded = expandedQueueGroups();
+    clearTimeout(queueExpiryTimer);
+    $('queueFilters').hidden = true;
+    $('queueNoResults').hidden = true;
+    $('queueNotice').textContent = '';
     if (!credential) {
+      $('queueCategory').replaceChildren();
+      queueView = 'all';
       list.innerHTML = '<div class="queue-empty">Entre em “Conexão segura” para consultar a fila.</div>';
       return;
     }
@@ -990,7 +1092,7 @@
       if (!data) {
         const res = await fetch(endpoint('/api/imports'), { headers: adminHeaders(credential), cache: 'no-store' });
         data = await res.json();
-        if (token() !== credential || revision !== adminRevision) return;
+        if (!isCurrent()) return;
         if (res.status === 401) {
           protectedSession = null;
           clearStoredCredentials();
@@ -1010,8 +1112,15 @@
           image_url: edit?.image_url || new URL('../' + product.cover, location.href).href, details_json: edit?.details_json };
       });
       const imports = Array.isArray(data.imports) ? data.imports : [];
+      const promotions = Array.isArray(data.promotions) ? data.promotions : [];
+      const offersByProduct = new Map();
+      for (const offer of promotions) {
+        if (!['day', 'week'].includes(offer.slot) || !(offer.expires_at > Date.now())) continue;
+        if (!offersByProduct.has(offer.product_id)) offersByProduct.set(offer.product_id, []);
+        offersByProduct.get(offer.product_id).push(offer);
+      }
       await loadCategories();
-      if (token() !== credential || revision !== adminRevision) return;
+      if (!isCurrent()) return;
       const categoryNames = Array.from($('category').options, option => option.value).filter(Boolean);
       const statusLabel = { pending: 'AGUARDANDO REVISÃO', approved: 'APROVADO', rejected: 'RECUSADO' };
       const renderCard = item => {
@@ -1030,6 +1139,10 @@
           '<option value="">Criar nova categoria…</option></select></label>' +
           '<label class="edit-category-name" hidden>Nome da nova categoria<input name="newCategory" minlength="2" maxlength="48"></label>';
         const approved = item.status === 'approved' && item.commercial_use_allowed && item.image_use_allowed;
+        const badges = (approved || item.builtIn ? offersByProduct.get(item.id) || [] : []).map(offer =>
+          '<span class="queue-promotion-badge" data-queue-offer="' + offer.slot + '" data-expires="' + Number(offer.expires_at) + '">' +
+          (offer.slot === 'day' ? 'Promoção do dia' : 'Promoção da semana') + ' · ' +
+          escapeHtml(formatMoney.format(offer.price_cents / 100)) + '</span>').join('');
         const publicUrl = approved && /^[0-9a-f-]{36}$/i.test(item.id)
           ? new URL('../#imported-' + item.id, location.href).href : '';
         const share = publicUrl
@@ -1041,10 +1154,10 @@
           '<div class="queue-rights"><label><input type="checkbox" data-commercial ' + (item.commercial_use_allowed ? 'checked' : '') + '> Confirmei que a licença permite uso comercial/impressão para venda.</label>' +
           '<label><input type="checkbox" data-image-rights ' + (item.image_use_allowed ? 'checked' : '') + '> Tenho autorização para exibir esta imagem no catálogo.</label></div>' +
           (approved ? '<div class="queue-actions"><button class="queue-reject" type="button" data-queue-action="rejected">Recusar</button></div>' : '');
-        return '<article class="queue-card" data-built-in="' + Boolean(item.builtIn) + '" data-id="' + escapeHtml(item.id) + '">' + image +
+        return '<article class="queue-card" data-category="' + escapeHtml(currentCategory) + '" data-built-in="' + Boolean(item.builtIn) + '" data-id="' + escapeHtml(item.id) + '">' + image +
           '<div class="queue-content"><strong class="queue-title">' + escapeHtml(item.title) + '</strong>' +
           '<div class="queue-meta"><span class="queue-category">' + escapeHtml(currentCategory) + '</span>' + (item.author ? ' · ' + escapeHtml(item.author) : '') + '</div>' +
-          (item.builtIn ? '' : '<span class="queue-status">' + status + '</span><br>' + source) + '</div>' + review +
+          (item.builtIn ? '' : '<span class="queue-status">' + status + '</span><br>' + source) + badges + '</div>' + review +
           '<details class="queue-price"><summary>Editar produto · ' + (price ? escapeHtml(formatMoney.format(item.price_cents / 100)) : 'Sob consulta') + '</summary>' +
           '<form>' + categoryField + '<label>Preço de venda (R$)<input name="price" inputmode="decimal" maxlength="12" value="' + escapeHtml(price) +
           '" placeholder="Sob consulta"></label>' + renderProductDetailFields(item) +
@@ -1053,15 +1166,16 @@
           '<div class="category-actions"><button class="secondary-button" type="submit">Salvar alterações</button>' +
           (!item.builtIn && !approved ? '<button class="primary-button" type="submit" name="publish" data-queue-action="approved">Enviar pro catálogo</button>' : '') +
           '</div><p role="status"></p></form>' +
-          (approved || item.builtIn ? renderPromotionForms(item, data.promotions || []) : '<p class="hint">Publique o produto no catálogo para colocá-lo em promoção.</p>') +
+          (approved || item.builtIn ? renderPromotionForms(item, promotions) : '<p class="hint">Publique o produto no catálogo para colocá-lo em promoção.</p>') +
           '<p class="hint promotion-notice" role="status"></p>' +
           '<div class="queue-actions queue-delete"><button class="queue-reject" type="button" data-delete-product>Excluir produto</button></div>' +
           '<p class="hint delete-product-status" role="status"></p></details>' +
           share + '</article>';
       };
-      list.innerHTML = (originals.length ? '<h3 class="queue-group-title">Produtos do catálogo</h3>' + originals.map(renderCard).join('') : '') +
-        '<h3 class="queue-group-title">Modelos importados</h3>' +
-        (imports.length ? imports.map(renderCard).join('') : '<div class="queue-empty">Nenhum modelo importado ainda.</div>');
+      list.innerHTML = [...originals, ...imports].map(renderCard).join('');
+      groupQueueCards(selectedCategory, expanded);
+      $('queueFilters').hidden = false;
+      applyQueueView();
       list.querySelectorAll('[data-queue-action="rejected"]').forEach(button => button.addEventListener('click', () => updateQueueItem(button)));
       list.querySelectorAll('[data-delete-product]').forEach(button => button.addEventListener('click', () => deleteQueueProduct(button)));
       list.querySelectorAll('[data-copy-product]').forEach(button => button.addEventListener('click', () => copyProductLink(button)));
@@ -1074,13 +1188,17 @@
       });
       if (promotionUpdate) {
         const card = Array.from(list.querySelectorAll('.queue-card')).find(item => item.dataset.id === promotionUpdate.productId);
-        if (card) {
+        const group = card?.closest('.queue-group');
+        if (card && !card.hidden && !group.hidden) {
+          group.open = true;
           const editor = card.querySelector('.queue-price');
           editor.open = true;
-          const panel = editor.querySelector('[data-slot="' + promotionUpdate.slot + '"]');
+          const panel = promotionUpdate.slot ? editor.querySelector('[data-slot="' + promotionUpdate.slot + '"]') : null;
           if (panel) panel.open = true;
           card.querySelector('.promotion-notice').textContent = promotionUpdate.notice;
           (panel || editor).querySelector('summary').focus();
+        } else {
+          $('queueNotice').textContent = promotionUpdate.notice;
         }
       }
       list.querySelectorAll('.queue-price > form').forEach(form => {
@@ -1096,7 +1214,11 @@
         });
       });
     } catch (error) {
-      if (token() === credential && revision === adminRevision) list.innerHTML = '<div class="queue-empty">' + escapeHtml(error.message || 'Não foi possível carregar a fila.') + '</div>';
+      if (isCurrent()) {
+        $('queueFilters').hidden = true;
+        $('queueNoResults').hidden = true;
+        list.innerHTML = '<div class="queue-empty">' + escapeHtml(error.message || 'Não foi possível carregar a fila.') + '</div>';
+      }
     }
   }
   $('imageFile').addEventListener('change', event => selectImage(event.target.files[0] || null));
@@ -1126,6 +1248,13 @@
     $('dimensions').focus();
   });
   $('refreshQueue').addEventListener('click', () => loadQueue());
+  $('queueCategory').addEventListener('change', () => applyQueueView(true));
+  $('queueFilters').addEventListener('click', event => {
+    const button = event.target.closest('[data-queue-view]');
+    if (!button) return;
+    queueView = button.dataset.queueView;
+    applyQueueView(true);
+  });
   $('sendButton').addEventListener('click', sendImport);
   restoreCalculatorRates();
   calculatorFields.forEach(id => $(id).addEventListener('input', updatePriceCalculator));

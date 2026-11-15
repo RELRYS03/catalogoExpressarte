@@ -106,7 +106,19 @@ footer { margin-bottom: 64px; }
 .queue-price p { margin: 0; color: var(--brown2); font-size: 13px; }
 .queue-delete { margin-top: 12px; display: block; }
 .queue-delete button { padding-inline: 12px; }
-.queue-group-title { margin: 10px 0 0; color: var(--brown); font-size: 15px; }
+.queue-filters { margin-bottom: 14px; }
+.queue-jump { display: inline-flex; align-items: center; min-height: 44px; color: var(--brown2); font-size: 12px; font-weight: 800; text-decoration: underline; text-underline-offset: 3px; }
+.queue-filters label { margin-top: 0; }
+.queue-views { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; margin-top: 10px; }
+.queue-views button { min-height: 44px; padding: 6px; line-height: 1.2; }
+.queue-views button[aria-pressed="true"] { background: var(--brown); color: white; border-color: var(--brown); }
+.queue-views span { display: block; margin-top: 3px; font-variant-numeric: tabular-nums; }
+.queue-group { min-width: 0; }
+.queue-group > summary { padding: 11px 12px; min-height: 44px; border: 1px solid var(--line); border-radius: 11px; background: var(--cream); color: var(--brown); cursor: pointer; font-size: 14px; font-weight: 800; overflow-wrap: anywhere; }
+.queue-group > summary span { margin-left: 6px; font-size: 12px; font-weight: 600; color: var(--brown2); }
+.queue-group > summary:focus-visible { outline: 3px solid var(--caramel); outline-offset: 2px; }
+.queue-group .queue-list { margin-top: 8px; }
+.queue-promotion-badge { display: inline-block; margin: 5px 5px 0 0; padding: 3px 7px; border-radius: 8px; background: #e2f0e6; color: #23553c; font-size: 10px; font-weight: 800; }
 .queue-price .edit-photo-rights { display: flex; align-items: center; gap: 8px; }
 .queue-price .edit-photo-rights input { width: 18px; min-height: 18px; margin: 0; accent-color: var(--brown); }
 .edit-photo-name:empty { display: none; }

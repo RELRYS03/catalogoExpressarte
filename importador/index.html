@@ -7,7 +7,7 @@
   <meta name="description" content="Importe modelos compartilhados para o catálogo Express'Arte.">
   <link rel="manifest" href="./manifest.webmanifest">
   <link rel="icon" href="./icon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="./styles.css">
+  <link rel="stylesheet" href="./styles.css?v=fila-categorias">
   <link rel="stylesheet" href="../promotion-themes.css?v=2">
   <title>Express'Arte Importador</title>
 </head>
@@ -25,6 +25,7 @@
       <h1>Seu próximo modelo começa aqui.</h1>
       <p>Compartilhe um link ou uma imagem pelo menu do Android. Revise os dados e envie para sua fila privada do catálogo.</p>
       <div class="steps"><span>1. Compartilhar</span><b>→</b><span>2. Revisar</span><b>→</b><span>3. Enviar</span></div>
+      <a class="queue-jump" href="#fila">Ir para a fila e promoções</a>
     </section>
     <section class="panel" aria-labelledby="formTitle">
       <div class="panel-heading">
@@ -168,12 +169,22 @@
       </div>
       <p class="feedback" id="feedback" role="status" aria-live="polite">Os modelos enviados entram como pendentes. Nada é publicado automaticamente.</p>
     </section>
-    <section class="panel queue-panel" aria-labelledby="queueTitle">
+    <section class="panel queue-panel" id="fila" aria-labelledby="queueTitle">
       <div class="panel-heading">
         <div><span class="eyebrow">ADMINISTRAÇÃO PRIVADA</span><h2 id="queueTitle">Fila de importações</h2></div>
         <button class="secondary-button" id="refreshQueue" type="button">Atualizar fila</button>
       </div>
       <p class="hint" id="queueNotice" role="status"></p>
+      <div class="queue-filters" id="queueFilters" hidden>
+        <label for="queueCategory">Categoria</label>
+        <select id="queueCategory"></select>
+        <div class="queue-views" role="group" aria-label="Filtrar por promoção ativa">
+          <button class="secondary-button" type="button" data-queue-view="all" aria-pressed="true">Produtos <span></span></button>
+          <button class="secondary-button" type="button" data-queue-view="day" aria-pressed="false">Promoções do dia <span></span></button>
+          <button class="secondary-button" type="button" data-queue-view="week" aria-pressed="false">Promoções da semana <span></span></button>
+        </div>
+      </div>
+      <p class="queue-empty" id="queueNoResults" role="status" hidden></p>
       <div id="queueList" class="queue-list"><p class="hint">Configure a conexão segura para consultar os modelos recebidos.</p></div>
     </section>
 
@@ -185,6 +196,6 @@
     Voltar ao topo
   </a>
   <script src="../config.js?v=descontos" defer></script>
-  <script src="./app.js?v=encomendas" defer></script>
+  <script src="./app.js?v=fila-categorias" defer></script>
 </body>
 </html>
