@@ -260,6 +260,9 @@
     card.scrollIntoView({ block: 'start', behavior: 'instant' });
   }
   function productsEndpoint() {
+    if (location.origin === config.catalogPagesOrigin) {
+      return new URL('/import-api/api/products', location.origin).toString();
+    }
     const base = String(config.catalogApiEndpoint || '').trim().replace(/\/+$/, '');
     const path = base.endsWith('/api') ? base + '/products' : base + '/api/products';
     return new URL(path, location.origin).toString();

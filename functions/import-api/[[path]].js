@@ -4,7 +4,7 @@ const cookie = '__Host-expressarte-session';
 const sessionPattern = /^session_[0-9a-f]{64}$/;
 const maxRememberSeconds = 30 * 86400;
 const routes = {
-  GET: /^\/api\/(?:health|categories|imports|preview|admin\/(?:status|session))$/,
+  GET: /^\/api\/(?:health|categories|products|imports|preview|admin\/(?:status|session))$/,
   POST: /^\/api\/(?:categories|imports|category-suggestion|admin\/(?:setup|login|logout|session))$/,
   PATCH: /^\/api\/(?:imports\/[0-9a-f-]{36}|admin\/(?:products\/(?:academia-001|religioso-001|[0-9a-f-]{36})|promotions\/(?:day|week)))$/,
   DELETE: /^\/api\/admin\/products\/(?:academia-001|religioso-001|[0-9a-f-]{36})$/
@@ -45,7 +45,7 @@ export async function onRequest({ request, env }) {
   const headers = new Headers({ Accept: 'application/json' });
   const contentType = request.headers.get('Content-Type');
   if (contentType) headers.set('Content-Type', contentType);
-  if (session) headers.set('Authorization', 'Bearer ' + session);
+  if (session && path !== '/api/products') headers.set('Authorization', 'Bearer ' + session);
   try {
     if (path === '/api/admin/session') {
       const migrating = method === 'POST';

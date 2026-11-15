@@ -36,3 +36,23 @@ test('Pages conserva a sessão em cookie, rejeita post externo e encaminha autor
   assert.match(logout.headers.get('Set-Cookie'), /Max-Age=0/);
   assert.equal((await call('admin/inexistente')).status, 404);
 });
+
+test('Pages entrega os produtos públicos no novo endereço sem encaminhar credenciais', async () => {
+  const publicUrl = 'https://expressarte.pages.dev/import-api/api/products?id=produto';
+  const products = [{ id: 'produto' }];
+  const env = {
+    IMPORT_API: {
+      fetch(request) {
+        assert.equal(new URL(request.url).pathname, '/api/products');
+        assert.equal(new URL(request.url).search, '?id=produto');
+        assert.equal(request.headers.get('Authorization'), null);
+        assert.equal(request.headers.get('Cookie'), null);
+        return Response.json({ products });
+      }
+    }
+  };
+  const request = new Request(publicUrl, { headers: { Cookie: cookie, Authorization: 'Bearer ' + session } });
+  const response = await onRequest({ request, env });
+  assert.equal(response.status, 200);
+  assert.deepEqual(await response.json(), { products });
+});

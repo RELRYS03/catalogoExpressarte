@@ -10,6 +10,8 @@ window.EXPRESSARTE_CONFIG = {
   expressinhoEndpoint: "",
   // Origem pública da API Cloudflare usada pelo catálogo e pelo importador.
   catalogApiEndpoint: "https://expressarte-import-api.relrys17.workers.dev",
+  // Endereço público que consulta produtos pela função do próprio site.
+  catalogPagesOrigin: "https://expressarte.pages.dev",
   promotionThemes: {
     default: 'Padrão',
     carnaval: 'Carnaval',
