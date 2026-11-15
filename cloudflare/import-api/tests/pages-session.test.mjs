@@ -8,15 +8,16 @@ const cookie = '__Host-expressarte-session=1.' + session;
 const call = (path, init) => onRequest({ request: new Request(origin + '/import-api/api/' + path, init) });
 
 test('Pages conserva a sessão em cookie, rejeita post externo e encaminha autorização só ao Worker', async t => {
-  const upstream = t.mock.method(globalThis, 'fetch', async (url, init) => {
-    assert.equal(new URL(url).origin, 'https://expressarte-import-api.relrys17.workers.dev');
-    const path = new URL(url).pathname;
+  const upstream = t.mock.method(globalThis, 'fetch', async request => {
+    assert.equal(new URL(request.url).origin, 'https://expressarte-import-api.relrys17.workers.dev');
+    assert.equal(request.redirect, 'manual');
+    const path = new URL(request.url).pathname;
     if (path === '/api/admin/login') {
-      assert.equal(init.headers.get('Authorization'), null);
+      assert.equal(request.headers.get('Authorization'), null);
       return Response.json({ token: session });
     }
-    assert.equal(new Headers(init.headers).get('Authorization'), 'Bearer ' + session);
-    assert.equal(new Headers(init.headers).get('Cookie'), null);
+    assert.equal(request.headers.get('Authorization'), 'Bearer ' + session);
+    assert.equal(request.headers.get('Cookie'), null);
     return Response.json(path === '/api/admin/session' ? { expiresAt: Date.now() + 3600000 } : { ok: true });
   });
   const request = (headers = {}) => ({ method: 'POST', headers: { Origin: origin, 'Content-Type': 'application/json', ...headers }, body: '{"remember":true}' });
