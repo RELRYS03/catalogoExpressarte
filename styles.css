@@ -239,3 +239,20 @@
 .catalog-product-assembly { margin-bottom: 12px; font-size: 12px; color: var(--brown-2); }
 .catalog-product-assembly summary { font-weight: 700; cursor: pointer; }
 .product-author { margin: 0 0 12px; font-size: 12px; color: var(--brown-2); overflow-wrap: anywhere; }
+
+
+/* Vitrine mobile compacta: cartões independentes, sem altura forçada. */
+@media (max-width:700px) {
+  .products-section #productGrid { align-items:start; }
+  .products-section #productGrid > .product-card,
+  .products-section #productGrid:has(> .product-card:only-child) > .product-card {
+    height:auto;
+    align-self:start;
+  }
+  .products-section #productGrid .product-info { flex:0 1 auto; }
+  .products-section #productGrid .product-info .quantity-row { margin-top:8px; }
+  .products-section #productGrid .product-description { margin:6px 0; }
+  .products-section #productGrid .product-author { margin:6px 0; }
+  .products-section #productGrid .product-footnote { margin:6px 0; }
+  .products-section #productGrid .product-photo-area { padding:6px; }
+}
