@@ -146,7 +146,7 @@ async function handleChat(req, res) {
       { role: 'user', content: message }
     ];
 
-    // OpenAI (ou provedor compatível) é a inteligência principal quando configurada.
+    // FreeLLMAPI (com NVIDIA e fallback gerenciados pelo roteador) é o provedor principal.
     let onlineConfig;
     try { onlineConfig = getCompatibleProviderConfig(); }
     catch (error) { return sendJson(res, 503, { error: 'Configuração da IA online inválida: ' + error.message }); }
@@ -199,7 +199,7 @@ async function handleChat(req, res) {
   } catch (error) {
     return sendJson(res, 503, {
       error: error.message || 'Não foi possível conectar à inteligência do Expressinho.',
-      hint: 'Configure a API OpenAI no arquivo expressinho-core/.env ou inicie o Ollama com um modelo de conversa.'
+      hint: 'Configure FREELLMAPI_BASE_URL e FREELLMAPI_API_KEY em expressinho-core/.env, ou inicie o Ollama com um modelo de conversa.'
     });
   }
 }
@@ -260,12 +260,12 @@ const server = http.createServer(async (req, res) => {
         }, 10000);
         if (!response.ok) {
           const detail = (await response.text()).slice(0, 240);
-          onlineStatus.error = 'OpenAI HTTP ' + response.status + (detail ? ': ' + detail : '');
+          onlineStatus.error = 'Provedor online HTTP ' + response.status + (detail ? ': ' + detail : '');
         } else {
           onlineStatus.reachable = true;
         }
       } catch (error) {
-        onlineStatus.error = 'Falha de rede com OpenAI: ' + (error.name === 'AbortError' ? 'tempo esgotado' : error.message);
+        onlineStatus.error = 'Falha de rede com provedor online: ' + (error.name === 'AbortError' ? 'tempo esgotado' : error.message);
       }
     }
     let localStatus = { reachable: false };
