@@ -101,7 +101,7 @@
       const image = await categoryImage(file);
       const res = await fetch(endpoint('/api/category-suggestion'), {
         method: 'POST',
-        headers: { Authorization: 'Bearer ' + token(), 'Content-Type': 'application/json' },
+        headers: { ...adminHeaders(), 'Content-Type': 'application/json' },
         body: JSON.stringify({ title, image })
       });
       const result = await res.json();
@@ -165,7 +165,7 @@
   async function createCategoryByName(name) {
     const response = await fetch(endpoint('/api/categories'), {
       method: 'POST',
-      headers: { Authorization: 'Bearer ' + token(), 'Content-Type': 'application/json' },
+      headers: { ...adminHeaders(), 'Content-Type': 'application/json' },
       body: JSON.stringify({ name })
     });
     const result = await response.json();
@@ -292,19 +292,64 @@
   const adminKey = 'expressarte_admin_connection';
   let adminRevision = 0;
   let adminConfigured = null;
+  let protectedSession = null;
   const setupRequested = new URLSearchParams(location.search).get('configurar') === 'admin';
-  function endpoint(path) {
-    const base = $('apiBase').value.trim().replace(/\/+$/, '').replace(/\/api$/, '');
+  const normalizeApiBase = value => String(value || '').trim().replace(/\/+$/, '').replace(/\/api$/, '');
+  function usesProtectedSession() {
+    const configured = normalizeApiBase(window.EXPRESSARTE_CONFIG?.catalogApiEndpoint);
+    return location.protocol === 'https:' && configured && normalizeApiBase($('apiBase').value) === configured;
+  }
+  function directEndpoint(path) {
+    const base = normalizeApiBase($('apiBase').value);
     return new URL(base + path, location.origin).toString();
+  }
+  function endpoint(path) {
+    return usesProtectedSession() ? location.origin + '/import-api' + path : directEndpoint(path);
   }
   function savedAdmin(storage) {
     try {
       const credentials = JSON.parse(storage.getItem(adminKey) || 'null');
-      return credentials?.endpoint === endpoint('/api/imports') && typeof credentials.token === 'string'
+      return credentials?.endpoint === directEndpoint('/api/imports') && typeof credentials.token === 'string'
         ? credentials.token : '';
     } catch { return ''; }
   }
-  const token = () => savedAdmin(sessionStorage) || savedAdmin(localStorage);
+  const token = () => usesProtectedSession()
+    ? (protectedSession?.signedIn ? 'protected-session' : '')
+    : savedAdmin(sessionStorage) || savedAdmin(localStorage);
+  const adminHeaders = (credential = token()) => credential && !usesProtectedSession() ? { Authorization: 'Bearer ' + credential } : {};
+  const signedIn = () => Boolean(usesProtectedSession() ? protectedSession?.signedIn : token().startsWith('session_'));
+  function clearStoredCredentials() {
+    localStorage.removeItem(adminKey);
+    sessionStorage.removeItem(adminKey);
+    sessionStorage.removeItem('expressarte_admin_token');
+  }
+  async function restoreProtectedSession() {
+    if (!usesProtectedSession()) return;
+    const target = endpoint('/api/admin/session');
+    const revision = adminRevision;
+    try {
+      const response = await fetch(target, { cache: 'no-store', redirect: 'error' });
+      let data = await response.json();
+      if (!response.ok || typeof data.signedIn !== 'boolean') return;
+      if (revision !== adminRevision || target !== endpoint('/api/admin/session')) return;
+      const temporary = savedAdmin(sessionStorage);
+      const remembered = savedAdmin(localStorage);
+      const previous = temporary || remembered;
+      if (!data.signedIn && /^session_[0-9a-f]{64}$/.test(previous)) {
+        const migration = await fetch(target, {
+          method: 'POST', cache: 'no-store', redirect: 'error',
+          headers: { Authorization: 'Bearer ' + previous, 'X-Remember-Session': !temporary && remembered ? 'yes' : 'no' }
+        });
+        if (!migration.ok && migration.status !== 401) return;
+        data = await migration.json();
+      }
+      if (revision !== adminRevision || target !== endpoint('/api/admin/session')) return;
+      protectedSession = data.signedIn ? data : null;
+      if (data.signedIn || previous) clearStoredCredentials();
+      $('adminToken').value = '';
+      updateAdminControls();
+    } catch { /* Keep a legacy session available for conversion after connectivity returns. */ }
+  }
   function promptSignIn() {
     $('secureConnection').open = true;
     if (setupRequested && adminConfigured !== true) {
@@ -318,16 +363,16 @@
   }
   function updateAdminControls() {
     const credential = token();
-    const signedIn = credential.startsWith('session_');
+    const loggedIn = signedIn();
     $('signOut').hidden = !credential;
-    const showSetup = setupRequested && adminConfigured !== true && !signedIn;
-    $('adminLogin').hidden = signedIn || showSetup;
+    const showSetup = setupRequested && adminConfigured !== true && !loggedIn;
+    $('adminLogin').hidden = loggedIn || showSetup;
     $('adminSetup').hidden = !showSetup;
     if (showSetup) {
       $('secureConnection').open = true;
       $('adminSetup').open = true;
     }
-    $('rememberAdmin').checked = Boolean(savedAdmin(localStorage));
+    if (loggedIn) $('rememberAdmin').checked = usesProtectedSession() ? Boolean(protectedSession?.remembered) : Boolean(savedAdmin(localStorage));
     $('adminSessionStatus').textContent = $('rememberAdmin').checked
       ? 'Sessão lembrada neste aparelho.'
       : token() ? 'Sessão ativa até fechar o app.' : 'Use a opção de lembrar em um aparelho de uso pessoal.';
@@ -342,7 +387,7 @@
       if (target !== endpoint('/api/admin/status') || typeof data.configured !== 'boolean') return;
       adminConfigured = data.configured;
       updateAdminControls();
-      if (adminConfigured && !token().startsWith('session_')) {
+      if (adminConfigured && !signedIn()) {
         $('secureConnection').open = true;
         $('adminSessionStatus').textContent = 'A conta administrativa já foi criada. Entre com seu e-mail e senha.';
       } else if (!adminConfigured) {
@@ -362,12 +407,13 @@
     button.textContent = setup ? 'Criando usuário…' : 'Entrando…';
     try {
       const target = endpoint('/api/imports');
+      const protectedLogin = usesProtectedSession();
       const api = $('apiBase').value.trim();
       const remember = $(setup ? 'rememberSetup' : 'rememberAdmin').checked;
       if (!/^https:\/\//i.test(target)) throw new Error('Informe um endereço HTTPS para a API.');
       const headers = { 'Content-Type': 'application/json' };
       if (setup) {
-        const key = $('adminToken').value.trim() || token();
+        const key = $('adminToken').value.trim() || (!protectedLogin ? token() : '');
         if (!key) {
           $('adminToken').focus();
           throw new Error('Cole a chave administrativa atual no campo acima e toque em Criar usuário.');
@@ -379,18 +425,20 @@
         body: JSON.stringify({ email: $(setup ? 'setupEmail' : 'adminEmail').value, password: password.value, remember })
       });
       const data = await response.json().catch(() => null);
-      if (!response.ok || !/^session_[0-9a-f]{64}$/.test(data?.token || '')) {
+      if (!response.ok || !(protectedLogin ? data?.signedIn === true : /^session_[0-9a-f]{64}$/.test(data?.token || ''))) {
         if (setup && response.status === 409) await checkAdminSetup();
         throw new Error(data?.error || 'Não foi possível entrar no catálogo.');
       }
       if (revision !== adminRevision) return;
       if (target !== endpoint('/api/imports')) throw new Error('O endereço mudou. Entre novamente.');
       adminConfigured = true;
-      const credentials = JSON.stringify({ endpoint: target, token: data.token });
-      const storage = remember ? localStorage : sessionStorage;
-      storage.setItem(adminKey, credentials);
-      (remember ? sessionStorage : localStorage).removeItem(adminKey);
-      sessionStorage.removeItem('expressarte_admin_token');
+      clearStoredCredentials();
+      if (protectedLogin) {
+        protectedSession = data;
+      } else {
+        const storage = remember ? localStorage : sessionStorage;
+        storage.setItem(adminKey, JSON.stringify({ endpoint: target, token: data.token }));
+      }
       localStorage.setItem('expressarte_api_base', api);
       $('adminToken').value = '';
       password.value = '';
@@ -405,17 +453,24 @@
       button.textContent = label;
     }
   }
-  function signOut() {
+  async function signOut() {
     const credential = token();
-    if (credential.startsWith('session_')) {
-      fetch(endpoint('/api/admin/logout'), {
-        method: 'POST', headers: { Authorization: 'Bearer ' + credential }, redirect: 'error', keepalive: true
-      }).catch(() => {});
+    if (signedIn()) {
+      try {
+        const response = await fetch(endpoint('/api/admin/logout'), {
+          method: 'POST', headers: adminHeaders(credential), redirect: 'error', keepalive: true
+        });
+        if (!response.ok && usesProtectedSession()) throw new Error();
+      } catch {
+        if (usesProtectedSession()) {
+          $('adminSessionStatus').textContent = 'Não foi possível encerrar a sessão. Confira a conexão e tente novamente.';
+          return;
+        }
+      }
     }
     adminRevision++;
-    localStorage.removeItem(adminKey);
-    sessionStorage.removeItem(adminKey);
-    sessionStorage.removeItem('expressarte_admin_token');
+    protectedSession = null;
+    clearStoredCredentials();
     $('adminToken').value = '';
     updateAdminControls();
     loadQueue();
@@ -472,7 +527,7 @@
     clearModelPreview();
     $('previewButton').disabled = true; $('previewButton').textContent = 'Buscando…';
     try {
-      const res = await fetch(endpoint('/api/preview?url=' + encodeURIComponent(url)), { headers: { Authorization: 'Bearer ' + token() } });
+      const res = await fetch(endpoint('/api/preview?url=' + encodeURIComponent(url)), { headers: adminHeaders() });
       const data = await res.json();
       if (cleanUrl($('sourceUrl').value) !== url) return;
       if (!res.ok) throw new Error(data.error || 'Não foi possível consultar a página.');
@@ -599,7 +654,7 @@
       const imageUrl = currentPreview.imageUrl || '';
       if (imageUrl) body.append('imageUrl', imageUrl);
       if (sharedImage) body.append('image', sharedImage, sharedImage.name || 'imagem-compartilhada');
-      const res = await fetch(endpoint('/api/imports'), { method: 'POST', headers: { Authorization: 'Bearer ' + token() }, body });
+      const res = await fetch(endpoint('/api/imports'), { method: 'POST', headers: adminHeaders(), body });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Falha ao enviar cadastro.');
       $('draftStatus').textContent = 'Enviado · pendente';
@@ -634,7 +689,7 @@
       };
       const res = await fetch(endpoint('/api/imports/' + encodeURIComponent(card.dataset.id)), {
         method: 'PATCH',
-        headers: { Authorization: 'Bearer ' + token(), 'Content-Type': 'application/json' },
+        headers: { ...adminHeaders(), 'Content-Type': 'application/json' },
         body: JSON.stringify(body)
       });
       const data = await res.json();
@@ -657,7 +712,7 @@
     try {
       const response = await fetch(endpoint('/api/admin/products/' + encodeURIComponent(card.dataset.id)), {
         method: 'DELETE',
-        headers: { Authorization: 'Bearer ' + token() }
+        headers: adminHeaders()
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || 'Não foi possível excluir o produto.');
@@ -780,7 +835,7 @@
       }
       const response = await fetch(endpoint('/api/admin/products/' + encodeURIComponent(card.dataset.id)), {
         method: 'PATCH',
-        headers: { Authorization: 'Bearer ' + token() },
+        headers: adminHeaders(),
         body
       });
       const data = await response.json();
@@ -902,7 +957,7 @@
         if (file) { body.set('image', file); body.set('imageRights', 'yes'); }
       }
       const response = await fetch(endpoint('/api/admin/promotions/' + form.dataset.promotion), {
-        method: 'PATCH', headers: { Authorization: 'Bearer ' + token() }, body
+        method: 'PATCH', headers: adminHeaders(), body
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || 'Não foi possível salvar a promoção.');
@@ -920,6 +975,7 @@
   async function loadQueue(loadedData, promotionUpdate) {
     const list = $('queueList');
     const credential = token();
+    const revision = adminRevision;
     if (!credential) {
       list.innerHTML = '<div class="queue-empty">Entre em “Conexão segura” para consultar a fila.</div>';
       return;
@@ -928,11 +984,14 @@
     try {
       let data = loadedData;
       if (!data) {
-        const res = await fetch(endpoint('/api/imports'), { headers: { Authorization: 'Bearer ' + credential }, cache: 'no-store' });
+        const res = await fetch(endpoint('/api/imports'), { headers: adminHeaders(credential), cache: 'no-store' });
         data = await res.json();
-        if (token() !== credential) return;
+        if (token() !== credential || revision !== adminRevision) return;
         if (res.status === 401) {
-          signOut();
+          protectedSession = null;
+          clearStoredCredentials();
+          updateAdminControls();
+          await loadQueue();
           promptSignIn();
           return;
         }
@@ -948,7 +1007,7 @@
       });
       const imports = Array.isArray(data.imports) ? data.imports : [];
       await loadCategories();
-      if (token() !== credential) return;
+      if (token() !== credential || revision !== adminRevision) return;
       const categoryNames = Array.from($('category').options, option => option.value).filter(Boolean);
       const statusLabel = { pending: 'AGUARDANDO REVISÃO', approved: 'APROVADO', rejected: 'RECUSADO' };
       const renderCard = item => {
@@ -1033,7 +1092,7 @@
         });
       });
     } catch (error) {
-      if (token() === credential) list.innerHTML = '<div class="queue-empty">' + escapeHtml(error.message || 'Não foi possível carregar a fila.') + '</div>';
+      if (token() === credential && revision === adminRevision) list.innerHTML = '<div class="queue-empty">' + escapeHtml(error.message || 'Não foi possível carregar a fila.') + '</div>';
     }
   }
   $('imageFile').addEventListener('change', event => selectImage(event.target.files[0] || null));
@@ -1070,8 +1129,11 @@
   $('adminLogin').addEventListener('submit', event => signIn(event));
   $('adminSetupForm').addEventListener('submit', event => signIn(event, true));
   $('signOut').addEventListener('click', signOut);
-  $('apiBase').addEventListener('change', () => {
+  $('apiBase').addEventListener('change', async () => {
+    adminRevision++;
     adminConfigured = null;
+    protectedSession = null;
+    await restoreProtectedSession();
     updateAdminControls();
     checkAdminSetup();
     checkHealth();
@@ -1098,6 +1160,14 @@
   $('adminToken').value = token() ? '' : sessionStorage.getItem('expressarte_admin_token') || '';
   updateAdminControls();
   if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js').catch(() => setConnectionStatus('Instalação PWA indisponível'));
-  loadShared().then(() => { checkAdminSetup(); checkHealth(); loadCategories(); if (token()) loadQueue(); });
+  const loginButtons = [$('saveConnection'), $('createAdmin')];
+  loginButtons.forEach(button => { button.disabled = true; });
+  Promise.allSettled([loadShared(), restoreProtectedSession()]).then(() => {
+    loginButtons.forEach(button => { button.disabled = false; });
+    checkAdminSetup();
+    checkHealth();
+    loadCategories();
+    if (token()) loadQueue();
+  });
   if (new URLSearchParams(location.search).has('compartilhado')) history.replaceState({}, '', location.pathname);
 })();

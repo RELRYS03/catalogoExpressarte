@@ -32,6 +32,8 @@ O segredo ADMIN_TOKEN nunca deve ser colocado no JavaScript público, no manifes
 
 ## PWA Importador Mobile
 
+No endereço oficial, o Pages encaminha as rotas do Importador por `/import-api/`. Configure no projeto Pages o vínculo de serviço `IMPORT_API` com o Worker `expressarte-import-api` e publique novamente após criar o vínculo. O login oficial guarda a sessão em um cookie protegido e converte sessões válidas da versão anterior. Uma integração que acessa o Worker diretamente conserva a autenticação Bearer.
+
 A pasta importador/ contém a aplicação instalável e seu manifesto Web Share Target. Para aparecer no menu Compartilhar do Android, publique-a em HTTPS e instale-a no Chrome. O manifesto recebe title, text, url e, se a origem compartilhar arquivo, imagens.
 
 O importador pode apontar para a API no mesmo domínio (/api) ou para a origem do Worker, informada no campo de conexão. Se usar origem separada, ALLOWED_ORIGIN precisa corresponder exatamente à origem HTTPS onde o PWA está hospedado.
