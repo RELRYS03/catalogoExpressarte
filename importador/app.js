@@ -787,6 +787,7 @@
   async function saveProductEdit(event) {
     event.preventDefault();
     const form = event.currentTarget;
+    const title = form.elements.namedItem('title').value.trim();
     const input = form.elements.namedItem('price');
     const photo = form.elements.namedItem('photo');
     const rights = form.elements.namedItem('photoRights');
@@ -796,6 +797,10 @@
     const publish = event.submitter?.name === 'publish';
     const button = event.submitter || form.querySelector('button');
     const result = form.querySelector('[role="status"]');
+    if (!title) {
+      result.textContent = 'Informe o nome do produto.';
+      return;
+    }
     const price = parsePrice(input.value);
     const details = Object.fromEntries(detailFields.map(([name]) => [name, form.elements.namedItem(name).value.trim()]));
     details.madeToOrder = form.elements.namedItem('madeToOrder').checked;
@@ -825,6 +830,7 @@
     result.textContent = 'Salvando…';
     try {
       const body = new FormData();
+      if (title !== card.querySelector('.queue-title').textContent) body.append('title', title);
       body.append('priceCents', price === null ? '' : String(price));
       body.append('details', JSON.stringify(details));
       if (category && category.value !== category.dataset.saved) {
@@ -844,6 +850,11 @@
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || 'Não foi possível salvar o produto.');
+      if (data.title) {
+        form.elements.namedItem('title').value = data.title;
+        card.querySelector('.queue-title').textContent = data.title;
+        card.querySelectorAll('.promotion-preview strong').forEach(preview => { preview.textContent = data.title; });
+      }
       if (category && data.category) {
         category.dataset.saved = data.category;
         form.querySelector('.edit-category-name').hidden = true;
@@ -1107,7 +1118,7 @@
       const removed = new Set(data.removedProductIds || []);
       const originals = (window.EXPRESSARTE_CONFIG?.builtInProducts || []).filter(product => !removed.has(product.id)).map(product => {
         const edit = edits.get(product.id);
-        return { id: product.id, title: product.name, category: edit?.category || product.category, builtIn: true,
+        return { id: product.id, title: edit?.title || product.name, category: edit?.category || product.category, builtIn: true,
           price_cents: edit?.price_cents ?? Math.round(product.price * 100),
           image_url: edit?.image_url || new URL('../' + product.cover, location.href).href, details_json: edit?.details_json };
       });
@@ -1159,7 +1170,8 @@
           '<div class="queue-meta"><span class="queue-category">' + escapeHtml(currentCategory) + '</span>' + (item.author ? ' · ' + escapeHtml(item.author) : '') + '</div>' +
           (item.builtIn ? '' : '<span class="queue-status">' + status + '</span><br>' + source) + badges + '</div>' + review +
           '<details class="queue-price"><summary>Editar produto · ' + (price ? escapeHtml(formatMoney.format(item.price_cents / 100)) : 'Sob consulta') + '</summary>' +
-          '<form>' + categoryField + '<label>Preço de venda (R$)<input name="price" inputmode="decimal" maxlength="12" value="' + escapeHtml(price) +
+          '<form><label>Nome do produto<input name="title" maxlength="180" required value="' + escapeHtml(item.title) + '"></label>' +
+          categoryField + '<label>Preço de venda (R$)<input name="price" inputmode="decimal" maxlength="12" value="' + escapeHtml(price) +
           '" placeholder="Sob consulta"></label>' + renderProductDetailFields(item) +
           '<label>Nova foto principal<input type="file" name="photo" accept="image/jpeg,image/png,image/webp,image/avif"></label>' +
           '<p class="edit-photo-name"></p><label class="edit-photo-rights"><input type="checkbox" name="photoRights"> Tenho autorização para usar esta foto</label>' +

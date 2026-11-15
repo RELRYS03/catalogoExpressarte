@@ -11,6 +11,7 @@ test('login privado cria uma conta, limita tentativas e revoga sessões', async 
   try {
     db.exec(await readFile(new URL('../admin-auth.sql', import.meta.url), 'utf8'));
     db.exec(await readFile(new URL('../product-overrides.sql', import.meta.url), 'utf8'));
+    db.exec(await readFile(new URL('../catalog-product-titles.sql', import.meta.url), 'utf8'));
     db.exec(await readFile(new URL('../catalog-categories.sql', import.meta.url), 'utf8'));
     db.exec(await readFile(new URL('../catalog-promotions.sql', import.meta.url), 'utf8'));
     db.exec(await readFile(new URL('../catalog-promotion-items.sql', import.meta.url), 'utf8'));
@@ -121,13 +122,25 @@ test('login privado cria uma conta, limita tentativas e revoga sessões', async 
     assert.deepEqual(await (await editPromotion(promotion)).json(), { promotion: null });
     assert.equal(db.prepare('SELECT product_id FROM catalog_promotion_items').get().product_id, 'religioso-001');
     const builtInEdit = new FormData();
+    builtInEdit.set('title', 'Bandeja Porta Rosário');
     builtInEdit.set('priceCents', '2500');
     builtInEdit.set('category', 'Decoração');
     const moved = await worker.fetch(new Request(base + '/api/admin/products/religioso-001', {
       method: 'PATCH', headers, body: builtInEdit
     }), env);
     assert.equal(moved.status, 200);
-    assert.equal((await moved.json()).category, 'Decoração');
+    const movedProduct = await moved.json();
+    assert.equal(movedProduct.category, 'Decoração');
+    assert.equal(movedProduct.title, 'Bandeja Porta Rosário');
+    assert.equal((await send(env, 'GET', '/api/products')).body.overrides.find(row => row.id === 'religioso-001').title, 'Bandeja Porta Rosário');
+    const rename = new FormData();
+    rename.set('priceCents', '');
+    rename.set('title', '   ');
+    const editPath = base + '/api/admin/products/' + newId;
+    assert.equal((await worker.fetch(new Request(editPath, { method: 'PATCH', headers, body: rename }), env)).status, 400);
+    rename.set('title', 'Modelo renomeado');
+    assert.equal((await worker.fetch(new Request(editPath, { method: 'PATCH', headers, body: rename }), env)).status, 200);
+    assert.equal((await (await call('/api/imports')).json()).imports.find(item => item.id === newId).title, 'Modelo renomeado');
     const deletion = '/api/admin/products/';
     assert.equal((await send(env, 'DELETE', deletion + 'religioso-001')).status, 401);
     assert.equal((await call(deletion + 'religioso-001', 'DELETE')).status, 200);
@@ -259,6 +272,7 @@ test('editor privado salva foto e preço do produto original sem trocar seu ID',
   const db = new DatabaseSync(':memory:');
   try {
     db.exec(await readFile(new URL('../product-overrides.sql', import.meta.url), 'utf8'));
+    db.exec(await readFile(new URL('../catalog-product-titles.sql', import.meta.url), 'utf8'));
     db.exec(await readFile(new URL('../catalog-promotions.sql', import.meta.url), 'utf8'));
     db.exec(await readFile(new URL('../catalog-promotion-items.sql', import.meta.url), 'utf8'));
     db.exec(await readFile(new URL('../catalog-removed-products.sql', import.meta.url), 'utf8'));

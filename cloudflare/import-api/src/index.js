@@ -126,6 +126,11 @@ async function saveProductEdit(request, env, id, builtIn, cors) {
   if (price === null ? builtIn : !Number.isSafeInteger(price) || price > 100000000) {
     return json({ error: 'Informe um preço válido.' }, 400, cors);
   }
+  const rawTitle = form.get('title');
+  const title = typeof rawTitle === 'string' ? rawTitle.trim() : null;
+  if (rawTitle !== null && (!title || title.length > 180)) {
+    return json({ error: 'Informe um nome de produto com até 180 caracteres.' }, 400, cors);
+  }
   const requested = form.get('category');
   const category = requested === null ? null : await registeredCategory(env, requested);
   if (requested !== null && !category) return json({ error: 'Escolha ou crie uma categoria válida.' }, 400, cors);
@@ -135,11 +140,11 @@ async function saveProductEdit(request, env, id, builtIn, cors) {
   const { key, image = '', error, status } = await uploadEditPhoto(form, env, 'catalog-imports/' + id);
   if (error) return json({ error }, status, cors);
   const sql = builtIn
-    ? "INSERT INTO catalog_product_overrides (price_cents,image_url,category,id) SELECT ?,?,?,? WHERE NOT EXISTS (SELECT 1 FROM catalog_removed_products WHERE id=?) ON CONFLICT(id) DO UPDATE SET price_cents=excluded.price_cents,image_url=COALESCE(NULLIF(excluded.image_url,''),image_url),category=COALESCE(excluded.category,category) RETURNING price_cents,image_url,category"
-    : "UPDATE catalog_imports SET price_cents=?,image_url=COALESCE(NULLIF(?,''),image_url),category=COALESCE(?,category),updated_at=CURRENT_TIMESTAMP WHERE id=? RETURNING price_cents,image_url,category";
+    ? "INSERT INTO catalog_product_overrides (price_cents,image_url,category,title,id) SELECT ?,?,?,?,? WHERE NOT EXISTS (SELECT 1 FROM catalog_removed_products WHERE id=?) ON CONFLICT(id) DO UPDATE SET price_cents=excluded.price_cents,image_url=COALESCE(NULLIF(excluded.image_url,''),image_url),category=COALESCE(excluded.category,category),title=COALESCE(excluded.title,title) RETURNING price_cents,image_url,category,title"
+    : "UPDATE catalog_imports SET price_cents=?,image_url=COALESCE(NULLIF(?,''),image_url),category=COALESCE(?,category),title=COALESCE(?,title),updated_at=CURRENT_TIMESTAMP WHERE id=? RETURNING price_cents,image_url,category,title";
   let saved;
   try {
-    const edit = env.DB.prepare(sql).bind(price, image, category, id, ...(builtIn ? [id] : []));
+    const edit = env.DB.prepare(sql).bind(price, image, category, title, id, ...(builtIn ? [id] : []));
     if (details) {
       const source = builtIn ? 'catalog_product_overrides' : 'catalog_imports';
       const updateDetails = storeProductDetails(env, source, id, details);
@@ -156,7 +161,8 @@ async function saveProductEdit(request, env, id, builtIn, cors) {
     if (key) await env.IMAGES.delete(key);
     return json({ error: 'Cadastro não encontrado.' }, 404, cors);
   }
-  return json({ priceCents: saved.price_cents, imageUrl: saved.image_url, ...(saved.category ? { category: saved.category } : {}) }, 200, cors);
+  return json({ priceCents: saved.price_cents, imageUrl: saved.image_url, ...(saved.category ? { category: saved.category } : {}),
+    ...(title ? { title: saved.title } : {}) }, 200, cors);
 }
 const promotionThemes = new Set(['default', 'carnaval', 'pascoa', 'maes', 'junina', 'pais', 'criancas', 'aparecida', 'natal', 'reveillon']);
 
@@ -421,7 +427,7 @@ export default {
           : env.DB.prepare(sql + ' AND id=?').bind(id);
         const { results } = await query.all();
         if (id !== null) return json({ products: results }, 200, cors);
-        const overrides = await env.DB.prepare('SELECT id,price_cents,image_url,category,' + productDetailsField('catalog_product_overrides') + ' FROM catalog_product_overrides').all();
+        const overrides = await env.DB.prepare('SELECT id,price_cents,image_url,category,title,' + productDetailsField('catalog_product_overrides') + ' FROM catalog_product_overrides').all();
         const { results: promotions } = await env.DB.prepare(`SELECT p.* FROM catalog_promotion_items p WHERE p.expires_at>?
           AND NOT EXISTS (SELECT 1 FROM catalog_removed_products r WHERE r.id=p.product_id)
           AND (p.product_id IN ('academia-001','religioso-001') OR EXISTS (SELECT 1 FROM catalog_imports i
@@ -469,7 +475,7 @@ export default {
         if (!await authorized(request, env)) return json({ error: 'Não autorizado' }, 401, cors);
         if (request.method === 'GET') {
           const { results } = await env.DB.prepare('SELECT *,' + productDetailsField('catalog_imports') + ' FROM catalog_imports ORDER BY created_at DESC LIMIT 200').all();
-          const overrides = await env.DB.prepare('SELECT id,price_cents,image_url,category,' + productDetailsField('catalog_product_overrides') + ' FROM catalog_product_overrides').all();
+          const overrides = await env.DB.prepare('SELECT id,price_cents,image_url,category,title,' + productDetailsField('catalog_product_overrides') + ' FROM catalog_product_overrides').all();
           const { results: promotions } = await env.DB.prepare('SELECT * FROM catalog_promotion_items ORDER BY slot,expires_at').all();
           return json({ imports: results, overrides: overrides.results, promotions, removedProductIds: await removedProductIds(env) }, 200, cors);
         }

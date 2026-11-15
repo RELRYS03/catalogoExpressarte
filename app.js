@@ -192,7 +192,7 @@
     if (!safeId) return;
     const id = 'imported-' + safeId;
     if (getProduct(id)) return;
-    const name = String(item.title || 'Modelo Express’Arte').slice(0,180);
+    const name = String(item.title || 'Modelo Express’Arte');
     const category = String(item.category || 'Outros').slice(0,80);
     const author = String(item.author || '').slice(0,120);
     const sourceUrl = /^https:\/\//i.test(String(item.source_url || '')) ? String(item.source_url) : '';
@@ -298,6 +298,10 @@
         const product = getProduct(edit.id);
         const card = $$('#productGrid .product-card').find(item => item.dataset.productId === edit.id);
         if (!product || !card) continue;
+        if (edit.title) {
+          product.name = card.dataset.name = edit.title;
+          card.querySelector('h3').textContent = edit.title;
+        }
         if (edit.category) {
           product.category = card.dataset.category = edit.category;
           const badge = card.querySelector('.product-category-label');

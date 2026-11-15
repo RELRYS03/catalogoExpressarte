@@ -36,6 +36,7 @@ selectPhoto(0);
 let lastFocus=null;
 function openDetails(){
  lastFocus=document.activeElement;
+ dialog.querySelector('h2').textContent=card.querySelector('h3').textContent;
  dialog.querySelector('.ea-details-add').textContent=card.classList.contains('made-to-order')?'Encomendar':'Adicionar ao pedido';
  dialog.querySelector('.ea-details-qty').value='1';
  dialog.querySelector('.ea-details-price').textContent=card.querySelector('.price').textContent;
@@ -54,7 +55,7 @@ dialog.addEventListener('click',e=>{if(e.target===dialog)closeDetails();});
 const button=document.createElement('button');button.type='button';button.className='ea-details-view';button.textContent='Ver detalhes e fotos';
 card.querySelector('.product-info').insertBefore(button,card.querySelector('.product-info .quantity-row'));
 button.addEventListener('click',openDetails);
-originalImage.classList.add('ea-details-clickable');originalImage.tabIndex=0;originalImage.setAttribute('role','button');originalImage.setAttribute('aria-label','Ampliar fotos e ver detalhes de ${title}');
+originalImage.classList.add('ea-details-clickable');originalImage.tabIndex=0;originalImage.setAttribute('role','button');originalImage.setAttribute('aria-label','Ampliar fotos e ver detalhes');
 originalImage.addEventListener('click',openDetails);
 originalImage.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();openDetails();}});
 dialog.querySelector('.ea-details-add').addEventListener('click',()=>{
