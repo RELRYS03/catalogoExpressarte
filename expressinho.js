@@ -23,6 +23,7 @@
   let lastProductId = '';
   let lastChoices = [];
   let pendingQuantity = null;
+  let awaitingMeasurements = false;
 
   const status = $('#expressinhoStatus');
   const money = cents => (cents / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
@@ -66,9 +67,12 @@
     'estao esta cadastrado publicado vende vendem confirmacao confirmar consigo dar gostaria recomendacao recomenda ' +
     'sugere sugestao comparar diferenca medida dimensao tamanho altura largura comprimento grande pequeno maior menor ' +
     'amanha hoje sexta feira sabado domingo primeiro primeira segundo segunda terceiro terceira quarto quarta opcao ' +
-    'como faco finalizar descricao detalhe funciona usa usar').split(' '));
+    'como faco finalizar descricao detalhe funciona usa usar compra ajuda ajudar saber ele ela mede medem ' +
+    'centimetro milimetro metro medindo alto alta largo larga diz diga').split(' '));
   const normalize = text => text.toLocaleLowerCase('pt-BR').normalize('NFD').replace(/[\u0300-\u036f]/g, '');
   const words = text => (normalize(text).match(/[a-z]+/g) || []).map(word => word === 'quais' ? 'qual' : word.replace(/oes$/, 'ao').replace(/s$/, ''));
+  const figureWords = new Set(['action', 'figure', 'figura', 'miniatura', 'estatueta', 'boneco', 'boneca', 'colecionavel', 'colecionavei']);
+  const measurementQuestion = /\b(?:medem?|medindo|medidas?|dimens(?:ao|oes)|tamanhos?|alturas?|larguras?|comprimentos?|centimetros?|milimetros?|cm|mm)\b|\b(?:quao|(?:quanto|quanta) (?:e|fica)) (?:alto|alta|largo|larga|grande)\b/;
 
   function contactAction(message) {
     const number = String(config.whatsappNumber || '').replace(/\D/g, '');
@@ -86,7 +90,7 @@
 
     const promoOnly = /\b(?:promocao|promocoes|ofertas?)\b/.test(text);
     const gift = /\b(?:presentes?|presentear|lembrancinhas?)\b/.test(text);
-    const measurements = /\b(?:medidas?|dimens(?:ao|oes)|tamanho|altura|largura|comprimento)\b/.test(text);
+    const explicitMeasurements = measurementQuestion.test(text);
     const listRequested = /\b(?:quais|ver|mostrar|listar)\s+(?:os\s+)?(?:produtos|itens)\b|\b(?:voces? (?:vende|vendem|tem)|catalogo)\b/.test(text);
     const budget = text.match(/\bate\s*(?:r\$\s*)?(\d+(?:\.\d{3})*(?:,\d{1,2})?)(?![\d.,/])/);
     const budgetCents = budget ? Math.round(Number(budget[1].replaceAll('.', '').replace(',', '.')) * 100) : null;
@@ -94,8 +98,13 @@
       message.match(/\bpara\s+(?:o\s+)?dia\s+(\d{1,2})\b/i)?.[1];
     const stockCheck = /\b(?:estoque|pronta entrega|prontos?|disponibilidade)\b/.test(text) || (quantity !== null && /\btem\b/.test(text));
     const quote = stockCheck || Boolean(delivery) || /\b(?:desconto|atacado|prazo|frete|entrega|personalizar|personalizado)\b/.test(text);
+    const asksPrice = /\b(?:preco|valor|custa)\b/.test(text);
+    const measurements = explicitMeasurements || (awaitingMeasurements && quantity === null &&
+      !quote && !asksPrice && !promoOnly && !listRequested && !gift && budgetCents === null);
+    awaitingMeasurements = false;
     const query = delivery ? text.replace(normalize(delivery), ' ') : text;
     const terms = [...new Set(words(query).filter(word => word.length > 2 && !ignoredWords.has(word)))];
+    const generalFigure = measurements && terms.length > 0 && terms.every(term => figureWords.has(term));
     if (/^(?:oi+|ola+|bom dia|boa tarde|boa noite)[!?.\s]*$/.test(text)) {
       return { text: 'Oi! Posso te ajudar a achar uma peça ou escolher um presente. Você já tem algo em mente ou quer me dizer quanto pretende gastar?' };
     }
@@ -120,6 +129,10 @@
     if (matches.length) {
       const best = matches[0].matched;
       matches = matches.filter(item => item.matched === best);
+    }
+    if (generalFigure && !matches.length) {
+      matches = products.filter(product => words(product.name + ' ' + (product.category || '')).some(word => figureWords.has(word)))
+        .map(product => ({ product }));
     }
     const option = text.match(/\b(?:opcao\s+([1-4])|(primeir[oa]|segund[oa]|terceir[oa]|quart[oa]))\b/);
     if (option && !terms.length && lastChoices.length) {
@@ -149,22 +162,33 @@
       (!promoOnly || product.promotion) &&
       (budgetCents === null || (product.priceCents !== null && product.priceCents * (quantity || 1) <= budgetCents)));
     if (!matchingProducts.length) {
+      if (measurements) {
+        awaitingMeasurements = true;
+        return { text: 'Qual peça você quer medir? Mande o nome como aparece no catálogo. Se for uma figure, pode me dizer o nome do personagem.' };
+      }
       if (quantity !== null && !matches.length) return { text: 'Qual produto você quer e em qual quantidade? Pode escrever o nome como aparece no catálogo.' };
       if (matches.length || promoOnly || budgetCents !== null || listRequested) return { text: 'Não encontrei produtos publicados que atendam a esse pedido. Tente outro nome ou valor.' };
       if (/\b(?:frete|entrega|retirada)\b/.test(text)) return { text: 'O frete, a entrega e a retirada precisam ser confirmados com a loja. Para agilizar, informe seu CEP e a peça que quer pedir.',
         actions: [contactAction('Olá! Gostaria de consultar a entrega ou retirada.\n' + message)].filter(Boolean) };
       return null;
     }
-    if (matchingProducts.length > 1) {
+    if (matchingProducts.length > 1 || generalFigure) {
       const choices = matchingProducts.slice(0, 4);
       lastChoices = choices.map(product => product.id);
       pendingQuantity = quantity;
       lastProductId = '';
+      awaitingMeasurements = measurements;
+      const introduction = measurements
+        ? (choices.length === 1 ? 'Encontrei esta peça na categoria.' : 'De qual peça você quer saber a medida?')
+        : (gift ? 'Separei algumas opções para você presentear.' : 'Separei estas opções do catálogo.');
       return {
-        text: (gift ? 'Separei algumas opções para você presentear.' : 'Separei estas opções do catálogo.') + '\n' +
-          choices.map((product, index) => (index + 1) + '. ' + product.name + ' — ' + (product.priceCents === null ? 'Preço sob consulta' : money(product.priceCents)) +
+        text: introduction + '\n' +
+          choices.map((product, index) => (index + 1) + '. ' + product.name + ' — ' +
+            (measurements ? (product.dimensions || 'Medidas ainda não cadastradas')
+              : (product.priceCents === null ? 'Preço sob consulta' : money(product.priceCents))) +
             (product.madeToOrder ? ' · Sob encomenda' : '')).join('\n') +
-          '\nQual chamou sua atenção? Pode responder “a primeira” ou dizer o nome.',
+          (choices.length === 1 ? '\nÉ essa a peça que você procura?'
+            : '\nPode responder “a primeira” ou dizer o nome da peça.'),
         actions: choices.filter(product => product.href).map(product => ({ label: 'Ver ' + product.name, href: product.href }))
       };
     }
@@ -178,6 +202,15 @@
     const unitText = units + (units === 1 ? ' unidade' : ' unidades');
     const price = product.priceCents;
     const productAction = product.href ? { label: 'Ver produto', href: product.href } : null;
+    if (measurements && quantity === null && !quote && !asksPrice) {
+      if (product.dimensions) {
+        return { text: product.name + ' — Medidas cadastradas: ' + product.dimensions,
+          actions: [productAction].filter(Boolean) };
+      }
+      const contact = contactAction('Olá! Qual é a altura e quais são as medidas da peça ' + product.name + '?');
+      return { text: 'As medidas de ' + product.name + ' ainda não estão cadastradas. Posso te levar ao WhatsApp com o nome da peça para você confirmar com a loja.',
+        actions: [productAction, contact].filter(Boolean) };
+    }
     const detail = product.name + ' — ' + (price === null ? 'preço sob consulta' : money(price) + ' por unidade') +
       (product.promotion ? ' (' + product.promotion + ')' : '') + '.';
     const total = quantity && price !== null ? '\n' + unitText + (units === 1 ? ' fica em ' : ' ficam em ') + money(price * units) + '.' : '';
