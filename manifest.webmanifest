@@ -1,0 +1,17 @@
+{
+  "id": "./",
+  "name": "Express’Arte Catálogo",
+  "short_name": "Express’Arte Loja",
+  "description": "Explore o catálogo da Express’Arte e monte seu pedido pelo WhatsApp.",
+  "lang": "pt-BR",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#fbf3e8",
+  "theme_color": "#5a3524",
+  "icons": [
+    { "src": "assets/catalogo-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "assets/catalogo-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "assets/catalogo-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

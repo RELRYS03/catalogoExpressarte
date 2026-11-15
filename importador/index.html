@@ -1,0 +1,201 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#4a2b1c">
+  <meta name="description" content="Importe modelos compartilhados para o catálogo Express'Arte.">
+  <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="icon" href="./icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="./styles.css?v=fila-categorias">
+  <link rel="stylesheet" href="../promotion-themes.css?v=2">
+  <title>Express'Arte Importador</title>
+</head>
+<body>
+  <header class="topbar" id="inicio" tabindex="-1">
+    <a class="brand" href="../" aria-label="Voltar ao catálogo Express'Arte">
+      <span class="brand-mark">E<span>3D</span></span>
+      <span><strong>Express'<em>Arte</em></strong><small>IMPORTADOR MOBILE</small></span>
+    </a>
+    <span class="connection" id="connectionStatus"><i></i> Verificando conexão</span>
+  </header>
+  <main class="shell">
+    <section class="intro">
+      <span class="eyebrow">BAMBU HANDY · MAKERWORLD · OUTROS SITES</span>
+      <h1>Seu próximo modelo começa aqui.</h1>
+      <p>Compartilhe um link ou uma imagem pelo menu do Android. Revise os dados e envie para sua fila privada do catálogo.</p>
+      <div class="steps"><span>1. Compartilhar</span><b>→</b><span>2. Revisar</span><b>→</b><span>3. Enviar</span></div>
+      <a class="queue-jump" href="#fila">Ir para a fila e promoções</a>
+    </section>
+    <section class="panel" aria-labelledby="formTitle">
+      <div class="panel-heading">
+        <div><span class="eyebrow">NOVO CADASTRO</span><h2 id="formTitle">Modelo recebido</h2></div>
+        <span class="status-pill" id="draftStatus">Rascunho local</span>
+      </div>
+      <div class="share-note" id="shareNote" role="status">
+        <span class="share-icon">↗</span>
+        <span>Nesta tela aparecerão os links e as imagens que você compartilhar pelo Bambu Handy ou por outro aplicativo.</span>
+      </div>
+      <label for="sourceUrl">Link do modelo (opcional)</label>
+      <div class="url-row">
+        <input id="sourceUrl" type="url" inputmode="url" placeholder="https://makerworld.com/models/..." autocomplete="url">
+        <button class="secondary-button" id="previewButton" type="button">Buscar dados</button>
+      </div>
+      <div class="category-actions photo-actions">
+        <button id="takePhoto" class="secondary-button" type="button">Tirar foto</button>
+        <button id="choosePhoto" class="secondary-button" type="button">Escolher da galeria</button>
+      </div>
+      <input id="cameraFile" type="file" accept="image/*" capture="environment" hidden>
+      <input id="imageFile" type="file" accept="image/*" hidden>
+      <p class="hint">Use o link do MakerWorld ou cadastre um produto próprio com uma foto.</p>
+      <div class="file-preview" id="filePreview" hidden><img id="filePreviewImage" alt="Imagem selecionada"><span id="filePreviewName"></span><button type="button" id="removeImage" aria-label="Remover imagem">×</button></div>
+      <div class="preview-card" id="previewCard" hidden>
+        <img id="coverPreview" alt="Prévia da imagem do modelo">
+        <div><strong id="previewTitle">Prévia do modelo</strong><small id="previewMeta">Imagem e informações encontradas</small></div>
+      </div>
+      <label for="title">Nome do modelo</label>
+      <input id="title" type="text" maxlength="180" placeholder="Ex.: circle slicer v2.1.1">
+      <label for="author">Criador (se disponível)</label>
+      <input id="author" type="text" maxlength="120" placeholder="Nome do criador">
+      <label for="description">Descrição (opcional)</label>
+      <textarea id="description" rows="3" maxlength="1200" placeholder="Ex.: kit de encaixe com trator e reboque."></textarea>
+      <label for="dimensions">Dimensões (opcional)</label>
+      <input id="dimensions" type="text" maxlength="120" placeholder="Ex.: 13 cm de altura">
+      <p id="dimensionSuggestion" class="hint" hidden>
+        Medida sugerida pelo MakerWorld: <strong id="suggestedDimensions"></strong>
+        <button type="button" class="secondary-button" id="useSuggestedDimensions">Usar medida</button>
+      </p>
+      <label class="remember-session"><input id="madeToOrder" type="checkbox"> Esgotado — aceita encomenda</label>
+      <div class="two-columns">
+        <div><label for="printMinutes">Tempo de impressão (opcional)</label><input id="printMinutes" maxlength="30" placeholder="Ex.: 1h43min"></div>
+        <div><label for="filamentGrams">Filamento consumido (opcional)</label><input id="filamentGrams" maxlength="20" placeholder="Ex.: 70,04 g ou 1.150 g"></div>
+      </div>
+      <div class="two-columns">
+        <div><label for="price">Preço de venda sugerido (R$)</label><input id="price" type="text" inputmode="decimal" placeholder="Ex.: 29,90"></div>
+        <div><label for="category">Categoria</label><select id="category">
+          <option value="">Escolher categoria</option><option>Academia</option><option>Brinquedos</option><option>Canecas</option><option>Chaveiros</option><option>Decoração</option><option>Presentes</option><option>Religiosos</option><option>Suportes</option><option>Colecionáveis</option><option>Outros</option>
+        </select></div>
+      </div>
+      <div class="category-assistance">
+        <p id="categoryAdvice" role="status" hidden></p>
+        <div class="category-actions">
+          <button class="secondary-button" id="applyCategory" type="button" hidden></button>
+          <button class="secondary-button" id="analyzeCategory" type="button" hidden>Analisar imagem</button>
+          <button class="secondary-button" id="newCategory" type="button" aria-expanded="false" aria-controls="categoryForm">Nova categoria</button>
+        </div>
+        <form id="categoryForm" hidden>
+          <label for="categoryName">Nome da nova categoria</label>
+          <input id="categoryName" minlength="2" maxlength="48" required>
+          <div class="category-actions">
+            <button class="secondary-button" type="submit">Criar no catálogo</button>
+            <button class="text-button" id="cancelCategory" type="button">Cancelar</button>
+          </div>
+          <p class="hint" id="categoryFeedback" role="status"></p>
+        </form>
+      </div>
+      <details class="price-calculator" id="priceCalculator">
+        <summary>Calcular custo e preço</summary>
+        <p class="calculator-hint">Use o peso e o tempo do fatiador por peça. Se fatiou um lote, divida os totais pela quantidade de peças.</p>
+        <div class="calculator-fields">
+          <div><label for="calcWeight">Filamento por peça (g)</label><input id="calcWeight" inputmode="decimal" maxlength="12" placeholder="Ex. 35"></div>
+          <div><label for="calcFilament">Preço do filamento (R$/kg)</label><input id="calcFilament" inputmode="decimal" maxlength="12" placeholder="Ex. 90,00"></div>
+          <div><label for="calcHours">Tempo por peça (horas)</label><input id="calcHours" inputmode="numeric" maxlength="6" placeholder="Ex. 1"></div>
+          <div><label for="calcMinutes">Minutos adicionais</label><input id="calcMinutes" inputmode="numeric" maxlength="2" placeholder="Ex. 30"></div>
+          <div><label for="calcMachine">Custo da impressora (R$/h)</label><input id="calcMachine" inputmode="decimal" maxlength="12" aria-describedby="calcCostHint"></div>
+          <div><label for="calcExtras">Extras por peça (R$)</label><input id="calcExtras" inputmode="decimal" maxlength="12" aria-describedby="calcCostHint"></div>
+          <div><label for="calcMargin">Margem sobre a venda (%)</label><input id="calcMargin" inputmode="decimal" maxlength="6" aria-describedby="calcMarginHint"></div>
+        </div>
+        <p class="calculator-hint" id="calcCostHint">Inclua energia e desgaste no custo por hora. Some embalagem e acabamento nos extras. Campos opcionais vazios valem zero.</p>
+        <p class="calculator-hint" id="calcMarginHint">A margem é a parte do preço que sobra após os custos informados.</p>
+        <div id="calcResult" class="calculator-result" role="status">
+          <p id="calcMessage">Informe o peso e o preço do filamento para começar.</p>
+          <dl id="calcTotals" hidden>
+            <div><dt>Custo estimado</dt><dd id="calcCost"></dd></div>
+            <div><dt>Preço sugerido</dt><dd id="calcPrice"></dd></div>
+          </dl>
+        </div>
+        <button type="button" class="secondary-button" id="useCalculatedPrice" disabled>Usar preço sugerido</button>
+      </details>
+      <button class="secondary-button" id="editCover" type="button" aria-expanded="false" aria-controls="coverEditor" hidden>Ajustar capa com Expressinho</button>
+      <fieldset class="cover-editor" id="coverEditor" hidden>
+        <legend>Ajustar capa</legend>
+        <canvas id="coverCropPreview" width="480" height="360" role="img" aria-label="Prévia do recorte da capa"></canvas>
+        <p class="hint">O Expressinho começa pelo centro do print. Ajuste o enquadramento para destacar o modelo.</p>
+        <label for="coverZoom">Zoom</label>
+        <input id="coverZoom" type="range" min="1" max="3" step="0.01" value="1">
+        <label for="coverX">Posição horizontal</label>
+        <input id="coverX" type="range" min="0" max="100" value="50">
+        <label for="coverY">Posição vertical</label>
+        <input id="coverY" type="range" min="0" max="100" value="50">
+        <div class="actions">
+          <button class="primary-button" id="applyCover" type="button">Usar esta capa</button>
+          <button class="text-button" id="cancelCover" type="button">Cancelar</button>
+        </div>
+        <p class="hint" id="coverStatus" role="status"></p>
+      </fieldset>
+      <details class="advanced" id="secureConnection">
+        <summary>Conexão segura com o catálogo</summary>
+        <label for="apiBase">Endereço da API Cloudflare</label>
+        <input id="apiBase" type="url" inputmode="url" placeholder="https://seu-worker.workers.dev">
+        <form id="adminLogin">
+          <label for="adminEmail">E-mail</label>
+          <input id="adminEmail" type="email" autocomplete="username" maxlength="254" required>
+          <label for="adminPassword">Senha</label>
+          <input id="adminPassword" type="password" autocomplete="current-password" minlength="12" maxlength="128" required>
+          <label class="remember-session"><input id="rememberAdmin" type="checkbox"> Lembrar neste aparelho</label>
+          <button class="secondary-button" type="submit" id="saveConnection">Entrar</button>
+        </form>
+        <button class="text-button" type="button" id="signOut" hidden>Sair</button>
+        <details class="advanced" id="adminSetup" hidden>
+          <summary>Criar meu usuário administrador</summary>
+          <form id="adminSetupForm">
+            <label for="setupEmail">Seu e-mail</label>
+            <input id="setupEmail" type="email" autocomplete="username" maxlength="254" required>
+            <label for="setupPassword">Escolha uma senha</label>
+            <input id="setupPassword" type="password" autocomplete="new-password" minlength="12" maxlength="128" aria-describedby="setupPasswordHint" required>
+            <p class="hint" id="setupPasswordHint">Use pelo menos 12 caracteres.</p>
+            <label for="adminToken">Chave administrativa atual</label>
+            <input id="adminToken" type="password" autocomplete="off" placeholder="Necessária apenas se a chave ainda não estiver salva neste aparelho">
+            <label class="remember-session"><input id="rememberSetup" type="checkbox"> Lembrar neste aparelho</label>
+            <button class="secondary-button" type="submit" id="createAdmin">Criar usuário</button>
+          </form>
+        </details>
+        <p class="hint" id="adminSessionStatus" role="status">Use a opção de lembrar em um aparelho de uso pessoal.</p>
+        <p class="feedback error" id="adminFeedback" role="alert" hidden></p>
+      </details>
+      <div class="actions">
+        <button class="primary-button" id="sendButton" type="button">Enviar para Express'Arte</button>
+        <button class="text-button" id="clearButton" type="button">Limpar formulário</button>
+      </div>
+      <p class="feedback" id="feedback" role="status" aria-live="polite">Os modelos enviados entram como pendentes. Nada é publicado automaticamente.</p>
+    </section>
+    <section class="panel queue-panel" id="fila" aria-labelledby="queueTitle">
+      <div class="panel-heading">
+        <div><span class="eyebrow">ADMINISTRAÇÃO PRIVADA</span><h2 id="queueTitle">Fila de importações</h2></div>
+        <button class="secondary-button" id="refreshQueue" type="button">Atualizar fila</button>
+      </div>
+      <p class="hint" id="queueNotice" role="status"></p>
+      <div class="queue-filters" id="queueFilters" hidden>
+        <label for="queueCategory">Categoria</label>
+        <select id="queueCategory"></select>
+        <div class="queue-views" role="group" aria-label="Filtrar por promoção ativa">
+          <button class="secondary-button" type="button" data-queue-view="all" aria-pressed="true">Produtos <span></span></button>
+          <button class="secondary-button" type="button" data-queue-view="day" aria-pressed="false">Promoções do dia <span></span></button>
+          <button class="secondary-button" type="button" data-queue-view="week" aria-pressed="false">Promoções da semana <span></span></button>
+        </div>
+      </div>
+      <p class="queue-empty" id="queueNoResults" role="status" hidden></p>
+      <div id="queueList" class="queue-list"><p class="hint">Configure a conexão segura para consultar os modelos recebidos.</p></div>
+    </section>
+
+    <section class="privacy"><strong>Você continua no controle.</strong><p>O importador guarda somente o link, a imagem autorizada e os dados do cadastro. A aprovação para publicação e uso comercial continua manual.</p></section>
+  </main>
+  <footer>Express'Arte · Catálogo e Importação</footer>
+  <a class="back-to-top" href="#inicio">
+    <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5m-6 6 6-6 6 6"/></svg>
+    Voltar ao topo
+  </a>
+  <script src="../config.js?v=descontos" defer></script>
+  <script src="./app.js?v=preco-promocional" defer></script>
+</body>
+</html>

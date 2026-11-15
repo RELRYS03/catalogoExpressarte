@@ -1,0 +1,44 @@
+name: Testar ponte e PWA Express'Arte
+on:
+  push:
+    branches: [feat/cloudflare-catalog-import-bridge]
+    paths:
+      - 'cloudflare/import-api/**'
+      - 'importador/**'
+      - 'scripts/build-pages-preview.mjs'
+      - 'config.js'
+      - 'app.js'
+      - '.github/workflows/import-bridge-tests.yml'
+  pull_request:
+    paths:
+      - 'cloudflare/import-api/**'
+      - 'importador/**'
+      - 'scripts/build-pages-preview.mjs'
+      - 'config.js'
+      - 'app.js'
+      - '.github/workflows/import-bridge-tests.yml'
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verificar sintaxe JavaScript
+        run: |
+          node --check cloudflare/import-api/src/index.js
+          node --check importador/app.js
+          node --check importador/sw.js
+          node --check app.js
+          node --check config.js
+          node --check scripts/build-pages-preview.mjs
+      - name: Gerar distribuição Cloudflare Pages
+        run: |
+          node scripts/build-pages-preview.mjs
+          test -f dist-preview/importador/manifest.webmanifest
+          test -f dist-preview/importador/sw.js
+          test -f dist-preview/index.html
+          test ! -e dist-preview/cloudflare
+      - name: Testar API e contrato de compartilhamento Android
+        run: node --test cloudflare/import-api/tests/*.test.mjs

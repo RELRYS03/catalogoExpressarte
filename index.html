@@ -6,12 +6,15 @@
   <meta name="theme-color" content="#5a3524">
   <meta name="description" content="Catálogo de produtos da Express'Arte – Personalizados 3D.">
   <title>Express'Arte | Catálogo de produtos</title>
-  <link rel="stylesheet" href="styles.css?v=20261022-uniforme">
+  <link rel="icon" href="assets/expressarte-icon.svg" type="image/svg+xml">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="stylesheet" href="styles.css?v=nomes-produtos">
   <link rel="stylesheet" href="product-details.css">
-  <link rel="stylesheet" href="expressinho.css">
+  <link rel="stylesheet" href="expressinho.css?v=loja-publica">
+  <link rel="stylesheet" href="promotion-themes.css?v=5">
 </head>
 <body>
-  <div class="draft-ribbon"><span class="status-dot"></span> CATÁLOGO EM DESENVOLVIMENTO · PREÇOS SUJEITOS A CONFIRMAÇÃO</div>
+  <div class="draft-ribbon" id="inicio" tabindex="-1"><span class="status-dot"></span> CATÁLOGO EM DESENVOLVIMENTO · PREÇOS SUJEITOS A CONFIRMAÇÃO</div>
 
   <header class="site-header">
     <button class="icon-button menu-toggle" id="menuToggle" aria-label="Abrir menu" aria-expanded="false" aria-controls="mobileMenu">
@@ -29,17 +32,21 @@
   </header>
 
   <div class="floating-cart" id="floatingCart" aria-label="Carrinho flutuante">
+    <button class="floating-whatsapp" id="floatWhatsApp" type="button" aria-label="Enviar pedido pelo WhatsApp" hidden>
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.5 11.5a8.5 8.5 0 0 1-12.6 7.4L3 20l1.2-4.7A8.5 8.5 0 1 1 20.5 11.5Z"/><path d="M8.5 8.2c.4 2.6 2.7 4.3 5.3 5.3"/></svg>
+      <span>WhatsApp</span>
+    </button>
     <div class="cart-info">
       <span class="cart-count" id="floatCount">0</span>
       <span class="cart-total" id="floatTotal">R$ 0,00</span>
     </div>
-    <button class="cart-trigger" id="floatTrigger">
+    <button class="cart-trigger" id="floatTrigger" type="button" aria-label="Ver meu pedido">
       <svg viewBox="0 0 24 24"><path d="M5 7h14l1.2 13H3.8L5 7Z"/><path d="M8 8V6a4 4 0 0 1 8 0v2"/></svg>
     </button>
   </div>
 
   <nav class="mobile-menu" id="mobileMenu" hidden>
-    <a href="#inicio">Início</a><a href="#categorias">Categorias</a><a href="#destaques">Destaques</a><button type="button" id="menuOrder">Meu pedido</button>
+    <a href="#inicio">Início</a><a href="#categorias">Categorias</a><a href="#destaques" class="menu-highlights"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><circle cx="12" cy="9" r="5"/><path d="m9 13-2 7 5-2 5 2-2-7"/></svg>Destaques</a><button type="button" id="menuOrder">Meu pedido</button>
   </nav>
 
   <main id="inicio">
@@ -55,8 +62,8 @@
       <div class="promo-copy">
         <span class="eyebrow"><span class="sparkle">✦</span> EXPRESS'ARTE · PERSONALIZADOS 3D</span>
         <h1>Produtos feitos<br><span>com criatividade.</span></h1>
-        <p>Área reservada para a promoção que você escolher.</p>
-        <a class="light-button" href="#destaques">Conhecer o catálogo <span aria-hidden="true">→</span></a>
+        <p>Explore as peças em 3D, aproveite as ofertas e monte seu pedido pelo WhatsApp.</p>
+        <a class="light-button" href="#categorias">Explorar categorias <span aria-hidden="true">→</span></a>
       </div>
       <div class="promo-mascot-wrap">
         <div class="mascot-glow"></div>
@@ -71,7 +78,6 @@
     <section class="categories-section" id="categorias">
       <div class="section-heading"><div><span class="section-kicker">ENCONTRE O QUE PROCURA</span><h2>Categorias</h2></div><span class="heading-note">Escolha uma categoria</span></div>
       <div class="category-strip" id="categoryStrip" aria-label="Categorias de produtos">
-        <button class="category-item active" data-category="Todas" type="button" aria-pressed="true"><span class="category-circle"><svg viewBox="0 0 24 24"><path d="M4 5h6v6H4zM14 5h6v6h-6zM4 15h6v5H4zM14 15h6v5h-6z"/></svg></span><span>Todas</span></button>
         <button class="category-item" data-category="Academia" type="button" aria-pressed="false"><span class="category-circle"><svg viewBox="0 0 24 24"><path d="M3 9v6M6 7v10M9 10v4M15 10v4M18 7v10M21 9v6M6 12h12"/></svg></span><span>Academia</span></button>
         <button class="category-item" data-category="Canecas" type="button" aria-pressed="false"><span class="category-circle"><svg viewBox="0 0 24 24"><path d="M5 5h12v11a4 4 0 0 1-4 4H9a4 4 0 0 1-4-4V5Z"/><path d="M17 8h2a3 3 0 0 1 0 6h-2"/></svg></span><span>Canecas</span></button>
         <button class="category-item" data-category="Chaveiros" type="button" aria-pressed="false"><span class="category-circle"><svg viewBox="0 0 24 24"><circle cx="8.5" cy="8.5" r="4.5"/><path d="m12 12 8 8m-3-3 2-2m-5-1 2-2"/></svg></span><span>Chaveiros</span></button>
@@ -82,49 +88,42 @@
       <p class="category-note">Novas categorias e produtos serão adicionados conforme o catálogo da Express'Arte crescer.</p>
     </section>
 
-    <section class="weekly-deals-section" id="destaques" aria-labelledby="weeklyDealsTitle">
-      <div class="section-heading"><div><span class="section-kicker">OFERTAS EXPRESS'ARTE</span><h2 id="weeklyDealsTitle">Promoções da Semana <span class="heading-star">✦</span></h2></div><span class="draft-pill weekly-test-pill">TESTE DE OFERTA</span></div>
-      <div class="weekly-deals-grid">
-        <article class="weekly-deal-card" data-weekly-deal="religioso-001">
-          <div class="weekly-deal-photo">
-            <img src="assets/products/bandeja-porta-rosario-01.webp" alt="Bandeja Porta Rosário Nossa Senhora Aparecida, vista frontal" loading="lazy">
-            <span class="weekly-deal-tag">PROMOÇÃO DE TESTE</span>
-          </div>
-          <div class="weekly-deal-content">
-            <span class="weekly-deal-category">RELIGIOSOS</span>
-            <h3>Bandeja Porta Rosário Nossa Senhora Aparecida 130mm</h3>
-            <p>Uma peça delicada para guardar seu rosário e decorar seu cantinho de oração. Tamanho: 13 cm.</p>
-            <div class="weekly-deal-price">
-              <del aria-label="Preço normal">R$ 30,00</del>
-              <div><span>Preço promocional</span><strong>R$ 20,00</strong></div>
-            </div>
-            <button class="weekly-deal-button" type="button" data-promo-add="religioso-001" data-promo-price="20">
-              Aproveitar oferta
-              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 5l7 7-7 7"/></svg>
-            </button>
-            <small class="weekly-deal-note">Oferta de teste para validar a área de promoções.</small>
-          </div>
-        </article>
+    <section class="weekly-deals-section" id="destaques" aria-labelledby="weeklyDealsTitle" hidden>
+      <div class="promotion-snow" aria-hidden="true"></div>
+      <div class="section-heading promotion-heading promotion-theme">
+        <div class="promotion-heading-title">
+          <img id="promotionMascot" class="promotion-mascot" alt="" width="60" height="96" hidden>
+          <h2 id="weeklyDealsTitle">Promoções</h2>
+        </div>
+        <div class="promotion-controls" id="promotionControls" hidden>
+          <button class="icon-button" type="button" id="previousPromotion" aria-controls="promotionGrid" aria-label="Promoção anterior">
+            <svg aria-hidden="true" viewBox="0 0 24 24"><path d="m14 6-6 6 6 6"/></svg>
+          </button>
+          <button class="icon-button" type="button" id="nextPromotion" aria-controls="promotionGrid" aria-label="Próxima promoção">
+            <svg aria-hidden="true" viewBox="0 0 24 24"><path d="m10 6 6 6-6 6"/></svg>
+          </button>
+        </div>
       </div>
+      <div class="weekly-deals-grid" id="promotionGrid"></div>
     </section>
-    <section class="products-section" id="catalogo" aria-labelledby="catalogTitle">
-      <div class="section-heading product-heading"><div><span class="section-kicker">ESCOLHA O QUE MAIS COMBINA COM VOCÊ</span><h2 id="catalogTitle">Nosso Catálogo <span class="heading-star">✦</span></h2></div><span class="heading-note">Navegue por todas as categorias acima</span></div>
+    <section class="products-section" id="catalogo" aria-labelledby="catalogTitle" hidden>
+      <div class="section-heading product-heading"><h2 id="catalogTitle" tabindex="-1">Produtos</h2><a class="heading-note" id="backToCategories" href="#categorias">Ver categorias</a></div>
       <div class="product-grid" id="productGrid">
         <article class="product-card" data-product-id="academia-001" data-category="Academia" data-name="Pote Anilha 28KG 64LB">
           <div class="product-photo-area">
-          <span class="product-badge">RASCUNHO</span>
-          <div class="product-gallery">
-            <img id="mainProductPhoto" class="product-main-photo" src="assets/products/pote-anilha-28kg-64lb-01.webp" alt="Pote anilha azul de 28 kg com alça e recipiente aberto" loading="lazy">
+            <span class="product-badge">RASCUNHO</span>
+            <div class="product-gallery">
+              <img id="mainProductPhoto" class="product-main-photo" src="assets/products/pote-anilha-28kg-64lb-01.webp" alt="Pote anilha azul de 28 kg com alça e recipiente aberto" loading="lazy">
+            </div>
+          </div>
+          <div class="product-info">
+            <span class="product-category-label"><span class="category-mini-icon">✦</span> ACADEMIA</span>
+            <h3>Pote Anilha 28KG / 64LB</h3>
             <div class="photo-thumbs" aria-label="Mais fotos do pote anilha">
               <button class="photo-thumb active" type="button" data-photo="assets/products/pote-anilha-28kg-64lb-01.webp" data-alt="Pote anilha azul de 28 kg com alça e recipiente aberto" aria-label="Ver foto 1" aria-pressed="true"><img src="assets/products/pote-anilha-28kg-64lb-01.webp" alt="" loading="lazy"></button>
               <button class="photo-thumb" type="button" data-photo="assets/products/pote-anilha-28kg-64lb-02.webp" data-alt="Pote anilha azul com a tampa separada" aria-label="Ver foto 2" aria-pressed="false"><img src="assets/products/pote-anilha-28kg-64lb-02.webp" alt="" loading="lazy"></button>
               <button class="photo-thumb" type="button" data-photo="assets/products/pote-anilha-28kg-64lb-03.webp" data-alt="Pote anilha azul com dosador sobre a abertura" aria-label="Ver foto 3" aria-pressed="false"><img src="assets/products/pote-anilha-28kg-64lb-03.webp" alt="" loading="lazy"></button>
             </div>
-          </div>
-        </div>
-          <div class="product-info">
-            <span class="product-category-label"><span class="category-mini-icon">✦</span> ACADEMIA</span>
-            <h3>Pote Anilha 28KG / 64LB</h3>
             <p class="product-description">Nome e descrição comercial serão confirmados antes de publicar.</p>
             <div class="price-line"><span class="price">R$ 34,90</span><span class="provisional-label">preço provisório</span></div>
             <div class="quantity-row"><span>Quantidade</span><div class="quantity-control"><button class="qty-minus" type="button" aria-label="Diminuir quantidade">−</button><output class="qty-value" aria-live="polite">1</output><button class="qty-plus" type="button" aria-label="Aumentar quantidade">+</button></div><span class="unit-label">un.</span></div>
@@ -138,15 +137,15 @@
             <span class="product-badge">NOVIDADE</span>
             <div class="product-gallery">
               <img class="product-main-photo" src="assets/products/bandeja-porta-rosario-01.webp" alt="Bandeja Porta Rosário Nossa Senhora Aparecida, vista frontal em ambiente decorado" loading="lazy">
-              <div class="photo-thumbs" aria-label="Mais fotos da bandeja porta rosário">
-                <button class="photo-thumb active" type="button" data-photo="assets/products/bandeja-porta-rosario-01.webp" data-alt="Bandeja Porta Rosário Nossa Senhora Aparecida, vista frontal em ambiente decorado" aria-label="Ver foto 1 da bandeja" aria-pressed="true"><img src="assets/products/bandeja-porta-rosario-01.webp" alt="" loading="lazy"></button>
-                <button class="photo-thumb" type="button" data-photo="assets/products/bandeja-porta-rosario-02.webp" data-alt="Bandeja Porta Rosário Nossa Senhora Aparecida, vista alternativa" aria-label="Ver foto 2 da bandeja" aria-pressed="false"><img src="assets/products/bandeja-porta-rosario-02.webp" alt="" loading="lazy"></button>
-              </div>
             </div>
           </div>
           <div class="product-info">
             <span class="product-category-label"><span class="category-mini-icon">✦</span> RELIGIOSOS</span>
             <h3>Bandeja Porta Rosário Nossa Senhora Aparecida 130mm</h3>
+            <div class="photo-thumbs" aria-label="Mais fotos da bandeja porta rosário">
+              <button class="photo-thumb active" type="button" data-photo="assets/products/bandeja-porta-rosario-01.webp" data-alt="Bandeja Porta Rosário Nossa Senhora Aparecida, vista frontal em ambiente decorado" aria-label="Ver foto 1 da bandeja" aria-pressed="true"><img src="assets/products/bandeja-porta-rosario-01.webp" alt="" loading="lazy"></button>
+              <button class="photo-thumb" type="button" data-photo="assets/products/bandeja-porta-rosario-02.webp" data-alt="Bandeja Porta Rosário Nossa Senhora Aparecida, vista alternativa" aria-label="Ver foto 2 da bandeja" aria-pressed="false"><img src="assets/products/bandeja-porta-rosario-02.webp" alt="" loading="lazy"></button>
+            </div>
             <p class="product-description">Uma peça delicada e cheia de significado para guardar seu rosário e decorar seu cantinho de oração. Ideal também para presentear com fé e carinho. Tamanho: 13 cm (130 mm).</p>
             <div class="price-line"><span class="price">R$ 30,00</span><span class="provisional-label">preço atual</span></div>
             <div class="quantity-row"><span>Quantidade</span><div class="quantity-control"><button class="qty-minus" type="button" aria-label="Diminuir quantidade">−</button><output class="qty-value" aria-live="polite">1</output><button class="qty-plus" type="button" aria-label="Aumentar quantidade">+</button></div><span class="unit-label">un.</span></div>
@@ -155,7 +154,7 @@
           </div>
         </article>
       </div>
-      <div class="empty-state" id="emptyState" hidden><span>✦</span><h3>Nenhum produto encontrado</h3><p>Tente outra busca ou escolha uma categoria diferente.</p><button type="button" id="resetFilters">Ver todos os produtos</button></div>
+      <div class="empty-state" id="emptyState" hidden><h3>Nenhum produto encontrado</h3><p>Tente outra busca ou escolha uma categoria diferente.</p></div>
     </section>
 
     <section class="order-panel" id="orderPanel" aria-labelledby="orderTitle">
@@ -181,36 +180,33 @@
       <img class="expressinho-panel-avatar" src="assets/expressinho-rosto-referencia.png" alt="">
       <div class="expressinho-panel-title">
         <strong>Expressinho IA</strong>
-        <small id="expressinhoStatus">Base inicial · IA ainda não conectada</small>
+        <small id="expressinhoStatus">Assistente virtual da Express’Arte</small>
       </div>
       <button class="expressinho-close" id="expressinhoClose" type="button" aria-label="Fechar assistente">×</button>
     </header>
-    <p class="expressinho-notice">Primeira versão: respostas baseadas em informações iniciais. As conversas não são salvas como memória permanente.</p>
-    <div class="expressinho-modes" role="group" aria-label="Área de ajuda">
-      <button class="expressinho-mode" type="button" data-expressinho-mode="loja" aria-pressed="true">Loja</button>
-      <button class="expressinho-mode" type="button" data-expressinho-mode="studio" aria-pressed="false">Studio 3D</button>
-      <button class="expressinho-mode" type="button" data-expressinho-mode="fabricacao" aria-pressed="false">Fabricação</button>
-    </div>
+    <p class="expressinho-section-label">Loja</p>
     <div class="expressinho-messages" id="expressinhoMessages" aria-live="polite" aria-relevant="additions text">
-      <div class="expressinho-message assistant">Oi! Sou o Expressinho. Já tenho uma base inicial sobre o catálogo e posso orientar sobre Studio 3D e fabricação. Minha conexão com uma IA completa e minha memória permanente ainda serão configuradas.</div>
+      <div class="expressinho-message assistant">Oi! Sou o Expressinho. Posso procurar produtos, conferir promoções e calcular o total de várias unidades. O que você está procurando?</div>
     </div>
     <div class="expressinho-quick-prompts" aria-label="Perguntas rápidas">
-      <button type="button" data-expressinho-mode="loja" data-expressinho-prompt="Quais produtos estão cadastrados?">Produtos</button>
-      <button type="button" data-expressinho-mode="studio" data-expressinho-prompt="Como você pode me ajudar com o Blender?">Ajuda com Blender</button>
-      <button type="button" data-expressinho-mode="fabricacao" data-expressinho-prompt="Quais dados você precisa para calcular uma impressão?">Custo de impressão</button>
+      <button type="button" data-expressinho-prompt="Quais produtos estão cadastrados?">Produtos</button>
+      <button type="button" data-expressinho-prompt="Quais estão em promoção?">Promoções</button>
     </div>
     <form class="expressinho-form" id="expressinhoForm">
       <label class="expressinho-sr-only" for="expressinhoInput">Escreva sua pergunta</label>
       <input id="expressinhoInput" type="text" maxlength="600" placeholder="Escreva sua dúvida..." autocomplete="off">
       <button class="expressinho-send" id="expressinhoSend" type="submit">Enviar</button>
     </form>
-    <p class="expressinho-disclaimer">Não executa ações no computador nem altera produtos. Para ativar a IA real, conectaremos um serviço seguro sem expor chaves no navegador.</p>
   </section>
 
+  <a class="back-to-top" href="#inicio">
+    <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5m-6 6 6-6 6 6"/></svg>
+    Voltar ao topo
+  </a>
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
-  <script src="config.js"></script>
-  <script src="app.js"></script>
-  <script src="product-details.js"></script>
-  <script src="expressinho.js"></script>
+  <script src="config.js?v=endereco-loja"></script>
+  <script src="app.js?v=preco-promocional"></script>
+  <script src="product-details.js?v=nomes-produtos"></script>
+  <script src="expressinho.js?v=medidas-produtos"></script>
 </body>
 </html>

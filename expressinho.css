@@ -127,26 +127,15 @@
   font-size: 10px;
   line-height: 1.45;
 }
-.expressinho-modes {
-  display: flex;
-  gap: 6px;
-  padding: 11px 13px 8px;
-}
-.expressinho-mode {
-  flex: 1;
-  min-width: 0;
-  padding: 8px 5px;
-  border: 1px solid #ead9c6;
+.expressinho-section-label {
+  align-self: flex-start;
+  margin: 10px 13px 0;
+  padding: 4px 10px;
   border-radius: 999px;
-  background: #fffaf3;
-  color: #70462d;
-  font-size: 10px;
+  background: #f4e5d1;
+  color: #4a2b1c;
+  font-size: 11px;
   font-weight: 800;
-}
-.expressinho-mode[aria-pressed="true"] {
-  border-color: var(--brown);
-  background: var(--brown);
-  color: #fff8ef;
 }
 .expressinho-messages {
   display: flex;
@@ -182,6 +171,21 @@
   color: #fff8ef;
 }
 .expressinho-message.pending { color: #8b7868; font-style: italic; }
+.expressinho-answer-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.expressinho-answer-actions :is(a, button) {
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  padding: 5px 10px;
+  border: 1px solid #d7b992;
+  border-radius: 10px;
+  background: #fffdfa;
+  color: #4a2b1c;
+  font: inherit;
+  font-weight: 800;
+}
+.expressinho-answer-actions :is(a, button):hover { background: #f4e5d1; }
+.expressinho-answer-actions button:disabled { cursor: default; }
 .expressinho-quick-prompts {
   display: flex;
   gap: 7px;

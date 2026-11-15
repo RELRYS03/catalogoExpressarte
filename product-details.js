@@ -6,7 +6,8 @@ const title=card.querySelector("h3").textContent.trim();
 const desc=card.querySelector(".product-description").textContent.trim();
 const price=card.querySelector(".price").textContent.trim();
 const originalImage=card.querySelector('.product-main-photo');
-const gallery=[...card.querySelectorAll('.photo-thumb')].map(b=>({src:b.dataset.photo,alt:b.dataset.alt||'Produto Express’Arte'}));
+const photoButtons=[...card.querySelectorAll('.photo-thumb')];
+const gallery=photoButtons.map(b=>({src:b.dataset.photo,alt:b.dataset.alt||'Produto Express’Arte'}));
 if(!gallery.length)gallery.push({src:originalImage.src,alt:originalImage.alt});
 const dialog=document.createElement('dialog');
 dialog.className='ea-details-dialog';
@@ -33,14 +34,28 @@ function selectPhoto(index){
 gallery.forEach((photo,i)=>{const b=document.createElement('button');b.type='button';b.className='ea-details-thumb';b.setAttribute('aria-label','Ver foto '+(i+1));const img=document.createElement('img');img.src=photo.src;img.alt='';b.appendChild(img);b.addEventListener('click',()=>selectPhoto(i));thumbs.appendChild(b);});
 selectPhoto(0);
 let lastFocus=null;
-function openDetails(){lastFocus=document.activeElement;dialog.querySelector('.ea-details-qty').value='1';selectPhoto(0);dialog.showModal();}
+function openDetails(){
+ lastFocus=document.activeElement;
+ dialog.querySelector('h2').textContent=card.querySelector('h3').textContent;
+ dialog.querySelector('.ea-details-add').textContent=card.classList.contains('made-to-order')?'Encomendar':'Adicionar ao pedido';
+ dialog.querySelector('.ea-details-qty').value='1';
+ dialog.querySelector('.ea-details-price').textContent=card.querySelector('.price').textContent;
+ dialog.querySelector('.ea-details-eyebrow').textContent='EXPRESS’ARTE • '+card.dataset.category.toLocaleUpperCase('pt-BR');
+ dialog.querySelector('.ea-details-description').textContent=card.querySelector('.product-description').textContent;
+ photoButtons.forEach((b,i)=>{
+   gallery[i]={src:b.dataset.photo,alt:b.dataset.alt||'Produto Express’Arte'};
+   thumbs.children[i].querySelector('img').src=gallery[i].src;
+ });
+ selectPhoto(0);
+ dialog.showModal();
+}
 function closeDetails(){dialog.close();if(lastFocus?.isConnected)lastFocus.focus();}
 dialog.querySelector('.ea-details-close').addEventListener('click',closeDetails);
 dialog.addEventListener('click',e=>{if(e.target===dialog)closeDetails();});
 const button=document.createElement('button');button.type='button';button.className='ea-details-view';button.textContent='Ver detalhes e fotos';
 card.querySelector('.product-info').insertBefore(button,card.querySelector('.product-info .quantity-row'));
 button.addEventListener('click',openDetails);
-originalImage.classList.add('ea-details-clickable');originalImage.tabIndex=0;originalImage.setAttribute('role','button');originalImage.setAttribute('aria-label','Ampliar fotos e ver detalhes de ${title}');
+originalImage.classList.add('ea-details-clickable');originalImage.tabIndex=0;originalImage.setAttribute('role','button');originalImage.setAttribute('aria-label','Ampliar fotos e ver detalhes');
 originalImage.addEventListener('click',openDetails);
 originalImage.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();openDetails();}});
 dialog.querySelector('.ea-details-add').addEventListener('click',()=>{
