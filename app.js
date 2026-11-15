@@ -128,6 +128,16 @@
     ['outros', '<rect x="3.5" y="4" width="17" height="4" rx="1"/><path d="M5 8v12h14V8m-9 4h4"/>']
   ]);
   const defaultCategoryIcon = '<path d="M3 4h8l10 10-7 7L3 10z"/><circle cx="7.5" cy="8" r="1"/>';
+  // O catálogo aplica os mesmos desenhos às categorias novas e às já cadastradas.
+  const categoryIconRules = [
+    [/\b(?:filamentos?|bobinas?|carreteis?|pla|petg|tpu|abs)\b/, '<ellipse cx="8" cy="12" rx="4" ry="8"/><ellipse cx="8" cy="12" rx="1.5" ry="3"/><path d="M8 4h8c2.2 0 4 3.6 4 8s-1.8 8-4 8H8m4-11h7m-7 6h7"/>'],
+    [/\b(?:biscoitos?|bolachas?|cookies?|confeitaria)\b/, '<path d="m12 3 2.5 5.5 6 .8-4.4 4.3 1 6-5.1-2.9-5.1 2.9 1-6-4.4-4.3 6-.8L12 3Z"/><path d="M12 11v.01m-2 2h.01m4 0h.01"/>'],
+    [/\b(?:vasos?|cachepos?|floreiras?|plantas?|jardinagem)\b/, '<path d="M5 12h14l-2 8H7l-2-8Zm7 0V7m0 2C9 9 7 7 7 4c3 0 5 2 5 5Zm0 0c0-3 2-5 5-5 0 3-2 5-5 5Z"/>'],
+    [/\b(?:natal|natalin\w*|presepios?)\b/, '<path d="m12 3 4 5h-2l5 5h-3l5 5H3l5-5H5l5-5H8l4-5Zm0 15v3m-3 0h6"/>'],
+    [/\b(?:organizadores?|organizacao|gavetas?)\b/, '<rect x="4" y="4" width="16" height="16" rx="2"/><path d="M4 12h16M10 8h4m-4 8h4"/>'],
+    [/\b(?:luminarias?|abajur(?:es)?|lampadas?|iluminacao)\b/, '<path d="M9 18h6m-5 3h4m-5-6c0-2-3-3-3-7a6 6 0 0 1 12 0c0 4-3 5-3 7H9Z"/>'],
+    [/\b(?:ferramentas?|oficina|manutencao)\b/, '<path d="m14 6 3 3 4-4c1 4-2 8-6 8h-1l-6 7a2 2 0 0 1-3-3l7-6v-1c0-4 4-7 8-6l-3 3"/>']
+  ];
 
   function ensureCategoryButton(category) {
     const strip = $('#categoryStrip');
@@ -137,8 +147,11 @@
     button.type = 'button';
     button.dataset.category = category;
     button.setAttribute('aria-pressed', 'false');
-    const name = category.normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLowerCase();
-    const icon = categoryIcons.get(name === 'destaques' ? 'destaque' : name) || defaultCategoryIcon;
+    const name = category.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
+      .replace(/[^a-z0-9]+/g, ' ').trim();
+    const icon = categoryIcons.get(name === 'destaques' ? 'destaque' : name)
+      || categoryIconRules.find(([pattern]) => pattern.test(name))?.[1]
+      || defaultCategoryIcon;
     button.innerHTML = '<span class="category-circle"><svg viewBox="0 0 24 24" aria-hidden="true">' +
       icon + '</svg></span><span>' + escapeHtml(category) + '</span>';
     button.addEventListener('click', () => browseCategory(category));
