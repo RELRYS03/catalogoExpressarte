@@ -194,7 +194,7 @@ async function handleChat(req, res) {
       saveCachedReply(key, reply.trim());
       return sendJson(res, 200, { reply: reply.trim(), mode, model, provider: 'ollama', cached: false });
     } catch (localError) {
-      throw new Error((localError.message || 'Ollama indisponível.') + ' Provedor OpenAI não configurado; nenhuma chamada paga foi realizada.');
+      throw new Error((localError.message || 'Ollama indisponível.') + ' Nenhum provedor online está configurado; nenhuma chamada externa foi realizada.');
     }
   } catch (error) {
     return sendJson(res, 503, {
@@ -298,6 +298,6 @@ server.listen(PORT, HOST, () => {
   process.stdout.write('\nExpressinho IA\n');
   process.stdout.write('Catálogo: http://' + HOST + ':' + PORT + '/\n');
   process.stdout.write('Saúde:    http://' + HOST + ':' + PORT + '/api/health\n');
-  process.stdout.write('Prioridade: OpenAI API; alternativa local: Ollama.\n');
+  process.stdout.write('Prioridade: FreeLLMAPI (roteamento NVIDIA); alternativa local: Ollama.\n');
   process.stdout.write('Para parar, pressione Ctrl+C.\n\n');
 });
