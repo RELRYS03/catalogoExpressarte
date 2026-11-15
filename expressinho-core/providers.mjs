@@ -1,13 +1,23 @@
 export function getCompatibleProviderConfig(env = process.env) {
-  const enabled = String(env.EXPRESSINHO_ONLINE_ENABLED || '').toLowerCase() === 'true';
+  const enabled = String(env.EXPRESSINHO_ONLINE_ENABLED || 'true').toLowerCase() === 'true';
+  if (!enabled) return null;
+
+  // NVIDIA NIM tem prioridade quando suas variáveis estão configuradas.
+  const nvidiaBaseUrl = String(env.NVIDIA_API_BASE_URL || env.NVIDIA_NIM_BASE_URL || 'https://integrate.api.nvidia.com/v1').trim().replace(/\/+$/, '');
+  const nvidiaApiKey = String(env.NVIDIA_API_KEY || env.NVIDIA_NIM_API_KEY || '').trim();
+  const nvidiaModel = String(env.NVIDIA_API_MODEL || env.NVIDIA_NIM_MODEL || '').trim();
+  if (nvidiaApiKey && nvidiaModel) {
+    if (!/^https:\/\/[^/]+/i.test(nvidiaBaseUrl)) throw new Error('O endpoint NVIDIA precisa usar HTTPS.');
+    return { provider: 'nvidia', baseUrl: nvidiaBaseUrl, apiKey: nvidiaApiKey, model: nvidiaModel };
+  }
+
+  // OpenAI permanece como segunda opção online.
   const baseUrl = String(env.EXPRESSINHO_API_BASE_URL || '').trim().replace(/\/+$/, '');
   const apiKey = String(env.EXPRESSINHO_API_KEY || '').trim();
   const model = String(env.EXPRESSINHO_API_MODEL || '').trim();
-  if (!enabled || !baseUrl || !apiKey || !model) return null;
-  if (!/^https:\/\/[^/]+/i.test(baseUrl)) {
-    throw new Error('O endpoint online precisa usar HTTPS.');
-  }
-  return { baseUrl, apiKey, model };
+  if (!baseUrl || !apiKey || !model) return null;
+  if (!/^https:\/\/[^/]+/i.test(baseUrl)) throw new Error('O endpoint online precisa usar HTTPS.');
+  return { provider: 'openai-compatible', baseUrl, apiKey, model };
 }
 
 export async function generateCompatibleReply({ config, messages, fetchImpl = fetch, timeoutMs = 45000 }) {
