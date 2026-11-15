@@ -13,13 +13,11 @@
   const input = $('#expressinhoInput');
   const messages = $('#expressinhoMessages');
   const sendButton = $('#expressinhoSend');
-  const modeButtons = Array.from(document.querySelectorAll('[data-expressinho-mode]'));
   const quickButtons = Array.from(document.querySelectorAll('[data-expressinho-prompt]'));
   const hero = document.querySelector('.promo-banner');
 
   if (!panel || !heroTrigger || !floatingTrigger || !form || !input || !messages) return;
 
-  let mode = 'loja';
   let activeTrigger = heroTrigger;
   let history = [];
   let lastProductId = '';
@@ -57,14 +55,6 @@
     messages.appendChild(bubble);
     messages.scrollTop = messages.scrollHeight;
     return bubble;
-  }
-
-  function setMode(nextMode) {
-    mode = nextMode;
-    modeButtons.forEach(button => {
-      const active = button.dataset.expressinhoMode === mode;
-      button.setAttribute('aria-pressed', String(active));
-    });
   }
 
   const ignoredWords = new Set(('oi ola eu e o a os as um uma de da do das dos no na em por para com que quero gostaria pedir fazer ' +
@@ -163,41 +153,29 @@
     };
   }
 
-  function localAnswer(message, selectedMode) {
+  function localAnswer(message) {
     const text = message.toLocaleLowerCase('pt-BR');
     if (/\b(aprender|memorizar|guardar|ensinar|corrigir|lembrar|memória|memoria)\b/.test(text)) {
       return 'Nesta primeira versão, eu ainda não salvo novas informações como memória permanente. Posso usar esta conversa enquanto o painel estiver aberto, mas uma correção só vira conhecimento duradouro quando a equipe a aprovar e cadastrar na base. Isso evita guardar informação errada.';
     }
 
-    if (selectedMode === 'loja') {
-      return 'Me diga o nome do produto ou a categoria. Posso procurar ofertas e calcular pedidos com várias unidades. Para uma dúvida específica, fale com a loja pelo WhatsApp.';
-    }
+    return 'Me diga o nome do produto ou a categoria. Posso procurar ofertas e calcular pedidos com várias unidades. Para uma dúvida específica, fale com a loja pelo WhatsApp.';
+  }
 
-    if (selectedMode === 'studio') {
-      if (/\b(blender|malha|stl|3mf|modelo|modelagem|furo|rosca|encaixe)\b/.test(text)) {
-        return 'Posso ajudar a planejar modelagem, medidas, malhas, furos, roscas e encaixes. Ainda não estou conectado ao Blender nem consigo alterar arquivos diretamente por esta conversa. Diga o objetivo da peça, as medidas e o formato do arquivo para eu orientar o próximo passo com segurança.';
-      }
-      return 'No módulo Studio 3D, posso organizar o trabalho de modelagem e ajudar a diagnosticar problemas a partir das informações que você fornecer. A conexão direta com Blender e a edição de arquivos ainda serão implementadas; não vou afirmar que executei uma operação que não fiz.';
-    }
-
-    if (/\b(custo|custos|preço|preco|lucro|filamento|gramas|gramagem|tempo|petg|pla|impressão|impressao|bambu)\b/.test(text)) {
-      return 'Para calcular fabricação sem inventar números, preciso dos dados disponíveis: material, gramas usadas, preço do quilo, tempo de impressão, custo de embalagem e margem para falhas. Para recomendar configurações, preciso também saber o material e a função da peça. Ainda não estou conectado à impressora nem ao fatiador.';
-    }
-    return 'No módulo Fabricação, vou ajudar com consumo de material, tempo, custo, acabamento e preparação de impressão. Para um cálculo confiável, envie os dados reais da peça. A conexão automática com impressora e fatiador ainda não está ativa.';
+  function shopFallback(message) {
+    return { text: localAnswer(message),
+      actions: [contactAction('Olá! Tenho uma dúvida sobre o catálogo.\n' + message)].filter(Boolean) };
   }
 
   async function getAnswer(message) {
-    if (mode === 'loja') {
-      const answer = await shopAnswer(message);
-      if (answer) return answer;
-    }
-    if (!endpoint) return { text: localAnswer(message, mode),
-      actions: mode === 'loja' ? [contactAction('Olá! Tenho uma dúvida sobre o catálogo.\n' + message)].filter(Boolean) : [] };
+    const answer = await shopAnswer(message);
+    if (answer) return answer;
+    if (!endpoint) return shopFallback(message);
 
     const response = await fetch(endpoint, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ message: message, mode: mode, history: history.slice(-10) })
+      body: JSON.stringify({ message, mode: 'loja', history: history.slice(-10) })
     });
     if (!response.ok) throw new Error('A conexão com o serviço do Expressinho falhou.');
     const data = await response.json();
@@ -216,14 +194,13 @@
     input.value = '';
     sendButton.disabled = true;
     input.disabled = true;
-    const pending = addMessage(mode === 'loja' ? 'Consultando o catálogo…' : 'Preparando a resposta…', 'assistant', 'pending');
+    const pending = addMessage('Consultando o catálogo…', 'assistant', 'pending');
 
     let answer;
     try {
       answer = await getAnswer(message);
     } catch {
-      answer = { text: localAnswer(message, mode),
-        actions: mode === 'loja' ? [contactAction('Olá! Tenho uma dúvida sobre o catálogo.\n' + message)].filter(Boolean) : [] };
+      answer = shopFallback(message);
     }
 
     pending.remove();
@@ -264,11 +241,7 @@
   heroTrigger.addEventListener('click', () => openPanel(heroTrigger));
   floatingTrigger.addEventListener('click', () => openPanel(floatingTrigger));
   closeButton.addEventListener('click', closePanel);
-  modeButtons.forEach(button => button.addEventListener('click', () => setMode(button.dataset.expressinhoMode)));
-  quickButtons.forEach(button => button.addEventListener('click', () => {
-    if (button.dataset.expressinhoMode) setMode(button.dataset.expressinhoMode);
-    submitMessage(button.dataset.expressinhoPrompt);
-  }));
+  quickButtons.forEach(button => button.addEventListener('click', () => submitMessage(button.dataset.expressinhoPrompt)));
   form.addEventListener('submit', event => {
     event.preventDefault();
     submitMessage(input.value);

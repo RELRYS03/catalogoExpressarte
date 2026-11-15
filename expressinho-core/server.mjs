@@ -2,6 +2,7 @@ import http from 'node:http';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { technicalModes } from './technical-modes.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const HOST = '127.0.0.1';
@@ -85,11 +86,8 @@ async function readKnowledge() {
 }
 
 function buildSystemPrompt(mode, knowledge) {
-  const modeText = {
-    loja: 'ÁREA ATUAL: LOJA. Use os dados aprovados da loja. Nunca invente produtos, preços, estoque, prazo ou personalizações. Se um produto estiver em rascunho, deixe claro que o preço é provisório e que não está publicado.',
-    studio: 'ÁREA ATUAL: STUDIO 3D. Ajude com planejamento, Blender, geometria, malhas, STL/3MF, medidas, encaixes e modelagem. Você não tem acesso direto ao computador, Blender ou arquivos e não deve afirmar que executou ações.',
-    fabricacao: 'ÁREA ATUAL: FABRICAÇÃO. Ajude com preparação, materiais, custos e diagnóstico de impressão. Não invente medidas, consumos, tempos ou configurações específicas. Peça os dados que faltam e diferencie estimativas de fatos.'
-  }[mode];
+  const modeText = technicalModes[mode]?.systemPrompt ||
+    'ÁREA ATUAL: LOJA. Use os dados aprovados da loja. Nunca invente produtos, preços, estoque, prazo ou personalizações. Se um produto estiver em rascunho, deixe claro que o preço é provisório e que não está publicado.';
 
   return [
     'Você é Expressinho IA, assistente da Express’Arte – Personalizados 3D.',
@@ -116,7 +114,7 @@ async function handleChat(req, res) {
   }
 
   const message = typeof body.message === 'string' ? body.message.trim().slice(0, 600) : '';
-  const mode = ['loja', 'studio', 'fabricacao'].includes(body.mode) ? body.mode : 'loja';
+  const mode = typeof body.mode === 'string' && Object.hasOwn(technicalModes, body.mode) ? body.mode : 'loja';
   if (!message) return sendJson(res, 400, { error: 'Escreva uma pergunta antes de enviar.' });
 
   try {
