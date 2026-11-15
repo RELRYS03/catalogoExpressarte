@@ -162,7 +162,7 @@
     try {
       answer = await getAnswer(message);
     } catch (error) {
-      answer = localAnswer(message, mode) + '\n\nNão consegui acessar o serviço de IA configurado; usei a base inicial local. Nenhuma chave de API deve ser colocada neste site.';
+      answer = localAnswer(message, mode) + '\n\nNão consegui conectar à IA agora. Tente novamente em instantes.';
     }
 
     pending.remove();
@@ -211,12 +211,12 @@
       .then(result => {
         if (!status) return;
         status.textContent = result.ok && result.data.ok
-          ? 'IA local ativa · ' + result.data.model
-          : 'Ollama precisa ser iniciado';
+          ? (result.data.provider === 'openai-compatible' ? 'OpenAI ativa · ' : 'Ollama ativo · ') + result.data.model
+          : 'IA indisponível';
       })
       .catch(() => {
         const statusElement = $('#expressinhoStatus');
-        if (statusElement) statusElement.textContent = 'IA local indisponível · base inicial ativa';
+        if (statusElement) statusElement.textContent = 'Conexão indisponível';
       });
   }
 
