@@ -245,6 +245,33 @@
 }
 .product-card-details > summary:focus-visible { outline: 2px solid var(--brown); outline-offset: 2px; }
 
+.floating-whatsapp {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 8px);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--green-dark);
+  color: white;
+  box-shadow: 0 6px 16px rgb(28 73 47 / 20%);
+  pointer-events: auto;
+  font-size: 12px;
+  font-weight: 800;
+}
+.floating-whatsapp:hover { background: #10452a; }
+.floating-whatsapp svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+@media (max-width: 620px) {
+  body:has(.floating-whatsapp:not([hidden])) .toast { top: calc(12px + env(safe-area-inset-top)); bottom: auto; }
+}
+@media (max-width: 420px) {
+  body:has(.floating-whatsapp:not([hidden])) .back-to-top { bottom: calc(144px + env(safe-area-inset-bottom)); }
+}
+
 .made-to-order .product-main-photo,
 .made-to-order .weekly-deal-photo img { opacity: 0.68; }
 .preorder-badge {

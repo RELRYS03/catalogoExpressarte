@@ -7,7 +7,7 @@
   <meta name="description" content="Catálogo de produtos da Express'Arte – Personalizados 3D.">
   <title>Express'Arte | Catálogo de produtos</title>
   <link rel="icon" href="assets/expressarte-icon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="styles.css?v=vitrine-compacta">
+  <link rel="stylesheet" href="styles.css?v=pedido-whatsapp">
   <link rel="stylesheet" href="product-details.css">
   <link rel="stylesheet" href="expressinho.css?v=loja-publica">
   <link rel="stylesheet" href="promotion-themes.css?v=5">
@@ -31,11 +31,15 @@
   </header>
 
   <div class="floating-cart" id="floatingCart" aria-label="Carrinho flutuante">
+    <button class="floating-whatsapp" id="floatWhatsApp" type="button" aria-label="Enviar pedido pelo WhatsApp" hidden>
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.5 11.5a8.5 8.5 0 0 1-12.6 7.4L3 20l1.2-4.7A8.5 8.5 0 1 1 20.5 11.5Z"/><path d="M8.5 8.2c.4 2.6 2.7 4.3 5.3 5.3"/></svg>
+      <span>WhatsApp</span>
+    </button>
     <div class="cart-info">
       <span class="cart-count" id="floatCount">0</span>
       <span class="cart-total" id="floatTotal">R$ 0,00</span>
     </div>
-    <button class="cart-trigger" id="floatTrigger">
+    <button class="cart-trigger" id="floatTrigger" type="button" aria-label="Ver meu pedido">
       <svg viewBox="0 0 24 24"><path d="M5 7h14l1.2 13H3.8L5 7Z"/><path d="M8 8V6a4 4 0 0 1 8 0v2"/></svg>
     </button>
   </div>
@@ -200,7 +204,7 @@
   </a>
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
   <script src="config.js?v=endereco-loja"></script>
-  <script src="app.js?v=atendimento-loja"></script>
+  <script src="app.js?v=pedido-whatsapp"></script>
   <script src="product-details.js?v=encomendas"></script>
   <script src="expressinho.js?v=medidas-produtos"></script>
 </body>

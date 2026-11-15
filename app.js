@@ -16,6 +16,7 @@
   const orderSummaryCount = $('#orderSummaryCount');
   const floatCount = $('#floatCount');
   const floatTotal = $('#floatTotal');
+  const floatWhatsApp = $('#floatWhatsApp');
   const clearOrder = $('#clearOrder');
   const sendWhatsApp = $('#sendWhatsApp');
   const toast = $('#toast');
@@ -103,6 +104,7 @@
     orderTotal.textContent = money(total);
     clearOrder.disabled = entries.length === 0;
     sendWhatsApp.disabled = entries.length === 0;
+    floatWhatsApp.hidden = entries.length === 0;
     if (!entries.length) {
       orderItems.innerHTML = '<div class="order-empty">Seu pedido ainda está vazio.</div>';
       return;
@@ -438,7 +440,6 @@
           return;
         }
         addProduct(product.id, price, label);
-        goToOrder();
       });
       grid.append(card);
     }
@@ -499,7 +500,8 @@
   $('#openOrder').addEventListener('click', goToOrder);
   $('#floatTrigger').addEventListener('click', goToOrder);
   $('#menuOrder').addEventListener('click', () => { $('#mobileMenu').hidden = true; $('#menuToggle').setAttribute('aria-expanded', 'false'); goToOrder(); });
-  $('#sendWhatsApp').addEventListener('click', sendOrder);
+  sendWhatsApp.addEventListener('click', sendOrder);
+  floatWhatsApp.addEventListener('click', sendOrder);
   $('#clearOrder').addEventListener('click', () => { state.order.clear(); renderOrder(); notify('Seleção limpa.'); });
   $('#menuToggle').addEventListener('click', () => {
     const menu = $('#mobileMenu');
