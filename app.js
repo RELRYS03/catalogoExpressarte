@@ -235,6 +235,11 @@
     card.querySelector('.qty-plus').addEventListener('click', () => updateQuantity(card, state.quantities[id] + 1));
     card.querySelector('.add-order-button').addEventListener('click', () => addProduct(id));
   }
+  productGrid.addEventListener('catalog-details-order', event => {
+    const quantity = event.detail;
+    if (!Number.isInteger(quantity) || quantity < 1 || quantity > 999) return;
+    addProduct(event.target.dataset.productId, null, null, quantity);
+  });
   async function revealLinkedProduct() {
     const target = location.hash.slice(1);
     $('.imported-product-card.linked-product')?.classList.remove('linked-product');

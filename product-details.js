@@ -1,72 +1,138 @@
 (() => {
-'use strict';
-document.querySelectorAll(".product-card").forEach(card=>{
-const isReligious=card.dataset.productId==="religioso-001";
-const title=card.querySelector("h3").textContent.trim();
-const desc=card.querySelector(".product-description").textContent.trim();
-const price=card.querySelector(".price").textContent.trim();
-const originalImage=card.querySelector('.product-main-photo');
-const photoButtons=[...card.querySelectorAll('.photo-thumb')];
-const gallery=photoButtons.map(b=>({src:b.dataset.photo,alt:b.dataset.alt||'Produto Express’Arte'}));
-if(!gallery.length)gallery.push({src:originalImage.src,alt:originalImage.alt});
-const dialog=document.createElement('dialog');
-dialog.className='ea-details-dialog';
-const uid="ea-details-"+card.dataset.productId;
-dialog.setAttribute("aria-labelledby",uid);
-dialog.innerHTML=`<div class="ea-details-shell">
-<button type="button" class="ea-details-close" aria-label="Fechar detalhes">×</button>
-<div class="ea-details-visual"><img class="ea-details-image" alt=""><div class="ea-details-thumbnails" aria-label="Outras fotos"></div></div>
-<div class="ea-details-content"><span class="ea-details-eyebrow">EXPRESS’ARTE • ${card.dataset.category.toUpperCase()}</span>
-<h2 id="${uid}">${title}</h2>
-<p class="ea-details-description">${desc}</p>
-${isReligious ? '<p class="ea-details-spec"><strong>Tamanho:</strong> 13 cm (130 mm)</p>' : '<p class="ea-details-spec"><strong>Status:</strong> Produto em rascunho; informações a confirmar.</p>'}
-<p class="ea-details-note">${isReligious ? "Somente a peça impressa. Rosário, correntes e acessórios não inclusos." : "Consulte disponibilidade e especificações antes de fazer o pedido."}</p>
-<div class="ea-details-price">${price}</div>
-<label class="ea-details-qty-label" for="${uid}-qty">Quantidade</label><input id="${uid}-qty" class="ea-details-qty" type="number" min="1" max="999" value="1">
-<button type="button" class="ea-details-add">Adicionar ao pedido</button></div></div>`;
-document.body.appendChild(dialog);
-const main=dialog.querySelector('.ea-details-image');
-const thumbs=dialog.querySelector('.ea-details-thumbnails');
-function selectPhoto(index){
- const entry=gallery[index];main.src=entry.src;main.alt=entry.alt;
- [...thumbs.children].forEach((b,i)=>{b.classList.toggle('is-active',i===index);b.setAttribute('aria-pressed',String(i===index));});
-}
-gallery.forEach((photo,i)=>{const b=document.createElement('button');b.type='button';b.className='ea-details-thumb';b.setAttribute('aria-label','Ver foto '+(i+1));const img=document.createElement('img');img.src=photo.src;img.alt='';b.appendChild(img);b.addEventListener('click',()=>selectPhoto(i));thumbs.appendChild(b);});
-selectPhoto(0);
-let lastFocus=null;
-function openDetails(){
- lastFocus=document.activeElement;
- dialog.querySelector('h2').textContent=card.querySelector('h3').textContent;
- dialog.querySelector('.ea-details-add').textContent=card.classList.contains('made-to-order')?'Encomendar':'Adicionar ao pedido';
- dialog.querySelector('.ea-details-qty').value='1';
- dialog.querySelector('.ea-details-price').textContent=card.querySelector('.price').textContent;
- dialog.querySelector('.ea-details-eyebrow').textContent='EXPRESS’ARTE • '+card.dataset.category.toLocaleUpperCase('pt-BR');
- dialog.querySelector('.ea-details-description').textContent=card.querySelector('.product-description').textContent;
- photoButtons.forEach((b,i)=>{
-   gallery[i]={src:b.dataset.photo,alt:b.dataset.alt||'Produto Express’Arte'};
-   thumbs.children[i].querySelector('img').src=gallery[i].src;
- });
- selectPhoto(0);
- dialog.showModal();
-}
-function closeDetails(){dialog.close();if(lastFocus?.isConnected)lastFocus.focus();}
-dialog.querySelector('.ea-details-close').addEventListener('click',closeDetails);
-dialog.addEventListener('click',e=>{if(e.target===dialog)closeDetails();});
-const button=document.createElement('button');button.type='button';button.className='ea-details-view';button.textContent='Ver detalhes e fotos';
-card.querySelector('.product-info').insertBefore(button,card.querySelector('.product-info .quantity-row'));
-button.addEventListener('click',openDetails);
-originalImage.classList.add('ea-details-clickable');originalImage.tabIndex=0;originalImage.setAttribute('role','button');originalImage.setAttribute('aria-label','Ampliar fotos e ver detalhes');
-originalImage.addEventListener('click',openDetails);
-originalImage.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();openDetails();}});
-dialog.querySelector('.ea-details-add').addEventListener('click',()=>{
- const qty=Math.max(1,Math.min(999,Math.floor(Number(dialog.querySelector('.ea-details-qty').value)||1)));
- const current=Number(card.querySelector('.qty-value').textContent)||1;
- const plus=card.querySelector('.qty-plus'),minus=card.querySelector('.qty-minus');
- // Reaproveita o fluxo de pedidos existente, sem duplicar cálculos.
- for(let i=current;i<qty;i++)plus.click();
- for(let i=current;i>qty;i--)minus.click();
- card.querySelector('.add-order-button').click();
- closeDetails();
-});
-});
+  'use strict';
+
+  const grid = document.querySelector('#productGrid');
+  const dialog = document.createElement('dialog');
+  dialog.className = 'ea-details-dialog';
+  dialog.setAttribute('aria-labelledby', 'ea-details-title');
+  dialog.innerHTML = `<div class="ea-details-shell">
+    <button type="button" class="ea-details-close" aria-label="Fechar detalhes" autofocus>×</button>
+    <div class="ea-details-visual">
+      <img class="ea-details-image" alt="">
+      <div class="ea-details-image imported-placeholder" hidden>Imagem não disponível</div>
+      <div class="ea-details-thumbnails" aria-label="Outras fotos"></div>
+    </div>
+    <div class="ea-details-content">
+      <span class="ea-details-eyebrow"></span>
+      <h2 id="ea-details-title"></h2>
+      <div class="ea-details-description"></div>
+      <div class="ea-details-price"></div>
+      <form class="ea-details-order">
+        <label class="ea-details-qty-label" for="ea-details-qty">Quantidade</label>
+        <input id="ea-details-qty" class="ea-details-qty" type="number" min="1" max="999" value="1" required>
+        <button type="submit" class="ea-details-add">Adicionar ao pedido</button>
+      </form>
+    </div>
+  </div>`;
+  document.body.append(dialog);
+
+  const main = dialog.querySelector('img.ea-details-image');
+  const placeholder = dialog.querySelector('.imported-placeholder');
+  const thumbs = dialog.querySelector('.ea-details-thumbnails');
+  const description = dialog.querySelector('.ea-details-description');
+  const quantity = dialog.querySelector('.ea-details-qty');
+  let activeCard;
+
+  function openDetails(card) {
+    const cover = card.querySelector('img.product-main-photo');
+    const photoButtons = [...card.querySelectorAll('.photo-thumb[data-photo]')];
+    const photos = photoButtons.map(button => ({
+      src: button.dataset.photo,
+      alt: button.dataset.alt || cover?.alt || ''
+    }));
+    if (!photos.length && cover) photos.push({ src: cover.src, alt: cover.alt });
+
+    main.hidden = photos.length === 0;
+    placeholder.hidden = !main.hidden;
+    thumbs.hidden = photos.length < 2;
+    thumbs.replaceChildren();
+
+    function selectPhoto(index) {
+      main.src = photos[index].src;
+      main.alt = photos[index].alt;
+      [...thumbs.children].forEach((button, position) => {
+        button.classList.toggle('is-active', position === index);
+        button.setAttribute('aria-pressed', String(position === index));
+      });
+    }
+
+    photos.forEach((photo, index) => {
+      if (thumbs.hidden) return;
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'ea-details-thumb';
+      button.setAttribute('aria-label', 'Ver foto ' + (index + 1));
+      const image = document.createElement('img');
+      image.src = photo.src;
+      image.alt = '';
+      button.append(image);
+      button.addEventListener('click', () => selectPhoto(index));
+      thumbs.append(button);
+    });
+    if (photos.length) {
+      const selected = photoButtons.findIndex(button => button.classList.contains('active'));
+      selectPhoto(Math.max(0, selected));
+    } else {
+      main.removeAttribute('src');
+    }
+
+    const title = card.querySelector('h3').textContent;
+    dialog.querySelector('h2').textContent = title;
+    dialog.querySelector('.ea-details-price').textContent = card.querySelector('.price').textContent;
+    dialog.querySelector('.ea-details-eyebrow').textContent = 'EXPRESS’ARTE • ' + card.dataset.category.toLocaleUpperCase('pt-BR');
+    dialog.querySelector('.ea-details-add').textContent = card.classList.contains('made-to-order') ? 'Encomendar' : 'Adicionar ao pedido';
+    description.replaceChildren();
+    card.querySelectorAll('.catalog-product-details, .product-info > .product-description, .product-author, .product-footnote')
+      .forEach(detail => description.append(detail.cloneNode(true)));
+    quantity.value = '1';
+    activeCard = card;
+    dialog.showModal();
+  }
+
+  function enableDetails(card) {
+    if (!card.matches('.product-card')) return;
+    const photo = card.querySelector('.product-main-photo');
+    if (!photo || photo.classList.contains('ea-details-clickable')) return;
+    const title = card.querySelector('h3').textContent;
+    photo.classList.add('ea-details-clickable');
+    photo.tabIndex = 0;
+    photo.setAttribute('role', 'button');
+    photo.setAttribute('aria-label', 'Ver fotos e detalhes de ' + title);
+    photo.setAttribute('aria-haspopup', 'dialog');
+    photo.addEventListener('click', () => openDetails(card));
+    photo.addEventListener('keydown', event => {
+      if (event.key !== 'Enter' && event.key !== ' ') return;
+      event.preventDefault();
+      photo.click();
+    });
+    if (card.classList.contains('imported-product-card')) return;
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'ea-details-view';
+    button.textContent = 'Ver detalhes e fotos';
+    button.addEventListener('click', () => openDetails(card));
+    card.querySelector('.quantity-row').before(button);
+  }
+
+  dialog.querySelector('.ea-details-close').addEventListener('click', () => dialog.close());
+  dialog.addEventListener('click', event => {
+    if (event.target === dialog) dialog.close();
+  });
+  dialog.querySelector('form').addEventListener('submit', event => {
+    event.preventDefault();
+    activeCard.dispatchEvent(new CustomEvent('catalog-details-order', {
+      bubbles: true,
+      detail: quantity.valueAsNumber
+    }));
+    dialog.close();
+  });
+
+  [...grid.children].forEach(enableDetails);
+  new MutationObserver(records => {
+    for (const record of records) {
+      for (const node of record.addedNodes) {
+        if (node instanceof HTMLElement && node.parentElement === grid) enableDetails(node);
+      }
+    }
+  }).observe(grid, { childList: true });
 })();

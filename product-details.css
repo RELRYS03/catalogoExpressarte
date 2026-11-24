@@ -1,5 +1,5 @@
 
-/* Janela de detalhes da bandeja — isolada do Expressinho */
+/* Janela de detalhes dos produtos — isolada do Expressinho */
 .ea-details-view{border:1px solid #bc855e;border-radius:10px;background:#fff8ef;color:#643b25;padding:10px 16px;font-weight:800;margin:6px 0 12px;width:100%}
 .ea-details-view:hover{background:#f4e5d1}
 .ea-details-clickable{cursor:zoom-in}
@@ -19,6 +19,9 @@
 .ea-details-description,.ea-details-spec,.ea-details-note{font-size:14px;line-height:1.55;color:#674b3a}
 .ea-details-note{font-size:12px}
 .ea-details-price{font-size:31px;font-weight:800;color:#925127;margin:10px 0}
+.ea-details-order{width:100%}
+.ea-details-order .ea-details-qty{display:block}
+.ea-details-description .product-description{font:inherit;color:inherit}
 .ea-details-qty-label{font-weight:700;font-size:13px}
 .ea-details-qty{width:95px;padding:9px;margin:7px 0 16px;border:1px solid #d5b394;border-radius:8px}
 .ea-details-add{width:100%;padding:14px;border:0;border-radius:12px;background:#4a2b1c;color:#fffaf4;font-weight:800}
